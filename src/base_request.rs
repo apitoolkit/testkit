@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Request {
+pub struct RequestConfig {
     pub url: String,
     pub method: String,
     pub headers: Option<Vec<Header>>,
@@ -16,12 +16,14 @@ pub struct Header {
 }
 
 #[derive(Debug)]
-pub struct RequestResponse{
+pub struct RequestResult {
     pub status_code: u16,
     pub body: String,
 }
 
-pub async fn BaseRequest(test: &Request) -> Result<RequestResponse, Box<dyn std::error::Error>> {
+pub async fn base_request(
+    test: &RequestConfig,
+) -> Result<RequestResult, Box<dyn std::error::Error>> {
     let client = Client::new();
 
     let request_builder = match test.method.as_str() {
@@ -32,9 +34,10 @@ pub async fn BaseRequest(test: &Request) -> Result<RequestResponse, Box<dyn std:
         _ => panic!("Unsupported HTTP method"),
     };
 
-    let request_builder = if let Some(headers) = &test.headers {
+    let mut request_builder = if let Some(headers) = &test.headers {
+        let mut request_builder = request_builder;
         for header in headers {
-            request_builder.header(&header.name, &header.value);
+            request_builder = request_builder.header(&header.name, &header.value);
         }
         request_builder
     } else {
@@ -45,8 +48,5 @@ pub async fn BaseRequest(test: &Request) -> Result<RequestResponse, Box<dyn std:
     let status_code = response.status().as_u16();
     let body = response.text().await?;
 
-    Ok(RequestResponse {
-        status_code,
-        body,
-    })
+    Ok(RequestResult { status_code, body })
 }

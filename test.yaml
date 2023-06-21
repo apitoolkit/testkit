@@ -1,7 +1,7 @@
-- url: https://api.example.com/endpoint1
+- url: https://jsonplaceholder.typicode.com/posts
   method: GET
 
-- url: https://api.example.com/endpoint2
+- url: https://jsonplaceholder.typicode.com/posts
   method: POST
   headers:
     - name: Content-Type
