@@ -10,7 +10,7 @@ pub struct Header {
     pub value: String,
 }
 
-// parse yaml file 
+// parse yaml file
 pub fn parse_yaml_file<P: AsRef<Path>>(
     file_path: P,
 ) -> Result<Vec<RequestConfig>, Box<dyn std::error::Error>> {
