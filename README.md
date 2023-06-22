@@ -5,5 +5,7 @@
 # How to run 
 
 ```rs
-cargo run -- --file ./test.yaml
+RUST_LOG=debug cargo run -- --file ./test.yaml
 ```
+
+

@@ -1,4 +1,4 @@
-pub use crate::base_request::RequestConfig;
+pub use crate::base_request::ApiPlan;
 use serde::{Deserialize, Serialize};
 use serde_yaml;
 use std::fs;
@@ -13,8 +13,8 @@ pub struct Header {
 // parse yaml file
 pub fn parse_yaml_file<P: AsRef<Path>>(
     file_path: P,
-) -> Result<Vec<RequestConfig>, Box<dyn std::error::Error>> {
+) -> Result<Vec<ApiPlan>, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(file_path)?;
-    let request_configs: Vec<RequestConfig> = serde_yaml::from_str(&content)?;
+    let request_configs: Vec<ApiPlan> = serde_yaml::from_str(&content)?;
     Ok(request_configs)
 }

@@ -1,9 +1,13 @@
-- url: https://jsonplaceholder.typicode.com/posts
-  method: GET
+---
+- name: Tetsing out random test
+  request:
+    url: https://jsonplaceholder.typicode.com/posts
+    method: GET
+    headers:
+      Content-Type: application/json
+  response:
+    status_code: 200
 
-- url: https://jsonplaceholder.typicode.com/posts
-  method: POST
-  headers:
-    - name: Content-Type
-      value: application/json
-  body: '{"key": "value"}'
+
+
+

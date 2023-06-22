@@ -1,14 +1,18 @@
 mod base_cli;
-mod base_request;
 mod parser_yaml;
+mod base_request;
 
 use base_cli::BaseCli;
-use base_request::base_request;
+use base_request::{base_request};
 #[tokio::main]
 
 async fn main() {
     let base_cli = BaseCli::parse();
 
+    env_logger::init();
+
+    
+    
     let parser = match parser_yaml::parse_yaml_file(&base_cli.file) {
         Ok(request_configs) => request_configs,
         Err(err) => {
@@ -16,17 +20,9 @@ async fn main() {
             return;
         }
     };
-
-    for test in parser {
+    
+for test in parser {
         let result = base_request(&test).await;
-
-        match result {
-            Ok(test_result) => {
-                println!("Test passed: {:?}", test_result);
-            }
-            Err(err) => {
-                eprintln!("Test failed: {}", err);
-            }
-        }
+        log::debug!("Test passed: {:?}", result);
     }
 }
