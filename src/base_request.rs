@@ -2,7 +2,7 @@ use jsonpath_lib::select;
 use std::collections::HashMap;
 
 use log;
-use reqwest::{Client, Response, ClientBuilder};
+use reqwest::{Client, ClientBuilder, Response};
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -81,7 +81,9 @@ pub async fn base_request(
     log::info!("Executing Test: {}", stage.name);
     println!("================================================================================================================");
 
-    let client = reqwest::Client::builder().connection_verbose(true).build()?;
+    let client = reqwest::Client::builder()
+        .connection_verbose(true)
+        .build()?;
     // let client = ClientBuilder::connection_verbose(true).build()?;
     let mut results = Vec::new();
 
@@ -206,12 +208,12 @@ fn find_operator(input: &str) -> Option<(&str, usize)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use claim::*;
     use httpmock::prelude::*;
     use serde_json::json;
-    use claim ::*;
 
     #[tokio::test]
-    async fn test_kitchen_sink(){
+    async fn test_kitchen_sink() {
         env_logger::init();
         let server = MockServer::start();
         let m = server.mock(|when, then| {
@@ -222,33 +224,29 @@ mod tests {
                 // .body_contains("number")
                 // .body_matches(Regex::new(r#"(\d+)"#).unwrap())
                 .json_body(json!({ "number": 5 }));
-            then.status(201)
-                .json_body(json!({ "number": 5 }));
-        });   
+            then.status(201).json_body(json!({ "number": 5 }));
+        });
 
         log::debug!("{}", server.url("/todos"));
 
-        let stage = TestPlan{
+        let stage = TestPlan {
             name: String::from("stage1"),
-            stages: vec![
-                TestStage{
-                    name:String::from("test_stage"),
-                    request: RequestConfig { 
-                        http_method: HttpMethod::POST(server.url("/todos")), 
-                        headers: Some(HashMap::from([
-                            (String::from("Content-Type"), String::from("application/json")),
-                        ])),
-                        json: Some(json!({ "number": 5 })),
-                    },
-                    asserts: vec![
-                        Assert{
-                            is_true: Some(String::from("$.resp.body.number == 5")),
-                            ..Default::default()
-                        }
-                    ],
-                    outputs: None,
-                }
-            ],
+            stages: vec![TestStage {
+                name: String::from("test_stage"),
+                request: RequestConfig {
+                    http_method: HttpMethod::POST(server.url("/todos")),
+                    headers: Some(HashMap::from([(
+                        String::from("Content-Type"),
+                        String::from("application/json"),
+                    )])),
+                    json: Some(json!({ "number": 5 })),
+                },
+                asserts: vec![Assert {
+                    is_true: Some(String::from("$.resp.body.number == 5")),
+                    ..Default::default()
+                }],
+                outputs: None,
+            }],
         };
         let resp = base_request(&stage).await;
         m.assert();

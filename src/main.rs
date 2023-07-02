@@ -1,15 +1,14 @@
 mod base_cli;
 mod base_request;
-use std::fs;
 use base_cli::BaseCli;
 use base_request::base_request;
+use std::fs;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
     setup().await.unwrap()
 }
-
 
 async fn setup() -> Result<(), anyhow::Error> {
     let base_cli = BaseCli::parse();
