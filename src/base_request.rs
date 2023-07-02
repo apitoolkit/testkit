@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use jsonpath_lib::select;
+use std::collections::HashMap;
 
 use log;
-use reqwest::{Client,Response};
+use reqwest::{Client, Response};
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -69,13 +69,14 @@ pub struct Outputs {
     pub todo_item: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ResponseAssertion{
+pub struct ResponseAssertion {
     status: u16,
     body: Option<Value>,
-
 }
 
-pub async fn base_request(stage: &TestPlan) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
+pub async fn base_request(
+    stage: &TestPlan,
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     println!("================================================================================================================");
     log::info!("Executing Test: {}", stage.name);
     println!("================================================================================================================");
@@ -102,12 +103,12 @@ pub async fn base_request(stage: &TestPlan) -> Result<Vec<RequestResult>, Box<dy
         }
 
         let response = request_builder.send().await?;
-        
+
         let assert_results = check_assertions(&stage.asserts, response).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
-       
+
         results.push(RequestResult {
             stage_name: stage.name.clone(),
             assert_results: assert_results,
@@ -116,33 +117,31 @@ pub async fn base_request(stage: &TestPlan) -> Result<Vec<RequestResult>, Box<dy
     // println!("{:?}", results);
     println!("================================================================================================================");
     Ok(results)
-    
-
 }
 
-
-
-async fn check_assertions(asserts: &[Assert], response: Response) -> Result<Vec<bool>, Box<dyn std::error::Error>> {
+async fn check_assertions(
+    asserts: &[Assert],
+    response: Response,
+) -> Result<Vec<bool>, Box<dyn std::error::Error>> {
     let status_code = response.status().as_u16();
-    let  body =  response.json().await?;
-    let jjj = ResponseAssertion{
+    let body = response.json().await?;
+    let jjj = ResponseAssertion {
         status: status_code,
-        body
+        body,
     };
-    
+
     let json_body: Value = serde_json::json!(&jjj);
     let mut assert_results = Vec::new();
 
-    
     for assertion in asserts {
         if let Some(expr) = &assertion.is_true {
             if let Some((operator, index)) = find_operator(&expr) {
                 // Extract the value before the operator
                 let value = &expr[..index].trim();
-                
+
                 let selected_values = select(&json_body, &value).unwrap();
                 let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
-                let res=expr.replace(value, &values[0]);
+                let res = expr.replace(value, &values[0]);
                 let result = parse_expression(&res).unwrap();
                 assert_results.push(result);
                 println!("is_True: {:?}", result);
@@ -150,17 +149,16 @@ async fn check_assertions(asserts: &[Assert], response: Response) -> Result<Vec<
                 let result = parse_expression(&expr).unwrap();
                 assert_results.push(result);
             }
-            
         }
 
         if let Some(expr) = &assertion.is_false {
             if let Some((operator, index)) = find_operator(&expr) {
                 // Extract the value before the operator
                 let value = &expr[..index].trim();
-                
+
                 let selected_values = select(&json_body, &value).unwrap();
                 let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
-                let res=expr.replace(value, &values[0]);
+                let res = expr.replace(value, &values[0]);
                 let result = parse_expression(&res).unwrap();
                 assert_results.push(result);
                 println!("is_False: {:?}", result);
@@ -172,20 +170,17 @@ async fn check_assertions(asserts: &[Assert], response: Response) -> Result<Vec<
         }
 
         if let Some(condition) = &assertion.is_empty {
-              if condition.is_empty(){
-                 assert_results.push(true);
-                 println!("is_Empty: {:?}",true);
-              }else {
+            if condition.is_empty() {
+                assert_results.push(true);
+                println!("is_Empty: {:?}", true);
+            } else {
                 assert_results.push(false);
-                println!("is_Empty: {:?}",false);
-
-              }
+                println!("is_Empty: {:?}", false);
+            }
         }
     }
     Ok(assert_results)
-
 }
-
 
 fn parse_expression(expr: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let engine = Engine::new();
@@ -195,17 +190,14 @@ fn parse_expression(expr: &str) -> Result<bool, Box<dyn std::error::Error>> {
     Ok(result)
 }
 
-
-
-
 fn find_operator(input: &str) -> Option<(&str, usize)> {
     let operators = &["==", "!=", "<", ">", ">=", "<="];
-  
+
     for operator in operators {
         if let Some(index) = input.find(operator) {
             return Some((operator, index));
         }
     }
-  
+
     None
-  }
+}

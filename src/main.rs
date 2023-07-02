@@ -20,11 +20,11 @@ async fn main() {
     };
     for test in parser {
         let result = base_request(&test).await;
-        match result{
-            Ok(res) =>{
+        match result {
+            Ok(res) => {
                 log::debug!("Test passed: {:?}", res);
-            },
-            Err(err)=>{
+            }
+            Err(err) => {
                 println!("{}", err)
             }
         }
