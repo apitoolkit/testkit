@@ -17,4 +17,8 @@ rusty-hook = "0.11.2"
 clippy = "0.0.302"
 env_logger = "0.10.0"
 log = "0.4.19"
+rhai = "1.15.0"
+jsonpath_lib = "0.3.0"
+jsonpath = "0.1.1"
+regex = "1.8.4"
 

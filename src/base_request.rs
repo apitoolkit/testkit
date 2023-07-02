@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use jsonpath_lib::select;
 
 use log;
-use reqwest::{Client, Method, Response};
+use reqwest::{Client,Response};
+use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestPlan {
     pub name: String,
@@ -15,7 +16,7 @@ pub struct TestStage {
     name: String,
     request: RequestConfig,
     asserts: Vec<Assert>,
-    // outputs: Option<RequestResult>,
+    outputs: Option<Outputs>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -58,18 +59,29 @@ pub enum HttpMethod {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestResult {
-    status_code: u16,
-    headers: Option<HashMap<String, String>>,
+    pub stage_name: String,
+    pub assert_results: Vec<bool>,
 }
 
-pub async fn base_request(stage: &TestPlan) -> Result<(), Box<dyn std::error::Error>> {
-    println!("================================================================================================================");
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Outputs {
+    #[serde(rename = "todoItem")]
+    pub todo_item: Option<String>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResponseAssertion{
+    status: u16,
+    body: Option<Value>,
 
+}
+
+pub async fn base_request(stage: &TestPlan) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
+    println!("================================================================================================================");
     log::info!("Executing Test: {}", stage.name);
     println!("================================================================================================================");
 
     let client = Client::new();
-    //  let mut results: Vec<_> = Vec::new();
+    let mut results = Vec::new();
 
     for stage in &stage.stages {
         log::info!("Executing stage: {}", stage.name);
@@ -90,31 +102,110 @@ pub async fn base_request(stage: &TestPlan) -> Result<(), Box<dyn std::error::Er
         }
 
         let response = request_builder.send().await?;
-        let status_code = response.status().as_u16();
-        let body = response.text().await?;
-        let response_json: Value = serde_json::from_str(&body)?;
-
-        // let assert_result = check_assertion(&stage.asserts, response_json);
-        // println!("{:?}\n",response_json)
+        
+        let assert_results = check_assertions(&stage.asserts, response).await?;
+        // if let Some(outputs) = &stage.outputs {
+        //     update_outputs(outputs, &response_json);
+        // }
+       
+        results.push(RequestResult {
+            stage_name: stage.name.clone(),
+            assert_results: assert_results,
+        });
     }
+    // println!("{:?}", results);
     println!("================================================================================================================");
-    Ok(())
+    Ok(results)
+    
+
 }
 
-// pub fn check_assertion(asserts: &[Assert], response: Value)  {
-   
+
+
+async fn check_assertions(asserts: &[Assert], response: Response) -> Result<Vec<bool>, Box<dyn std::error::Error>> {
+    let status_code = response.status().as_u16();
+    let  body =  response.json().await?;
+    let jjj = ResponseAssertion{
+        status: status_code,
+        body
+    };
+    
+    let json_body: Value = serde_json::json!(&jjj);
+    let mut assert_results = Vec::new();
 
     
-//     for assert in asserts{
-//         if let Some(expr) = &assert.is_true {
-//             // println!("{:?}",expr);
-//             let result = parse_expression(expr, &response.);
-//             println!("{:?}",result)
-//             // assert_results.push(result);
-//         }    
-    
+    for assertion in asserts {
+        if let Some(expr) = &assertion.is_true {
+            if let Some((operator, index)) = find_operator(&expr) {
+                // Extract the value before the operator
+                let value = &expr[..index].trim();
+                
+                let selected_values = select(&json_body, &value).unwrap();
+                let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
+                let res=expr.replace(value, &values[0]);
+                let result = parse_expression(&res).unwrap();
+                assert_results.push(result);
+                println!("is_True: {:?}", result);
+            } else {
+                let result = parse_expression(&expr).unwrap();
+                assert_results.push(result);
+            }
+            
+        }
 
-//     }
+        if let Some(expr) = &assertion.is_false {
+            if let Some((operator, index)) = find_operator(&expr) {
+                // Extract the value before the operator
+                let value = &expr[..index].trim();
+                
+                let selected_values = select(&json_body, &value).unwrap();
+                let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
+                let res=expr.replace(value, &values[0]);
+                let result = parse_expression(&res).unwrap();
+                assert_results.push(result);
+                println!("is_False: {:?}", result);
+            } else {
+                let result = parse_expression(&expr).unwrap();
+                println!("is_False: {:?}", result);
+                assert_results.push(result);
+            }
+        }
 
-// }
+        if let Some(condition) = &assertion.is_empty {
+              if condition.is_empty(){
+                 assert_results.push(true);
+                 println!("is_Empty: {:?}",true);
+              }else {
+                assert_results.push(false);
+                println!("is_Empty: {:?}",false);
 
+              }
+        }
+    }
+    Ok(assert_results)
+
+}
+
+
+fn parse_expression(expr: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let engine = Engine::new();
+
+    let result = engine.eval_expression::<bool>(expr)?;
+
+    Ok(result)
+}
+
+
+
+
+fn find_operator(input: &str) -> Option<(&str, usize)> {
+    let operators = &["==", "!=", "<", ">", ">=", "<="];
+  
+    for operator in operators {
+        if let Some(index) = input.find(operator) {
+            return Some((operator, index));
+        }
+    }
+  
+    None
+  }
