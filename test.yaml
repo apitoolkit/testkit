@@ -4,8 +4,6 @@
     - name: fetches TODO items - GET
       request:
         GET: http://localhost:3000/todos
-        headers:
-            Content-Type: application/json
       asserts:
         - is_true: $.status == 200
       outputs:

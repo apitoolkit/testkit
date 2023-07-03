@@ -15,7 +15,7 @@ pub struct TestPlan {
 pub struct TestStage {
     name: String,
     request: RequestConfig,
-    asserts: Vec<Assert>,
+    asserts: Option<Vec<Assert>>,
     outputs: Option<Outputs>,
 }
 
@@ -103,8 +103,8 @@ pub async fn base_request(
         }
 
         let response = request_builder.send().await?;
+        let assert_results: Vec<bool> = check_assertions(stage.asserts.as_deref(), response).await?;
 
-        let assert_results = check_assertions(&stage.asserts, response).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
@@ -120,18 +120,19 @@ pub async fn base_request(
 }
 
 async fn check_assertions(
-    asserts: &[Assert],
+    asserts: Option<&[Assert]>,
     response: Response,
 ) -> Result<Vec<bool>, Box<dyn std::error::Error>> {
     let status_code = response.status().as_u16();
     let body = response.json().await?;
-    let jjj = ResponseAssertion {
+    let response = ResponseAssertion {
         status: status_code,
         body,
     };
 
-    let json_body: Value = serde_json::json!(&jjj);
+    let json_body: Value = serde_json::json!(&response);
     let mut assert_results = Vec::new();
+    if let Some(asserts) = asserts {
 
     for assertion in asserts {
         if let Some(expr) = &assertion.is_true {
@@ -179,6 +180,7 @@ async fn check_assertions(
             }
         }
     }
+}
     Ok(assert_results)
 }
 
