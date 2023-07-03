@@ -103,7 +103,8 @@ pub async fn base_request(
         }
 
         let response = request_builder.send().await?;
-        let assert_results: Vec<bool> = check_assertions(stage.asserts.as_deref(), response).await?;
+        let assert_results: Vec<bool> =
+            check_assertions(stage.asserts.as_deref(), response).await?;
 
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
@@ -133,54 +134,55 @@ async fn check_assertions(
     let json_body: Value = serde_json::json!(&response);
     let mut assert_results = Vec::new();
     if let Some(asserts) = asserts {
+        for assertion in asserts {
+            if let Some(expr) = &assertion.is_true {
+                if let Some((operator, index)) = find_operator(&expr) {
+                    // Extract the value before the operator
+                    let value = &expr[..index].trim();
 
-    for assertion in asserts {
-        if let Some(expr) = &assertion.is_true {
-            if let Some((operator, index)) = find_operator(&expr) {
-                // Extract the value before the operator
-                let value = &expr[..index].trim();
-
-                let selected_values = select(&json_body, &value).unwrap();
-                let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
-                let res = expr.replace(value, &values[0]);
-                let result = parse_expression(&res).unwrap();
-                assert_results.push(result);
-                println!("is_True: {:?}", result);
-            } else {
-                let result = parse_expression(&expr).unwrap();
-                assert_results.push(result);
+                    let selected_values = select(&json_body, &value).unwrap();
+                    let values: Vec<String> =
+                        selected_values.iter().map(|v| v.to_string()).collect();
+                    let res = expr.replace(value, &values[0]);
+                    let result = parse_expression(&res).unwrap();
+                    assert_results.push(result);
+                    println!("is_True: {:?}", result);
+                } else {
+                    let result = parse_expression(&expr).unwrap();
+                    assert_results.push(result);
+                }
             }
-        }
 
-        if let Some(expr) = &assertion.is_false {
-            if let Some((operator, index)) = find_operator(&expr) {
-                // Extract the value before the operator
-                let value = &expr[..index].trim();
+            if let Some(expr) = &assertion.is_false {
+                if let Some((operator, index)) = find_operator(&expr) {
+                    // Extract the value before the operator
+                    let value = &expr[..index].trim();
 
-                let selected_values = select(&json_body, &value).unwrap();
-                let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
-                let res = expr.replace(value, &values[0]);
-                let result = parse_expression(&res).unwrap();
-                assert_results.push(result);
-                println!("is_False: {:?}", result);
-            } else {
-                let result = parse_expression(&expr).unwrap();
-                println!("is_False: {:?}", result);
-                assert_results.push(result);
+                    let selected_values = select(&json_body, &value).unwrap();
+                    let values: Vec<String> =
+                        selected_values.iter().map(|v| v.to_string()).collect();
+                    let res = expr.replace(value, &values[0]);
+                    let result = parse_expression(&res).unwrap();
+                    assert_results.push(result);
+                    println!("is_False: {:?}", result);
+                } else {
+                    let result = parse_expression(&expr).unwrap();
+                    println!("is_False: {:?}", result);
+                    assert_results.push(result);
+                }
             }
-        }
 
-        if let Some(condition) = &assertion.is_empty {
-            if condition.is_empty() {
-                assert_results.push(true);
-                println!("is_Empty: {:?}", true);
-            } else {
-                assert_results.push(false);
-                println!("is_Empty: {:?}", false);
+            if let Some(condition) = &assertion.is_empty {
+                if condition.is_empty() {
+                    assert_results.push(true);
+                    println!("is_Empty: {:?}", true);
+                } else {
+                    assert_results.push(false);
+                    println!("is_Empty: {:?}", false);
+                }
             }
         }
     }
-}
     Ok(assert_results)
 }
 
