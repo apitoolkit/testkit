@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use log;
 use reqwest::{Client, ClientBuilder, Response};
-use rhai::Engine;
+use rhai::{Scope, Engine};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,18 +19,18 @@ pub struct TestStage {
     outputs: Option<Outputs>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Assert {
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Assert {
     #[serde(rename = "is_true")]
-    pub is_true: Option<String>,
+    IsTrue(String),
     #[serde(rename = "is_false")]
-    pub is_false: Option<String>,
+    IsFalse(String),
     #[serde(rename = "is_array")]
-    pub is_array: Option<String>,
+    IsArray(String),
     #[serde(rename = "is_empty")]
-    pub is_empty: Option<String>,
+    IsEmpty(String),
     #[serde(rename = "is_string")]
-    pub is_string: Option<String>,
+    IsString(String),
     // Add other assertion types as needed
 }
 
@@ -70,8 +70,13 @@ pub struct Outputs {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseAssertion {
+    resp: ResponseObject,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResponseObject {
     status: u16,
-    body: Option<Value>,
+        headers: Value,
+        body: Value,       
 }
 
 pub async fn base_request(
@@ -122,87 +127,64 @@ pub async fn base_request(
     Ok(results)
 }
 
+// Naive implementation that might not work for all jsonpaths and might need to be changed. 
+// Should add tests to check which jsonpaths would not be supported
+fn find_all_jsonpaths<'a>(input:&'a String) -> Vec<&'a str> {
+    input.split_whitespace().filter(|x|x.starts_with("$")).collect()
+}
+
+// 1. First we extract a list of jsonpaths
+// 2. Build a json with all the fields which can be referenced via jsonpath 
+// 3. Apply the jsonpaths over this json and save their values to a map 
+// 4. replace the jsonpaths with that value in the original expr string 
+// 5. Evaluate the expression with the expressions library.
+// TODO: decide on both error handling and the reporting approach
+fn evaluate_expressions<'a, T:Clone + 'static>(expr: &String, object: &'a Value) ->  T {
+    let paths = find_all_jsonpaths(&expr);
+    let mut expr = expr.clone();
+
+    for path in paths {
+        if let Some(selected_value) = select(&object, &path).unwrap().first() {
+            expr = expr.replace(path, &selected_value.to_string());
+        }
+    }
+    log::debug!(target: "api_workflows", "normalized pre-evaluation assert expression: {:?}", &expr);
+    parse_expression::<T>(&expr).unwrap()
+}
+
 async fn check_assertions(
     asserts: &[Assert],
     response: Response,
 ) -> Result<Vec<bool>, Box<dyn std::error::Error>> {
     let status_code = response.status().as_u16();
     let body = response.json().await?;
-    let jjj = ResponseAssertion {
-        status: status_code,
-        body,
+    // let headers_json = format!("{:?}", response.headers()).into();
+    let assert_object = ResponseAssertion {
+        resp: ResponseObject { status: status_code, headers: Value::Null, body }
     };
 
-    let json_body: Value = serde_json::json!(&jjj);
-    let mut assert_results = Vec::new();
+    let json_body: Value = serde_json::json!(&assert_object);
+    let mut assert_results:Vec<bool> = Vec::new();
 
     for assertion in asserts {
-        if let Some(expr) = &assertion.is_true {
-            if let Some((operator, index)) = find_operator(&expr) {
-                // Extract the value before the operator
-                let value = &expr[..index].trim();
-
-                let selected_values = select(&json_body, &value).unwrap();
-                let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
-                let res = expr.replace(value, &values[0]);
-                let result = parse_expression(&res).unwrap();
-                assert_results.push(result);
-                println!("is_True: {:?}", result);
-            } else {
-                let result = parse_expression(&expr).unwrap();
-                assert_results.push(result);
-            }
-        }
-
-        if let Some(expr) = &assertion.is_false {
-            if let Some((operator, index)) = find_operator(&expr) {
-                // Extract the value before the operator
-                let value = &expr[..index].trim();
-
-                let selected_values = select(&json_body, &value).unwrap();
-                let values: Vec<String> = selected_values.iter().map(|v| v.to_string()).collect();
-                let res = expr.replace(value, &values[0]);
-                let result = parse_expression(&res).unwrap();
-                assert_results.push(result);
-                println!("is_False: {:?}", result);
-            } else {
-                let result = parse_expression(&expr).unwrap();
-                println!("is_False: {:?}", result);
-                assert_results.push(result);
-            }
-        }
-
-        if let Some(condition) = &assertion.is_empty {
-            if condition.is_empty() {
-                assert_results.push(true);
-                println!("is_Empty: {:?}", true);
-            } else {
-                assert_results.push(false);
-                println!("is_Empty: {:?}", false);
-            }
-        }
+        let eval_result = match assertion {
+            Assert::IsTrue(expr) => evaluate_expressions::<bool>(expr, &json_body) == true, 
+            Assert::IsFalse(expr) => evaluate_expressions::<bool>(expr, &json_body) == false,
+            Assert::IsArray(_expr) => todo!(),
+            Assert::IsEmpty(_expr) => todo!(),
+            Assert::IsString(_expr) => todo!(),
+        };
+        assert_results.push(eval_result);
     }
     Ok(assert_results)
 }
 
-fn parse_expression(expr: &str) -> Result<bool, Box<dyn std::error::Error>> {
+// parse_expression would take a normalized math-like expression and evaluate it to a premitive or simpler
+// value. Eg `5 + 5` becomes `10`
+fn parse_expression<T: Clone + 'static>(expr: &str) -> Result<T, Box<dyn std::error::Error>> {
     let engine = Engine::new();
-
-    let result = engine.eval_expression::<bool>(expr)?;
-
+    let result = engine.eval_expression::<T>(expr)?;
     Ok(result)
-}
-
-fn find_operator(input: &str) -> Option<(&str, usize)> {
-    let operators = &["==", "!=", "<", ">", ">=", "<="];
-
-    for operator in operators {
-        if let Some(index) = input.find(operator) {
-            return Some((operator, index));
-        }
-    }
-
-    None
 }
 
 #[cfg(test)]
@@ -241,10 +223,11 @@ mod tests {
                     )])),
                     json: Some(json!({ "number": 5 })),
                 },
-                asserts: vec![Assert {
-                    is_true: Some(String::from("$.resp.body.number == 5")),
-                    ..Default::default()
-                }],
+                asserts: vec![
+                    Assert::IsTrue(String::from("$.resp.body.number == 5")),
+                    Assert::IsTrue(String::from("$.resp.status == 201")),
+                    Assert::IsFalse(String::from("$.resp.body.number != 5")),
+                ],
                 outputs: None,
             }],
         };
