@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use log;
 use reqwest::{Client, ClientBuilder, Response};
-use rhai::{Scope, Engine};
+use rhai::{Engine, Scope};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,8 +75,8 @@ pub struct ResponseAssertion {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseObject {
     status: u16,
-        headers: Value,
-        body: Value,       
+    headers: Value,
+    body: Value,
 }
 
 pub async fn base_request(
@@ -127,19 +127,22 @@ pub async fn base_request(
     Ok(results)
 }
 
-// Naive implementation that might not work for all jsonpaths and might need to be changed. 
+// Naive implementation that might not work for all jsonpaths and might need to be changed.
 // Should add tests to check which jsonpaths would not be supported
-fn find_all_jsonpaths<'a>(input:&'a String) -> Vec<&'a str> {
-    input.split_whitespace().filter(|x|x.starts_with("$")).collect()
+fn find_all_jsonpaths<'a>(input: &'a String) -> Vec<&'a str> {
+    input
+        .split_whitespace()
+        .filter(|x| x.starts_with("$"))
+        .collect()
 }
 
 // 1. First we extract a list of jsonpaths
-// 2. Build a json with all the fields which can be referenced via jsonpath 
-// 3. Apply the jsonpaths over this json and save their values to a map 
-// 4. replace the jsonpaths with that value in the original expr string 
+// 2. Build a json with all the fields which can be referenced via jsonpath
+// 3. Apply the jsonpaths over this json and save their values to a map
+// 4. replace the jsonpaths with that value in the original expr string
 // 5. Evaluate the expression with the expressions library.
 // TODO: decide on both error handling and the reporting approach
-fn evaluate_expressions<'a, T:Clone + 'static>(expr: &String, object: &'a Value) ->  T {
+fn evaluate_expressions<'a, T: Clone + 'static>(expr: &String, object: &'a Value) -> T {
     let paths = find_all_jsonpaths(&expr);
     let mut expr = expr.clone();
 
@@ -160,15 +163,19 @@ async fn check_assertions(
     let body = response.json().await?;
     // let headers_json = format!("{:?}", response.headers()).into();
     let assert_object = ResponseAssertion {
-        resp: ResponseObject { status: status_code, headers: Value::Null, body }
+        resp: ResponseObject {
+            status: status_code,
+            headers: Value::Null,
+            body,
+        },
     };
 
     let json_body: Value = serde_json::json!(&assert_object);
-    let mut assert_results:Vec<bool> = Vec::new();
+    let mut assert_results: Vec<bool> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
-            Assert::IsTrue(expr) => evaluate_expressions::<bool>(expr, &json_body) == true, 
+            Assert::IsTrue(expr) => evaluate_expressions::<bool>(expr, &json_body) == true,
             Assert::IsFalse(expr) => evaluate_expressions::<bool>(expr, &json_body) == false,
             Assert::IsArray(_expr) => todo!(),
             Assert::IsEmpty(_expr) => todo!(),
