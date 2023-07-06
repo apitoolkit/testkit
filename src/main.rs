@@ -1,32 +1,31 @@
 mod base_cli;
 mod base_request;
-mod parser_yaml;
-
 use base_cli::BaseCli;
 use base_request::base_request;
+use std::fs;
+
 #[tokio::main]
-
 async fn main() {
-    let base_cli = BaseCli::parse();
-
     env_logger::init();
+    setup().await.unwrap()
+}
 
-    let parser = match parser_yaml::parse_yaml_file(&base_cli.file) {
-        Ok(request_configs) => request_configs,
-        Err(err) => {
-            eprintln!("Failed to parse YAML file: {}", err);
-            return;
-        }
-    };
-    for test in parser {
+async fn setup() -> Result<(), anyhow::Error> {
+    let base_cli = BaseCli::parse();
+    let content = fs::read_to_string(base_cli.file)?;
+    let test_plans: Vec<base_request::TestPlan> = serde_yaml::from_str(&content)?;
+
+    for test in test_plans {
         let result = base_request(&test).await;
         match result {
             Ok(res) => {
                 log::debug!("Test passed: {:?}", res);
             }
             Err(err) => {
-                println!("{}", err)
+                log::error!("{}", err)
             }
         }
     }
+
+    Ok(())
 }
