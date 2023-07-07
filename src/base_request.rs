@@ -1,11 +1,14 @@
 use jsonpath_lib::select;
 use std::collections::HashMap;
+use miette::{Diagnostic, NamedSource, SourceSpan, GraphicalReportHandler, GraphicalTheme,Report };
+use thiserror::Error;
 
 use log;
 use reqwest::{Client, ClientBuilder, Response};
 use rhai::{Engine, Scope};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestPlan {
     pub name: String,
@@ -57,10 +60,10 @@ pub enum HttpMethod {
     PUT(String), // Add other HTTP methods as needed
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct RequestResult {
     pub stage_name: String,
-    pub assert_results: Vec<bool>,
+    pub assert_results: Vec<Result<bool, AssertionError>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,12 +82,55 @@ pub struct ResponseObject {
     body: Value,
 }
 
+#[derive(Error, Debug, Diagnostic)]
+#[error("request assertion failed!")]
+#[diagnostic(
+    // code(asertion),
+    severity(error)
+    // help("try doing it better next time?")
+)]
+pub struct AssertionError {
+    // The Source that we're gonna be printing snippets out of.
+    // This can be a String if you don't have or care about file names.
+    // #[source_code]
+    // src: NamedSource,
+    // Snippets and highlights can be included in the diagnostic!
+    // #[label("This bit here")]
+    // bad_bit: SourceSpan,
+    #[help]
+    advice: Option<String>,
+    #[source_code]
+    src: NamedSource,
+    #[label("This jsonpath here")]
+    bad_bit: SourceSpan,
+}
+
+fn report_error(diag: Report) -> String {
+    let mut out = String::new();
+        GraphicalReportHandler::new_themed(GraphicalTheme::unicode())
+            .with_width(80)
+            // .with_footer("this is a footer".into())
+            .render_report(&mut out, diag.as_ref())
+            .unwrap();
+    out
+}
+
+#[derive(Default, Clone)]
+pub struct TestContext { 
+    pub plan: String,
+    pub stage: String,
+    pub path: String,
+    pub file: String,
+    pub file_source: String,
+}
+
+// base_request would process a test plan, logging status updates as they happen.
+// Logging in place allows tracking of the results earlier
 pub async fn base_request(
-    stage: &TestPlan,
+    ctx: TestContext,
+    plan: &TestPlan,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
-    println!("================================================================================================================");
-    log::info!("Executing Test: {}", stage.name);
-    println!("================================================================================================================");
+    // log::info!("{}", plan.name);
 
     let client = reqwest::Client::builder()
         .connection_verbose(true)
@@ -92,8 +138,11 @@ pub async fn base_request(
     // let client = ClientBuilder::connection_verbose(true).build()?;
     let mut results = Vec::new();
 
-    for stage in &stage.stages {
-        log::info!("Executing stage: {}", stage.name);
+    for stage in &plan.stages {
+        let mut ctx = ctx.clone();
+        ctx.plan = plan.name.clone();
+        ctx.stage = stage.name.clone();
+        // log::info!("{}/{}", plan.name, stage.name);
         let mut request_builder = match &stage.request.http_method {
             HttpMethod::GET(url) => client.get(url),
             HttpMethod::POST(url) => client.post(url),
@@ -111,8 +160,7 @@ pub async fn base_request(
         }
 
         let response = request_builder.send().await?;
-
-        let assert_results = check_assertions(&stage.asserts, response).await?;
+        let assert_results = check_assertions(ctx, &stage.asserts, response).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
@@ -122,8 +170,6 @@ pub async fn base_request(
             assert_results: assert_results,
         });
     }
-    // println!("{:?}", results);
-    println!("================================================================================================================");
     Ok(results)
 }
 
@@ -142,23 +188,57 @@ fn find_all_jsonpaths<'a>(input: &'a String) -> Vec<&'a str> {
 // 4. replace the jsonpaths with that value in the original expr string
 // 5. Evaluate the expression with the expressions library.
 // TODO: decide on both error handling and the reporting approach
-fn evaluate_expressions<'a, T: Clone + 'static>(expr: &String, object: &'a Value) -> T {
-    let paths = find_all_jsonpaths(&expr);
-    let mut expr = expr.clone();
+fn evaluate_expressions<'a, T: Clone + 'static>(
+    ctx: TestContext,
+    original_expr: &String,
+    object: &'a Value,
+) -> Result<(T, String), AssertionError> {
+    let paths = find_all_jsonpaths(&original_expr);
+    let mut expr = original_expr.clone();
 
     for path in paths {
-        if let Some(selected_value) = select(&object, &path).unwrap().first() {
-            expr = expr.replace(path, &selected_value.to_string());
+        match select(&object, &path) {
+            Ok(selected_value) => {
+                if let Some(selected_value) = selected_value.first() {
+                    expr = expr.replace(path, &selected_value.to_string());
+                } else {
+                    let i = original_expr.find(path).unwrap_or(0);
+
+                    return Err(AssertionError {
+                        advice: Some(
+                            "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
+                        ),
+                        src: NamedSource::new(ctx.file, original_expr.clone()),
+                        bad_bit: (i, i+path.len()).into(),
+                    });
+                }
+            }
+            Err(err) => {
+                // The given jsonpath could not be evaluated to a value
+                return Err(AssertionError {
+                    advice: Some("could not resolve jsonpaths to any real variables".to_string()),
+                        src: NamedSource::new(ctx.file, expr),
+                        bad_bit: (0, 4).into(),
+                })
+            }
         }
     }
     log::debug!(target: "api_workflows", "normalized pre-evaluation assert expression: {:?}", &expr);
-    parse_expression::<T>(&expr).unwrap()
+    let evaluated =  parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
+        advice: Some("check that you're using correct jsonpaths".to_string()),
+        src: NamedSource::new(ctx.file, expr.clone()),
+        bad_bit: (0, 4).into(),
+    })?;
+    Ok((evaluated, expr.clone()))
 }
 
 async fn check_assertions(
+    ctx: TestContext,
     asserts: &[Assert],
     response: Response,
-) -> Result<Vec<bool>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
+    log::info!("{}/{}", ctx.plan, ctx.stage);
+
     let status_code = response.status().as_u16();
     let body = response.json().await?;
     // let headers_json = format!("{:?}", response.headers()).into();
@@ -171,17 +251,35 @@ async fn check_assertions(
     };
 
     let json_body: Value = serde_json::json!(&assert_object);
-    let mut assert_results: Vec<bool> = Vec::new();
+    let mut assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
-            Assert::IsTrue(expr) => evaluate_expressions::<bool>(expr, &json_body) == true,
-            Assert::IsFalse(expr) => evaluate_expressions::<bool>(expr, &json_body) == false,
+            Assert::IsTrue(expr) => {
+                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body).map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr))
+            }
+            Assert::IsFalse(expr) => {
+                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body).map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr))
+            }
             Assert::IsArray(_expr) => todo!(),
             Assert::IsEmpty(_expr) => todo!(),
             Assert::IsString(_expr) => todo!(),
         };
-        assert_results.push(eval_result);
+
+        match eval_result {
+            Err(err) => log::error!("{}", report_error((err).into())),
+            Ok((prefix, result, expr, eval_expr)) => if result{
+                    log::info!("✅ {: <10} ==>   {} ", prefix, expr)
+                }else{
+                    log::error!("❌ {: <10} ==>   {} ", prefix, expr);
+                    log::error!("{} ", report_error((AssertionError {
+                        advice: Some("check that you're using correct jsonpaths".to_string()),
+                        src: NamedSource::new("bad_file.rs", "blablabla"),
+                        bad_bit: (0, 4).into(),
+                    }).into()))
+                },
+        }
+
     }
     Ok(assert_results)
 }
@@ -234,11 +332,19 @@ mod tests {
                     Assert::IsTrue(String::from("$.resp.body.number == 5")),
                     Assert::IsTrue(String::from("$.resp.status == 201")),
                     Assert::IsFalse(String::from("$.resp.body.number != 5")),
+                    Assert::IsTrue(String::from("$.respx.nonexisting == 5")),
                 ],
                 outputs: None,
             }],
         };
-        let resp = base_request(&stage).await;
+        let ctx = TestContext{
+            plan: "plan".into(),
+            file_source: "file source".into(),
+            file: "file.tp.yml".into(),
+            path: ".".into(),
+            stage: "stage_name".into(),
+        };
+        let resp = base_request(ctx, &stage).await;
         m.assert();
         log::debug!("{:?}", resp);
         assert_ok!(resp);
