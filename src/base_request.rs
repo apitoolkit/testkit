@@ -1,23 +1,26 @@
 use jsonpath_lib::select;
+use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use std::collections::HashMap;
-use miette::{Diagnostic, NamedSource, SourceSpan, GraphicalReportHandler, GraphicalTheme,Report };
 use thiserror::Error;
-
+use serde_with::{serde_as, EnumMap};
 use log;
-use reqwest::{Client, ClientBuilder, Response};
-use rhai::{Engine, Scope};
+use reqwest::Response;
+use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestPlan {
-    pub name: String,
+    pub name: Option<String>,
     pub stages: Vec<TestStage>,
 }
+
+#[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestStage {
-    name: String,
+    name: Option<String>,
     request: RequestConfig,
+    #[serde_as(as = "EnumMap")]
     asserts: Vec<Assert>,
     outputs: Option<Outputs>,
 }
@@ -62,7 +65,8 @@ pub enum HttpMethod {
 
 #[derive(Debug)]
 pub struct RequestResult {
-    pub stage_name: String,
+    pub stage_name: Option<String>,
+    pub stage_index: u32,
     pub assert_results: Vec<Result<bool, AssertionError>>,
 }
 
@@ -107,21 +111,42 @@ pub struct AssertionError {
 
 fn report_error(diag: Report) -> String {
     let mut out = String::new();
-        GraphicalReportHandler::new_themed(GraphicalTheme::unicode())
-            .with_width(80)
-            // .with_footer("this is a footer".into())
-            .render_report(&mut out, diag.as_ref())
-            .unwrap();
+    GraphicalReportHandler::new_themed(GraphicalTheme::unicode())
+        .with_width(80)
+        // .with_footer("this is a footer".into())
+        .render_report(&mut out, diag.as_ref())
+        .unwrap();
     out
 }
 
 #[derive(Default, Clone)]
-pub struct TestContext { 
-    pub plan: String,
-    pub stage: String,
+pub struct TestContext {
+    pub plan: Option<String>,
+    pub stage: Option<String>,
+    pub stage_index: u32,
     pub path: String,
     pub file: String,
     pub file_source: String,
+}
+
+
+pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
+    let test_plans: Vec<TestPlan> = serde_yaml::from_str(&exec_string)?;
+    log::debug!("test_plans: {:#?}", test_plans);
+
+    for test in test_plans {
+        let result = base_request(ctx.clone(), &test).await;
+        match result {
+            Ok(res) => {
+                log::debug!("Test passed: {:?}", res);
+            }
+            Err(err) => {
+                log::error!("{}", err)
+            }
+        }
+    }
+
+    Ok(())
 }
 
 // base_request would process a test plan, logging status updates as they happen.
@@ -130,18 +155,16 @@ pub async fn base_request(
     ctx: TestContext,
     plan: &TestPlan,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
-    // log::info!("{}", plan.name);
-
     let client = reqwest::Client::builder()
         .connection_verbose(true)
         .build()?;
-    // let client = ClientBuilder::connection_verbose(true).build()?;
     let mut results = Vec::new();
 
-    for stage in &plan.stages {
+    for (i, stage) in plan.stages.iter().enumerate() {
         let mut ctx = ctx.clone();
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
+        log::info!("{}/{} :: {:?}", ctx.plan.clone().unwrap_or("_plan".into()), ctx.stage.clone().unwrap_or(ctx.stage_index.to_string()), stage.request.http_method );
         // log::info!("{}/{}", plan.name, stage.name);
         let mut request_builder = match &stage.request.http_method {
             HttpMethod::GET(url) => client.get(url),
@@ -167,7 +190,9 @@ pub async fn base_request(
 
         results.push(RequestResult {
             stage_name: stage.name.clone(),
-            assert_results: assert_results,
+            stage_index: i as u32,
+            assert_results: vec![],
+            // assert_results: assert_results,
         });
     }
     Ok(results)
@@ -217,14 +242,14 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                 // The given jsonpath could not be evaluated to a value
                 return Err(AssertionError {
                     advice: Some("could not resolve jsonpaths to any real variables".to_string()),
-                        src: NamedSource::new(ctx.file, expr),
-                        bad_bit: (0, 4).into(),
-                })
+                    src: NamedSource::new(ctx.file, expr),
+                    bad_bit: (0, 4).into(),
+                });
             }
         }
     }
     log::debug!(target: "api_workflows", "normalized pre-evaluation assert expression: {:?}", &expr);
-    let evaluated =  parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
+    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
         advice: Some("check that you're using correct jsonpaths".to_string()),
         src: NamedSource::new(ctx.file, expr.clone()),
         bad_bit: (0, 4).into(),
@@ -237,8 +262,6 @@ async fn check_assertions(
     asserts: &[Assert],
     response: Response,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
-    log::info!("{}/{}", ctx.plan, ctx.stage);
-
     let status_code = response.status().as_u16();
     let body = response.json().await?;
     // let headers_json = format!("{:?}", response.headers()).into();
@@ -255,12 +278,10 @@ async fn check_assertions(
 
     for assertion in asserts {
         let eval_result = match assertion {
-            Assert::IsTrue(expr) => {
-                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body).map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr))
-            }
-            Assert::IsFalse(expr) => {
-                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body).map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr))
-            }
+            Assert::IsTrue(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
+                .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr)),
+            Assert::IsFalse(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
+                .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr)),
             Assert::IsArray(_expr) => todo!(),
             Assert::IsEmpty(_expr) => todo!(),
             Assert::IsString(_expr) => todo!(),
@@ -268,18 +289,27 @@ async fn check_assertions(
 
         match eval_result {
             Err(err) => log::error!("{}", report_error((err).into())),
-            Ok((prefix, result, expr, eval_expr)) => if result{
+            Ok((prefix, result, expr, eval_expr)) => {
+                if result {
                     log::info!("✅ {: <10} ==>   {} ", prefix, expr)
-                }else{
+                } else {
                     log::error!("❌ {: <10} ==>   {} ", prefix, expr);
-                    log::error!("{} ", report_error((AssertionError {
-                        advice: Some("check that you're using correct jsonpaths".to_string()),
-                        src: NamedSource::new("bad_file.rs", "blablabla"),
-                        bad_bit: (0, 4).into(),
-                    }).into()))
-                },
+                    log::error!(
+                        "{} ",
+                        report_error(
+                            (AssertionError {
+                                advice: Some(
+                                    "check that you're using correct jsonpaths".to_string()
+                                ),
+                                src: NamedSource::new("bad_file.rs", "blablabla"),
+                                bad_bit: (0, 4).into(),
+                            })
+                            .into()
+                        )
+                    )
+                }
+            }
         }
-
     }
     Ok(assert_results)
 }
@@ -300,7 +330,7 @@ mod tests {
     use serde_json::json;
 
     #[tokio::test]
-    async fn test_kitchen_sink() {
+    async fn test_yaml_kitchen_sink() {
         env_logger::init();
         let server = MockServer::start();
         let m = server.mock(|when, then| {
@@ -314,39 +344,35 @@ mod tests {
             then.status(201).json_body(json!({ "number": 5 }));
         });
 
-        log::debug!("{}", server.url("/todos"));
+        let yaml_str = format!(r#"
+---
+- name: stage1
+  stages:
+    - request:
+        POST: {}
+        headers:
+          Content-Type: application/json
+        json:
+          number: 5
+      asserts:
+        is_true: $.resp.body.number == 5
+        is_true: $.resp.status == 201
+        is_false: $.resp.body.number != 5
+        is_true: $.respx.nonexisting == 5
+      outputs: null
+"#, server.url("/todos")) ;
 
-        let stage = TestPlan {
-            name: String::from("stage1"),
-            stages: vec![TestStage {
-                name: String::from("test_stage"),
-                request: RequestConfig {
-                    http_method: HttpMethod::POST(server.url("/todos")),
-                    headers: Some(HashMap::from([(
-                        String::from("Content-Type"),
-                        String::from("application/json"),
-                    )])),
-                    json: Some(json!({ "number": 5 })),
-                },
-                asserts: vec![
-                    Assert::IsTrue(String::from("$.resp.body.number == 5")),
-                    Assert::IsTrue(String::from("$.resp.status == 201")),
-                    Assert::IsFalse(String::from("$.resp.body.number != 5")),
-                    Assert::IsTrue(String::from("$.respx.nonexisting == 5")),
-                ],
-                outputs: None,
-            }],
-        };
-        let ctx = TestContext{
-            plan: "plan".into(),
+        let ctx = TestContext {
+            plan: Some("plan".into()),
             file_source: "file source".into(),
             file: "file.tp.yml".into(),
             path: ".".into(),
-            stage: "stage_name".into(),
+            stage: Some("stage_name".into()),
+            stage_index: 0,
         };
-        let resp = base_request(ctx, &stage).await;
-        m.assert();
+        let resp = run(ctx, yaml_str.into()).await;
         log::debug!("{:?}", resp);
         assert_ok!(resp);
+        m.assert();
     }
 }
