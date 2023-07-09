@@ -1,13 +1,13 @@
 use jsonpath_lib::select;
-use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
-use std::collections::HashMap;
-use thiserror::Error;
-use serde_with::{serde_as, EnumMap};
 use log;
+use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use reqwest::Response;
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use serde_with::{serde_as, EnumMap};
+use std::collections::HashMap;
+use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestPlan {
@@ -129,7 +129,6 @@ pub struct TestContext {
     pub file_source: String,
 }
 
-
 pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
     let test_plans: Vec<TestPlan> = serde_yaml::from_str(&exec_string)?;
     log::debug!("test_plans: {:#?}", test_plans);
@@ -164,7 +163,12 @@ pub async fn base_request(
         let mut ctx = ctx.clone();
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
-        log::info!("{}/{} :: {:?}", ctx.plan.clone().unwrap_or("_plan".into()), ctx.stage.clone().unwrap_or(ctx.stage_index.to_string()), stage.request.http_method );
+        log::info!(
+            "{}/{} :: {:?}",
+            ctx.plan.clone().unwrap_or("_plan".into()),
+            ctx.stage.clone().unwrap_or(ctx.stage_index.to_string()),
+            stage.request.http_method
+        );
         // log::info!("{}/{}", plan.name, stage.name);
         let mut request_builder = match &stage.request.http_method {
             HttpMethod::GET(url) => client.get(url),
@@ -344,7 +348,8 @@ mod tests {
             then.status(201).json_body(json!({ "number": 5 }));
         });
 
-        let yaml_str = format!(r#"
+        let yaml_str = format!(
+            r#"
 ---
 - name: stage1
   stages:
@@ -360,7 +365,9 @@ mod tests {
         is_false: $.resp.body.number != 5
         is_true: $.respx.nonexisting == 5
       outputs: null
-"#, server.url("/todos")) ;
+"#,
+            server.url("/todos")
+        );
 
         let ctx = TestContext {
             plan: Some("plan".into()),
