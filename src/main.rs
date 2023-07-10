@@ -5,14 +5,19 @@ extern crate log;
 use base_cli::BaseCli;
 use base_request::{base_request, TestContext};
 use log::{Level, LevelFilter};
+use base_request::{base_request, TestContext};
+use env_logger::Builder;
+use log::LevelFilter;
 use std::fs;
 
 #[tokio::main]
 async fn main() {
-    env_logger::builder()
-        .filter_level(LevelFilter::Info)
-        .filter_module("", LevelFilter::Error)
-        .filter_module("", LevelFilter::Warn)
+    let mut builder = Builder::from_default_env();
+
+    builder
+        .format_timestamp(None)
+        .format_target(false)
+        .filter(None, LevelFilter::Info)
         .init();
     setup().await.unwrap()
 }

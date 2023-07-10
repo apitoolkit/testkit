@@ -113,7 +113,6 @@ fn report_error(diag: Report) -> String {
     let mut out = String::new();
     GraphicalReportHandler::new_themed(GraphicalTheme::unicode())
         .with_width(80)
-        // .with_footer("this is a footer".into())
         .render_report(&mut out, diag.as_ref())
         .unwrap();
     out
@@ -164,10 +163,10 @@ pub async fn base_request(
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
         log::info!(
-            "{}/{} :: {:?}",
+            "{:?} ⬅ {}/{}",
+            stage.request.http_method,
             ctx.plan.clone().unwrap_or("_plan".into()),
-            ctx.stage.clone().unwrap_or(ctx.stage_index.to_string()),
-            stage.request.http_method
+            ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
         // log::info!("{}/{}", plan.name, stage.name);
         let mut request_builder = match &stage.request.http_method {
@@ -195,8 +194,7 @@ pub async fn base_request(
         results.push(RequestResult {
             stage_name: stage.name.clone(),
             stage_index: i as u32,
-            assert_results: vec![],
-            // assert_results: assert_results,
+            assert_results,
         });
     }
     Ok(results)
@@ -232,7 +230,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     expr = expr.replace(path, &selected_value.to_string());
                 } else {
                     let i = original_expr.find(path).unwrap_or(0);
-
+                    // TODO: reproduce and improve this error
                     return Err(AssertionError {
                         advice: Some(
                             "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
@@ -242,7 +240,8 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     });
                 }
             }
-            Err(err) => {
+            Err(_err) => {
+                // TODO: reproduce and improve this error. Use the _err argument
                 // The given jsonpath could not be evaluated to a value
                 return Err(AssertionError {
                     advice: Some("could not resolve jsonpaths to any real variables".to_string()),
@@ -253,7 +252,8 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
         }
     }
     log::debug!(target: "api_workflows", "normalized pre-evaluation assert expression: {:?}", &expr);
-    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
+    // TODO: reproduce and improve this error
+    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| AssertionError {
         advice: Some("check that you're using correct jsonpaths".to_string()),
         src: NamedSource::new(ctx.file, expr.clone()),
         bad_bit: (0, 4).into(),
@@ -278,7 +278,7 @@ async fn check_assertions(
     };
 
     let json_body: Value = serde_json::json!(&assert_object);
-    let mut assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
+    let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
@@ -293,7 +293,7 @@ async fn check_assertions(
 
         match eval_result {
             Err(err) => log::error!("{}", report_error((err).into())),
-            Ok((prefix, result, expr, eval_expr)) => {
+            Ok((prefix, result, expr, _eval_expr)) => {
                 if result {
                     log::info!("✅ {: <10} ==>   {} ", prefix, expr)
                 } else {
@@ -333,19 +333,20 @@ mod tests {
     use httpmock::prelude::*;
     use serde_json::json;
 
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[tokio::test]
     async fn test_yaml_kitchen_sink() {
-        env_logger::init();
+        init();
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(POST)
                 .path("/todos")
-                // .header("content-type", "application/json")
-                // .body("{\"number\":5}")
-                // .body_contains("number")
-                // .body_matches(Regex::new(r#"(\d+)"#).unwrap())
-                .json_body(json!({ "number": 5 }));
-            then.status(201).json_body(json!({ "number": 5 }));
+                .header("content-type", "application/json")
+                .json_body(json!({ "req_number": 5 }));
+            then.status(201).json_body(json!({ "resp_string": "test", "resp_number": 4 }));
         });
 
         let yaml_str = format!(
@@ -358,11 +359,11 @@ mod tests {
         headers:
           Content-Type: application/json
         json:
-          number: 5
+          req_number: 5
       asserts:
-        is_true: $.resp.body.number == 5
+        is_true: $.resp.body.resp_string == "test"
         is_true: $.resp.status == 201
-        is_false: $.resp.body.number != 5
+        is_false: $.resp.body.resp_string != 5
         is_true: $.respx.nonexisting == 5
       outputs: null
 "#,
