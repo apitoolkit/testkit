@@ -1,11 +1,8 @@
 mod base_cli;
 mod base_request;
-#[macro_use]
 extern crate log;
 use base_cli::BaseCli;
-use base_request::{base_request, TestContext};
-use log::{Level, LevelFilter};
-use base_request::{base_request, TestContext};
+use base_request::TestContext;
 use env_logger::Builder;
 use log::LevelFilter;
 use std::fs;
