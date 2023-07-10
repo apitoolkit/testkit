@@ -346,7 +346,8 @@ mod tests {
                 .path("/todos")
                 .header("content-type", "application/json")
                 .json_body(json!({ "req_number": 5 }));
-            then.status(201).json_body(json!({ "resp_string": "test", "resp_number": 4 }));
+            then.status(201)
+                .json_body(json!({ "resp_string": "test", "resp_number": 4 }));
         });
 
         let yaml_str = format!(
