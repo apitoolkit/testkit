@@ -1,14 +1,14 @@
 use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
+use reqwest::header::HeaderMap;
+use reqwest::header::HeaderValue;
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, EnumMap};
 use std::collections::HashMap;
 use thiserror::Error;
-use reqwest::header::HeaderMap;
-use reqwest::header::HeaderValue;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestPlan {
@@ -79,7 +79,7 @@ pub struct Outputs {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseAssertion {
-    req: RequestConfig, 
+    req: RequestConfig,
     resp: ResponseObject,
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,10 +183,10 @@ pub async fn base_request(
 
         let response = request_builder.send().await?;
         let status_code = response.status().as_u16();
-         let header_hashmap = header_map_to_hashmap(response.headers());
-        
+        let header_hashmap = header_map_to_hashmap(response.headers());
+
         let raw_body = response.text().await?;
-        let json_body:Value = serde_json::from_str(&raw_body)?;
+        let json_body: Value = serde_json::from_str(&raw_body)?;
 
         let assert_object = ResponseAssertion {
             req: stage.request.clone(),
@@ -200,7 +200,10 @@ pub async fn base_request(
 
         let assert_context: Value = serde_json::json!(&assert_object);
         if stage.dump.unwrap_or(false) {
-            log::info!("💡 DUMP jsonpath request response context:\n {}", colored_json::to_colored_json_auto(&assert_context)?)
+            log::info!(
+                "💡 DUMP jsonpath request response context:\n {}",
+                colored_json::to_colored_json_auto(&assert_context)?
+            )
         }
         let assert_results = check_assertions(ctx, &stage.asserts, assert_context).await?;
         // if let Some(outputs) = &stage.outputs {
