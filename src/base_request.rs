@@ -91,10 +91,9 @@ pub struct ResponseObject {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TestCount{
-     pass: u16,
-     fail: u16
-
+pub struct TestCount {
+    pass: u16,
+    fail: u16,
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -131,8 +130,6 @@ pub struct TestContext {
     pub file: String,
     pub file_source: String,
 }
-
-
 
 pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
     println!("{:?}", exec_string);
@@ -218,8 +215,7 @@ pub async fn base_request(
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
-        println!("{:?}",assert_results);
-
+        println!("{:?}", assert_results);
 
         results.push(RequestResult {
             stage_name: stage.name.clone(),
@@ -354,9 +350,7 @@ fn parse_expression<T: Clone + 'static>(expr: &str) -> Result<T, Box<dyn std::er
     Ok(result)
 }
 
-fn yaml_output(){
-
-}
+fn yaml_output() {}
 
 #[cfg(test)]
 mod tests {
