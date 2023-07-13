@@ -172,18 +172,20 @@ pub async fn base_request(
                 request_builder = request_builder.header(name, value);
             }
         }
+        log::debug!("check1");
 
         if let Some(json) = &stage.request.json {
+            log::debug!("check1.1");
             let mut j_string = json.to_string();
+            log::debug!("outputsMap {:?} j_string {}", outputs_map, j_string);
             for (k, v) in &outputs_map {
-                let normalized_jsonp_key = format!("\"$.outputs.{}\"", k);
-                j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
-                // Remove twice. Workaround to support text and number types
                 let normalized_jsonp_key = format!("$.outputs.{}", k);
+                log::error!("notmslixrf kry {}", normalized_jsonp_key);
                 j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
-
             }
+log::debug!("check1.3 {}", j_string);
             let clean_json: Value = serde_json::from_str(&j_string)?;
+            log::debug!("check1.4");
             request_builder = request_builder.json(&clean_json);
         }
 
@@ -217,11 +219,15 @@ pub async fn base_request(
         // }
 
         if let Some(outputs) = &stage.outputs {
+            log::debug!("🔥 outputs {:?}", outputs);
             for (key, value) in outputs.into_iter() {
+                log::debug!("🔥outputs evaled {:?} {:?} {:?}", assert_object, key, value);
                 if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
+                    log::debug!("🔥outputs evaled {:?} {:?} {:?}", evaled, key, value);
                     outputs_map.insert(key.to_string(), evaled.clone().clone());
                 }
             }
+            log::debug!("outputs {:?}", outputs_map);
         }
 
         results.push(RequestResult {
@@ -379,8 +385,8 @@ mod tests {
         });
         let m2 = server.mock(|when, then| {
             when.method(GET)
-                .path("/todo_get");
-                // .json_body(json!({ "req_string": "test"  }));
+                .path("/todo_get")
+                .json_body(json!({ "req_string": "test"  }));
             then.status(200).json_body(json!({ "resp_string": "ok"}));
         });
 
@@ -398,8 +404,8 @@ mod tests {
       asserts:
         is_true: $.resp.json.resp_string == "test"
         is_true: $.resp.status == 201
-        # is_false: $.resp.json.resp_string != 5
-        # is_true: $.respx.nonexisting == 5
+        is_false: $.resp.json.resp_string != 5
+        is_true: $.respx.nonexisting == 5
       outputs:
         todoResp: $.resp.json.resp_string
     - request: 
@@ -424,9 +430,8 @@ mod tests {
         let resp = run(ctx, yaml_str.into()).await;
         log::debug!("{:?}", resp);
         assert_ok!(resp);
-        m2.assert_hits(1);
         m.assert_hits(1);
-        
+        m2.assert_hits(1);
 
         // // We test the log output, because the logs are an important part of the user facing API of a cli tool like this
         // // TODO: figure out returning the correct exit code to show error or failure.
