@@ -7,17 +7,14 @@
           Content-Type: application/json
         json:
           number: 5
+      dump: true
       asserts:
-        is_true: $.resp.body.number == 5
+        is_true: $.resp.json.number == 5
         is_true: $.resp.status == 201
-        is_false: $.resp.body.number != 5
-        is_true: $.respx.nonexisting == 5
+        is_false: $.resp.json.number != 5
+        is_true: $.respx.nonexisting == 5 # will fail
       outputs: null
-    - request:
-        GET: http://localhost:3000/todos
-      asserts:
-          is_true: $.resp.status == 200
-      outputs: null
+
 # - name: TODO api testing
 #   stages:
 #     - name: fetches TODO items - GET

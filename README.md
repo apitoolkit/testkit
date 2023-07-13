@@ -55,8 +55,8 @@ describe('TODO api testing', () => {
       request:
         GET: /todos/
       asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
-        - is_true: $.resp.status_code == 200  # Rely on an expressions libray for parsing expressions
-        - is_array: $.resp.body.json
+        true: $.resp.status_code == 200  # Rely on an expressions libray for parsing expressions
+        array: $.resp.body.json
       outputs: # values which should be accesible to future steps. 
         todoItem: $.resp.body.json[0]._id
 
@@ -64,8 +64,8 @@ describe('TODO api testing', () => {
       request:
         DELETE: /todos/{{$.stages[0].outputs.todoItem}} # relative syntax exists: $.stages[-1].outputs.todoItem, -1 means one stage before me
       asserts:
-        - is_empty: $.resp.body.json.todos
-        - is_string: $.resp.body.json
+        empty: $.resp.body.json.todos
+        string: $.resp.body.json
 
     - name: Adds Todo item - POST
       request:
@@ -73,7 +73,7 @@ describe('TODO api testing', () => {
         json: 
             task: "run tests"
       asserts:
-        - is_true: $.resp.status_code == 200 
-        - is_true: $.resp.body.json.task == "run tests"
-        - is_false: $.resp.body.json.completed
+        true: $.resp.status_code == 200 
+        true: $.resp.body.json.task == "run tests"
+        false: $.resp.body.json.completed
 ```

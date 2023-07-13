@@ -1,7 +1,8 @@
 use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
-use reqwest::Response;
+use reqwest::header::HeaderMap;
+use reqwest::header::HeaderValue;
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -19,6 +20,7 @@ pub struct TestPlan {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestStage {
     name: Option<String>,
+    dump: Option<bool>,
     request: RequestConfig,
     #[serde_as(as = "EnumMap")]
     asserts: Vec<Assert>,
@@ -40,7 +42,7 @@ pub enum Assert {
     // Add other assertion types as needed
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RequestConfig {
     #[serde(flatten)]
     pub http_method: HttpMethod,
@@ -54,7 +56,7 @@ pub struct Header {
     value: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HttpMethod {
     GET(String),
@@ -77,13 +79,22 @@ pub struct Outputs {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseAssertion {
+    req: RequestConfig,
     resp: ResponseObject,
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResponseObject {
     status: u16,
     headers: Value,
-    body: Value,
+    json: Value,
+    raw: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TestCount{
+     pass: u16,
+     fail: u16
+
 }
 
 #[derive(Error, Debug, Diagnostic)]
@@ -94,13 +105,6 @@ pub struct ResponseObject {
     // help("try doing it better next time?")
 )]
 pub struct AssertionError {
-    // The Source that we're gonna be printing snippets out of.
-    // This can be a String if you don't have or care about file names.
-    // #[source_code]
-    // src: NamedSource,
-    // Snippets and highlights can be included in the diagnostic!
-    // #[label("This bit here")]
-    // bad_bit: SourceSpan,
     #[help]
     advice: Option<String>,
     #[source_code]
@@ -113,7 +117,6 @@ fn report_error(diag: Report) -> String {
     let mut out = String::new();
     GraphicalReportHandler::new_themed(GraphicalTheme::unicode())
         .with_width(80)
-        // .with_footer("this is a footer".into())
         .render_report(&mut out, diag.as_ref())
         .unwrap();
     out
@@ -129,7 +132,10 @@ pub struct TestContext {
     pub file_source: String,
 }
 
+
+
 pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
+    println!("{:?}", exec_string);
     let test_plans: Vec<TestPlan> = serde_yaml::from_str(&exec_string)?;
     log::debug!("test_plans: {:#?}", test_plans);
 
@@ -137,10 +143,10 @@ pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Er
         let result = base_request(ctx.clone(), &test).await;
         match result {
             Ok(res) => {
-                log::debug!("Test passed: {:?}", res);
+                log::info!("Test passed: {:?}", res);
             }
             Err(err) => {
-                log::error!("{}", err)
+                log::error!("errr: {}", err)
             }
         }
     }
@@ -164,12 +170,11 @@ pub async fn base_request(
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
         log::info!(
-            "{}/{} :: {:?}",
+            "{:?} ⬅ {}/{}",
+            stage.request.http_method,
             ctx.plan.clone().unwrap_or("_plan".into()),
-            ctx.stage.clone().unwrap_or(ctx.stage_index.to_string()),
-            stage.request.http_method
+            ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
-        // log::info!("{}/{}", plan.name, stage.name);
         let mut request_builder = match &stage.request.http_method {
             HttpMethod::GET(url) => client.get(url),
             HttpMethod::POST(url) => client.post(url),
@@ -187,19 +192,52 @@ pub async fn base_request(
         }
 
         let response = request_builder.send().await?;
-        let assert_results = check_assertions(ctx, &stage.asserts, response).await?;
+        let status_code = response.status().as_u16();
+        let header_hashmap = header_map_to_hashmap(response.headers());
+
+        let raw_body: String = response.text().await?;
+        let json_body: Value = serde_json::from_str(&raw_body)?;
+        let assert_object = ResponseAssertion {
+            req: stage.request.clone(),
+            resp: ResponseObject {
+                status: status_code,
+                headers: serde_json::json!(header_hashmap),
+                json: json_body,
+                raw: raw_body,
+            },
+        };
+
+        let assert_context: Value = serde_json::json!(&assert_object);
+        if stage.dump.unwrap_or(false) {
+            log::info!(
+                "💡 DUMP jsonpath request response context:\n {}",
+                colored_json::to_colored_json_auto(&assert_context)?
+            )
+        }
+        let assert_results = check_assertions(ctx, &stage.asserts, assert_context).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
+        println!("{:?}",assert_results);
+
 
         results.push(RequestResult {
             stage_name: stage.name.clone(),
             stage_index: i as u32,
-            assert_results: vec![],
-            // assert_results: assert_results,
+            assert_results,
         });
     }
     Ok(results)
+}
+
+fn header_map_to_hashmap(headers: &HeaderMap<HeaderValue>) -> HashMap<String, Vec<String>> {
+    let mut header_hashmap = HashMap::new();
+    for (k, v) in headers {
+        let k = k.as_str().to_owned();
+        let v = String::from_utf8_lossy(v.as_bytes()).into_owned();
+        header_hashmap.entry(k).or_insert_with(Vec::new).push(v)
+    }
+    header_hashmap
 }
 
 // Naive implementation that might not work for all jsonpaths and might need to be changed.
@@ -232,7 +270,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     expr = expr.replace(path, &selected_value.to_string());
                 } else {
                     let i = original_expr.find(path).unwrap_or(0);
-
+                    // TODO: reproduce and improve this error
                     return Err(AssertionError {
                         advice: Some(
                             "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
@@ -242,7 +280,8 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     });
                 }
             }
-            Err(err) => {
+            Err(_err) => {
+                // TODO: reproduce and improve this error. Use the _err argument
                 // The given jsonpath could not be evaluated to a value
                 return Err(AssertionError {
                     advice: Some("could not resolve jsonpaths to any real variables".to_string()),
@@ -252,8 +291,9 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
             }
         }
     }
-    log::debug!(target: "api_workflows", "normalized pre-evaluation assert expression: {:?}", &expr);
-    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
+    log::debug!("normalized pre-evaluation assert expression: {:?}", &expr);
+    // TODO: reproduce and improve this error
+    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| AssertionError {
         advice: Some("check that you're using correct jsonpaths".to_string()),
         src: NamedSource::new(ctx.file, expr.clone()),
         bad_bit: (0, 4).into(),
@@ -264,21 +304,9 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
 async fn check_assertions(
     ctx: TestContext,
     asserts: &[Assert],
-    response: Response,
+    json_body: Value,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
-    let status_code = response.status().as_u16();
-    let body = response.json().await?;
-    // let headers_json = format!("{:?}", response.headers()).into();
-    let assert_object = ResponseAssertion {
-        resp: ResponseObject {
-            status: status_code,
-            headers: Value::Null,
-            body,
-        },
-    };
-
-    let json_body: Value = serde_json::json!(&assert_object);
-    let mut assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
+    let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
@@ -293,11 +321,11 @@ async fn check_assertions(
 
         match eval_result {
             Err(err) => log::error!("{}", report_error((err).into())),
-            Ok((prefix, result, expr, eval_expr)) => {
+            Ok((prefix, result, expr, _eval_expr)) => {
                 if result {
-                    log::info!("✅ {: <10} ==>   {} ", prefix, expr)
+                    log::info!("✅ {: <10}  ⮕   {} ", prefix, expr)
                 } else {
-                    log::error!("❌ {: <10} ==>   {} ", prefix, expr);
+                    log::error!("❌ {: <10}  ⮕   {} ", prefix, expr);
                     log::error!(
                         "{} ",
                         report_error(
@@ -326,6 +354,10 @@ fn parse_expression<T: Clone + 'static>(expr: &str) -> Result<T, Box<dyn std::er
     Ok(result)
 }
 
+fn yaml_output(){
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,17 +367,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_yaml_kitchen_sink() {
-        env_logger::init();
+        testing_logger::setup();
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(POST)
                 .path("/todos")
-                // .header("content-type", "application/json")
-                // .body("{\"number\":5}")
-                // .body_contains("number")
-                // .body_matches(Regex::new(r#"(\d+)"#).unwrap())
-                .json_body(json!({ "number": 5 }));
-            then.status(201).json_body(json!({ "number": 5 }));
+                .header("content-type", "application/json")
+                .json_body(json!({ "req_number": 5 }));
+            then.status(201)
+                .json_body(json!({ "resp_string": "test", "resp_number": 4 }));
         });
 
         let yaml_str = format!(
@@ -358,11 +388,11 @@ mod tests {
         headers:
           Content-Type: application/json
         json:
-          number: 5
+          req_number: 5
       asserts:
-        is_true: $.resp.body.number == 5
+        is_true: $.resp.json.resp_string == "test"
         is_true: $.resp.status == 201
-        is_false: $.resp.body.number != 5
+        is_false: $.resp.json.resp_string != 5
         is_true: $.respx.nonexisting == 5
       outputs: null
 "#,
@@ -381,5 +411,18 @@ mod tests {
         log::debug!("{:?}", resp);
         assert_ok!(resp);
         m.assert();
+
+        // We test the log output, because the logs are an important part of the user facing API of a cli tool like this
+        // TODO: figure out returning the correct exit code to show error or failure.
+        testing_logger::validate(|captured_logs| {
+            println!("PPP");
+            for c in captured_logs {
+                println!("xx {:?}", c.body);
+            }
+
+            assert_eq!(captured_logs.len(), 1);
+            // assert_eq!(captured_logs[0].body, "Something went wrong with 10");
+            // assert_eq!(captured_logs[0].level, Level::Warn);
+        });
     }
 }
