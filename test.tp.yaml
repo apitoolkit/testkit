@@ -7,7 +7,6 @@
           Content-Type: application/json
         json:
           number: 5
-      dump: true
       asserts:
         is_true: $.resp.json.number == 5
         is_true: $.resp.status == 201
@@ -15,15 +14,15 @@
         is_true: $.respx.nonexisting == 5 # will fail
       outputs: null
 
-# - name: TODO api testing
-#   stages:
-#     - name: fetches TODO items - GET
-#       request:
-#         GET: http://localhost:3000/todos
-#       asserts:
-#         - is_true: $.status == 200
-#       outputs:
-#         todoItem: $.resp.body.json[0]._id
+- name: TODO api testing
+  stages:
+    - name: fetches TODO items - GET
+      request:
+        GET: http://localhost:3000/todos
+      asserts:
+        is_true: $.resp.status == 200
+      outputs:
+        todoItem: $.resp.json[0]._id
 
 #     - name:  TODO ad items - POST
 #       request:
