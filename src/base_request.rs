@@ -181,7 +181,6 @@ pub async fn base_request(
                 // Remove twice. Workaround to support text and number types
                 let normalized_jsonp_key = format!("$.outputs.{}", k);
                 j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
-
             }
             let clean_json: Value = serde_json::from_str(&j_string)?;
             request_builder = request_builder.json(&clean_json);
@@ -378,9 +377,8 @@ mod tests {
                 .json_body(json!({ "resp_string": "test", "resp_number": 4 }));
         });
         let m2 = server.mock(|when, then| {
-            when.method(GET)
-                .path("/todo_get");
-                // .json_body(json!({ "req_string": "test"  }));
+            when.method(GET).path("/todo_get");
+            // .json_body(json!({ "req_string": "test"  }));
             then.status(200).json_body(json!({ "resp_string": "ok"}));
         });
 
@@ -426,7 +424,6 @@ mod tests {
         assert_ok!(resp);
         m2.assert_hits(1);
         m.assert_hits(1);
-        
 
         // // We test the log output, because the logs are an important part of the user facing API of a cli tool like this
         // // TODO: figure out returning the correct exit code to show error or failure.
