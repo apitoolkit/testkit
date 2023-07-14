@@ -122,7 +122,7 @@ pub struct TestContext {
 
 pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
     let test_plans: Vec<TestPlan> = serde_yaml::from_str(&exec_string)?;
-    log::debug!("test_plans: {:#?}", test_plans);
+    log::debug!(target:"testkit","test_plans: {:#?}", test_plans);
 
     for test in test_plans {
         let result = base_request(ctx.clone(), &test).await;
@@ -131,7 +131,7 @@ pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Er
                 log::debug!("Test passed: {:?}", res);
             }
             Err(err) => {
-                log::error!("{}", err)
+                log::error!(target:"testkit","{}", err)
             }
         }
     }
@@ -155,7 +155,7 @@ pub async fn base_request(
         let mut ctx = ctx.clone();
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
-        log::info!(
+        log::info!(target:"testkit",
             "{:?} ⬅ {}/{}",
             stage.request.http_method,
             ctx.plan.clone().unwrap_or("_plan".into()),
@@ -169,6 +169,12 @@ pub async fn base_request(
         };
         if let Some(headers) = &stage.request.headers {
             for (name, value) in headers {
+                let mut value = value.clone();
+                for (k, v) in &outputs_map {
+                    let normalized_jsonp_key = format!("$.outputs.{}", k);
+                    let v = value.replace(&normalized_jsonp_key, &v.to_string());
+                    value = v.to_owned();
+                }
                 request_builder = request_builder.header(name, value);
             }
         }
@@ -206,6 +212,7 @@ pub async fn base_request(
         let assert_context: Value = serde_json::json!(&assert_object);
         if stage.dump.unwrap_or(false) {
             log::info!(
+                target:"testkit",
                 "💡 DUMP jsonpath request response context:\n {}",
                 colored_json::to_colored_json_auto(&assert_context)?
             )
@@ -293,7 +300,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
             }
         }
     }
-    log::debug!("normalized pre-evaluation assert expression: {:?}", &expr);
+    log::debug!(target:"testkit","normalized pre-evaluation assert expression: {:?}", &expr);
     // TODO: reproduce and improve this error
     let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| AssertionError {
         advice: Some("check that you're using correct jsonpaths".to_string()),
@@ -322,13 +329,14 @@ async fn check_assertions(
         };
 
         match eval_result {
-            Err(err) => log::error!("{}", report_error((err).into())),
+            Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
             Ok((prefix, result, expr, _eval_expr)) => {
                 if result {
-                    log::info!("✅ {: <10}  ⮕   {} ", prefix, expr)
+                    log::info!(target:"testkit",
+                            "✅ {: <10}  ⮕   {} ", prefix, expr)
                 } else {
-                    log::error!("❌ {: <10}  ⮕   {} ", prefix, expr);
-                    log::error!(
+                    log::error!(target:"testkit","❌ {: <10}  ⮕   {} ", prefix, expr);
+                    log::error!(target:"testkit",
                         "{} ",
                         report_error(
                             (AssertionError {
