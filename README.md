@@ -14,7 +14,7 @@ API-Workflows is a testing tool designed for automating API testing tasks. It pr
 7. The `request` Field
 8. The `asserts` Field
 9. The `outputs` Field
-10. Using output variables
+10. Referencing Values and Dynamic Inputs for Subsequent API Requests
 
 Please note that this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
 
@@ -168,7 +168,26 @@ The YAML file consists of a list of test scenarios. Each scenario contains a `na
 - `outputs` (optional): Specifies the values to be captured from the response and made available to future stages.
 
 In the example above, the YAML test file defines three stages: fetching TODO items using a GET request, deleting a specific TODO item using a DELETE request, and adding a new TODO item using a POST request.
-The `name` field is self explanatory and so we'll take more about the rest of the fields in detail.
+The `name` field is self explanatory and so we'll take more about the rest of the fields in detail but before that let's talk about JSONPath.
+
+### What is JSONPath
+
+JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In API-Workflows, JSONPath expressions are extensively used to extract data for assertions and outputs.
+
+To illustrate how JSONPath works, consider the following examples:
+
+- `$.user.name`: This expression retrieves the name of a user from the top-level object in the JSON document.
+- `$.todos[0].task`: Here, the expression accesses the task property of the first element in an array of todos.
+- `$.todos[*].task.description`: This expression retrieves the description property of all tasks within the todos array.
+
+The syntax of JSONPath expressions includes several key components:
+
+- Bracket notation (`[]`): Used to access elements within an array by providing the index within square brackets.
+- Wildcard (`*`): Matches any element at the current level, allowing you to retrieve all elements of a particular level.
+- Recursive descent (`..`): Enables searching for elements at any depth within the JSON structure, including nested objects and arrays.
+- Filters (`[?]`): Allows applying conditions or filters to select specific elements based on certain criteria.
+
+By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in API-Workflows, facilitating the extraction of data for performing assertions and capturing outputs during the testing process. learn more about jsonpaths [here](https://lzone.de/cheat-sheet/JSONPath)
 
 ### request field
 
@@ -244,6 +263,9 @@ Here's an example to demonstrate the usage of the `asserts` field:
     equals: $.resp.body.json[0].task, "run tests"
 ```
 
+The `.json` tells api-workflows to convert the response into JSON format.
+This allows you to access properties of the response JSON using JSONPath expressions.
+
 In the above example, we have defined three assertions:
 
 1. `is_true`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status_code == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
@@ -294,3 +316,46 @@ By capturing the `_id` value in the `todoItem` output, you can access it in subs
 The `outputs` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests.
 
 Using the `outputs` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
+
+## Referencing Values and Dynamic Inputs for Subsequent API Requests
+
+The `outputs` field in API-Workflows not only allows you to capture values from the API response but also provides a powerful mechanism for referencing those values and dynamically generating inputs for subsequent API requests.
+
+By capturing relevant data using the `outputs` field, you can store it as an output and easily refer to it in later stages of your test scenario. This capability becomes particularly useful when you need to access specific values extracted from the response and utilize them in subsequent API requests.
+
+For example, let's say you retrieve an ID from an API response in one stage using the `outputs` field:
+
+```yaml
+- name: Fetch User - GET
+  request:
+    GET: /users/1
+  outputs:
+    userId: $.resp.body.id
+```
+
+To reference this `userId` output in a subsequent API request, you can use the `{{}}` syntax:
+
+```yaml
+- name: Update User - PUT
+  request:
+    PUT: /users/{{$.stages[0].outputs.userId}}
+  json:
+    name: 'John Doe'
+```
+
+In the above example, the `userId` captured in the first stage is accessed using the syntax `{{$.stages[0].outputs.userId}}`. By enclosing the reference in double curly braces (`{{}}`), API-Workflows understands that it should substitute the reference with the corresponding value during execution.
+
+You can also use relative references like `{{$.stages[-n]}}` which refers to the output of the `nth` stage before the current stage.
+Example:
+
+```yaml
+- name: deletes TODO items - DELETE
+      request:
+        DELETE: /todos/{{$.stages[-1].outputs.todoItem}} #-1 means one stage before me
+      asserts:
+        empty: $.resp.body.json.todos
+        string: $.resp.body.json
+
+```
+
+By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
