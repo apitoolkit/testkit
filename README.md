@@ -1,4 +1,4 @@
-# API-Workflows Testing Tool Documentation
+# Testkit Testing Tool Documentation
 
 ## Introduction
 
@@ -6,15 +6,15 @@ API-Workflows is a testing tool designed for automating API testing tasks. It pr
 
 ## Table of Contents
 
-2. Installation
-3. How to Run
-4. Test Definition Syntax
-5. Comparison with Other Testing Libraries
-6. What is JSONPath
-7. The `request` Field
-8. The `asserts` Field
-9. The `outputs` Field
-10. Referencing Values and Dynamic Inputs for Subsequent API Requests
+- [Installation](#installation)
+- [How to Run](#how-to-run)
+- [Test Definition Syntax](#test-definition-syntax)
+- [Comparison with Other Testing Libraries](#comparison-with-other-testing-libraries)
+- [What is JSONPath](#what-is-jsonpath)
+- [The `request` Field](#request-field)
+- [The `asserts` Field](#asserts-field)
+- [The `outputs` Field](#outputs)
+- [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
 
 Please note that this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
 
