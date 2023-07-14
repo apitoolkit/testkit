@@ -2,7 +2,15 @@
 
 ## Introduction
 
-API-Workflows is a testing tool designed for automating API testing tasks. It provides a simplified yaml syntax for defining API test scenarios and executing them. This documentation will guide you through the installation, usage, and features of the API-Workflows testing tool.
+Testkit is a testing tool designed for API manual testing and test automation tasks. It provides a simplified yaml syntax for defining and executing API test scenarios. 
+
+### Why a testing DSL?
+- Teams should not be forced to write javascript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system
+- We should be able to create interactive builders that generate this underlying DSL. So you shouldn't even need to write this DSL by hand in the future
+- We should be able to use the same script for both individual tests and load testing.
+- We should still be able to persist these tests in our version control and collaborate on them with our peers
+- Inspired by [Local-First software](https://www.inkandswitch.com/local-first/) principles
+
 
 ## Table of Contents
 
@@ -16,24 +24,24 @@ API-Workflows is a testing tool designed for automating API testing tasks. It pr
 - [The `outputs` Field](#outputs)
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
 
-Please note that this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
+FYI, this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
 
 ## Installation
 
-To install the API-Workflows testing tool, follow the steps below:
+To install the `testkit` testing tool, follow the steps below:
 
 1. Ensure you have Rust programming language and Cargo package manager installed on your system. You can download them from the official Rust website: [https://www.rust-lang.org/](https://www.rust-lang.org/).
 
-2. Clone the API-Workflows repository from GitHub using the following command:
+2. Clone the `testkit` repository from GitHub using the following command:
 
    ```
-   git clone https://github.com/api-workflows/api-workflows.git
+   git clone https://github.com/`testkit`/`testkit`.git
    ```
 
 3. Change into the cloned directory:
 
    ```
-   cd api-workflows
+   cd `testkit`
    ```
 
 4. Build the project using Cargo:
@@ -42,11 +50,11 @@ To install the API-Workflows testing tool, follow the steps below:
    cargo build --release
    ```
 
-5. Once the build process is complete, you can find the `api-workflows` executable file in the `target/release` directory.
+5. Once the build process is complete, you can find the ``testkit`` executable file in the `target/release` directory.
 
 ## How to Run
 
-To run the API-Workflows testing tool, use the following command:
+To run the `testkit` testing tool, use the following command:
 
 ```bash
 RUST_LOG=debug cargo run -- --file ./test.yaml
@@ -56,9 +64,9 @@ Make sure to replace `./test.yaml` with the path to your YAML test file.
 
 ## Comparison with Other Testing Libraries
 
-Before delving into the details of API-Workflows and its functionality, let's compare it to other testing libraries to highlight the elegance, cleanliness, and simplicity of API-Workflows. To illustrate this, we will rewrite a Cypress test using API-Workflows.
+Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight the elegance, cleanliness, and simplicity of `testkit`. To illustrate this, we will rewrite a Cypress test using `testkit`.
 
-By showcasing the differences, you will see how API-Workflows provides a more streamlined and user-friendly approach to API testing. It offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios. Let's explore the rewritten test using API-Workflows.
+By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. It offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios. Let's explore the rewritten test using `testkit`.
 
 ```js
 describe('TODO api testing', () => {
@@ -127,7 +135,7 @@ describe('TODO api testing', () => {
 
 ## Test Definition Syntax
 
-API-Workflows uses a YAML-based syntax for defining test scenarios. Each scenario consists of multiple stages, where each stage represents a specific API request and its associated assertions. Below is an example of the YAML syntax for defining API tests:
+`testkit` uses a YAML-based syntax for defining test scenarios. Each scenario consists of multiple stages, where each stage represents a specific API request and its associated assertions. Below is an example of the YAML syntax for defining API tests:
 
 ```yaml
 ---
@@ -172,7 +180,7 @@ The `name` field is self explanatory and so we'll take more about the rest of th
 
 ### What is JSONPath
 
-JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In API-Workflows, JSONPath expressions are extensively used to extract data for assertions and outputs.
+JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and outputs.
 
 To illustrate how JSONPath works, consider the following examples:
 
@@ -187,11 +195,11 @@ The syntax of JSONPath expressions includes several key components:
 - Recursive descent (`..`): Enables searching for elements at any depth within the JSON structure, including nested objects and arrays.
 - Filters (`[?]`): Allows applying conditions or filters to select specific elements based on certain criteria.
 
-By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in API-Workflows, facilitating the extraction of data for performing assertions and capturing outputs during the testing process. learn more about jsonpaths [here](https://lzone.de/cheat-sheet/JSONPath)
+By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing outputs during the testing process. learn more about jsonpaths [here](https://lzone.de/cheat-sheet/JSONPath)
 
 ### request field
 
-The `request` field in API-Workflows defines the API request to be made and consists of three properties:
+The `request` field in `testkit` defines the API request to be made and consists of three properties:
 
 - `method`: This property specifies the HTTP method for the request, such as `GET`, `POST`, `PUT`, or `DELETE`. The value of the `method` property is the request URL path.
 
@@ -225,7 +233,7 @@ The `request` field in API-Workflows defines the API request to be made and cons
         - POST
   ```
 
-- `json` The `request` field in API-Workflows also supports an optional property called `json`. This property allows you to include request body data in JSON format when necessary.
+- `json` The `request` field in `testkit` also supports an optional property called `json`. This property allows you to include request body data in JSON format when necessary.
   By specifying the `json` property within the `request` field, you can provide structured data that needs to be sent along with the API request.
   Here's an example illustrating the usage of the `json` property:
 
@@ -247,7 +255,7 @@ These properties in the `request` field provide flexibility and control over the
 
 ## asserts field
 
-The `asserts` field in API-Workflows plays a crucial role in defining assertions or validations to be performed on the API response. It allows you to specify conditions that must be met for the test to pass successfully.
+The `asserts` field in `testkit` plays a crucial role in defining assertions or validations to be performed on the API response. It allows you to specify conditions that must be met for the test to pass successfully.
 
 The `asserts` field accepts a collection of key-value pairs, where the keys represent the type of assertion and the values define the corresponding expressions or conditions to be evaluated.
 
@@ -263,7 +271,7 @@ Here's an example to demonstrate the usage of the `asserts` field:
     equals: $.resp.body.json[0].task, "run tests"
 ```
 
-The `.json` tells api-workflows to convert the response into JSON format.
+The `.json` tells `testkit` to convert the response into JSON format.
 This allows you to access properties of the response JSON using JSONPath expressions.
 
 In the above example, we have defined three assertions:
@@ -277,7 +285,7 @@ In the above example, we have defined three assertions:
 You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
 
 By utilizing the `asserts` field effectively, you can ensure that the API response meets the expected criteria, providing confidence in the correctness and reliability of your API.
-All possible assertions you could use in the `asserts` field of API-Workflows are as follows:
+All possible assertions you could use in the `asserts` field of `testkit` are as follows:
 
 - `is_true`: Checks if the provided expression evaluates to `true`.
 - `is_false`: Checks if the provided expression evaluates to `false`.
@@ -295,7 +303,7 @@ These assertions provide a wide range of options to validate different aspects o
 
 ## outputs
 
-The `outputs` field in API-Workflows allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
+The `outputs` field in `testkit` allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
 
 To use the `outputs` field, you define key-value pairs where the keys represent the names of the outputs (think of it as a variable), and the values define the JSON paths or expressions used to extract the desired data from the response.
 
@@ -319,7 +327,7 @@ Using the `outputs` field, you can enhance the flexibility and modularity of you
 
 ## Referencing Values and Dynamic Inputs for Subsequent API Requests
 
-The `outputs` field in API-Workflows not only allows you to capture values from the API response but also provides a powerful mechanism for referencing those values and dynamically generating inputs for subsequent API requests.
+The `outputs` field in `testkit` not only allows you to capture values from the API response but also provides a powerful mechanism for referencing those values and dynamically generating inputs for subsequent API requests.
 
 By capturing relevant data using the `outputs` field, you can store it as an output and easily refer to it in later stages of your test scenario. This capability becomes particularly useful when you need to access specific values extracted from the response and utilize them in subsequent API requests.
 
@@ -343,7 +351,7 @@ To reference this `userId` output in a subsequent API request, you can use the `
     name: 'John Doe'
 ```
 
-In the above example, the `userId` captured in the first stage is accessed using the syntax `{{$.stages[0].outputs.userId}}`. By enclosing the reference in double curly braces (`{{}}`), API-Workflows understands that it should substitute the reference with the corresponding value during execution.
+In the above example, the `userId` captured in the first stage is accessed using the syntax `{{$.stages[0].outputs.userId}}`. By enclosing the reference in double curly braces (`{{}}`), `testkit` understands that it should substitute the reference with the corresponding value during execution.
 
 You can also use relative references like `{{$.stages[-n]}}` which refers to the output of the `nth` stage before the current stage.
 Example:
