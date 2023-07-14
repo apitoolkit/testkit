@@ -3,6 +3,9 @@
 ## Introduction
 
 Testkit is a testing tool designed for API manual testing and test automation tasks. It provides a simplified yaml syntax for defining and executing API test scenarios. 
+<img width="1107" alt="image" src="https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c">
+
+
 
 ### Why a testing DSL?
 - Teams should not be forced to write javascript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system
