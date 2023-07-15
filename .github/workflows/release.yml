@@ -1,9 +1,8 @@
 name: Build and Release CLI
-
 on:
   push:
     branches:
-      - main
+      - buil-test
 
 jobs:
   build:
