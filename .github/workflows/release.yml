@@ -1,4 +1,5 @@
-name: Build and Release CLI
+name: Build and Release
+
 on:
   push:
     branches:
@@ -6,51 +7,32 @@ on:
 
 jobs:
   build:
+    name: Build for multiple platforms
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-
+        uses: actions/checkout@v2
+      - name: Install Rust
+        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - name: Configure Rust
+        run: source $HOME/.cargo/env
       - name: Build for Linux
         run: cargo build --release --target x86_64-unknown-linux-gnu
-        env:
-          OUTPUT_DIR: cli-linux
-
-      - name: Build for Windows
-        run: cargo build --release --target x86_64-pc-windows-gnu
-        env:
-          OUTPUT_DIR: cli-windows
-
       - name: Build for macOS
         run: cargo build --release --target x86_64-apple-darwin
-        env:
-          OUTPUT_DIR: cli-macos
-
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: cli
-          path: ${{ env.OUTPUT_DIR }}
+      - name: Build for Windows
+        run: cargo build --release --target x86_64-pc-windows-gnu
 
   release:
+    name: Release
     needs: build
     runs-on: ubuntu-latest
-
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout code
+      - name: Set up Git
         uses: actions/checkout@v2
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: cli
-
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -58,36 +40,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v1.0.0
-          release_name: Release 1.0.0
+          release_name: Release v1.0.0
+          body: |
+            Describe your release notes here
           draft: false
           prerelease: false
-
-      - name: Upload CLI for Linux
+      - name: Upload Linux Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: cli-linux/cli
-          asset_name: cli-linux
+          asset_path: ./target/x86_64-unknown-linux-gnu/release/your_app_name
+          asset_name: your_app_name-linux
           asset_content_type: application/octet-stream
-
-      - name: Upload CLI for Windows
+      - name: Upload macOS Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: cli-windows/cli.exe
-          asset_name: cli-windows.exe
+          asset_path: ./target/x86_64-apple-darwin/release/your_app_name
+          asset_name: your_app_name-macos
           asset_content_type: application/octet-stream
-
-      - name: Upload CLI for macOS
+      - name: Upload Windows Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: cli-macos/cli
-          asset_name: cli-macos
+          asset_path: ./target/x86_64-pc-windows-gnu/release/your_app_name.exe
+          asset_name: your_app_name-windows.exe
           asset_content_type: application/octet-stream
