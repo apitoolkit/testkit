@@ -32,7 +32,7 @@ jobs:
           env:
             GH_TOKEN: ${{ github.token }}
           run: gh release create ${{ env.RG_VERSION }}
-          
+
   build-release:
     name: build-release
     needs: ['create-release']
@@ -58,7 +58,6 @@ jobs:
             target: x86_64-unknown-linux-gnu
 
 
-    name: Build (${{ matrix.target }})
     steps:
       - uses: actions/checkout@v3
         with:
