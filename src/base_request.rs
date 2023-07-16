@@ -1,5 +1,4 @@
 use jsonpath_lib::select;
-use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
@@ -223,9 +222,9 @@ pub async fn base_request(
         println!("{:?}", assert_results);
 
         if let Some(outputs) = &stage.outputs {
-            for (key, value) in outputs.into_iter() {
-                if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
-                    outputs_map.insert(key.to_string(), evaled.clone().clone());
+            for (key, value) in outputs.iter() {
+                if let Some(evaled) = select(&serde_json::json!(assert_object), value)?.first() {
+                    outputs_map.insert(key.to_string(), <&Value>::clone(evaled).clone());
                 }
             }
         }
@@ -264,16 +263,16 @@ fn find_all_jsonpaths<'a>(input: &'a String) -> Vec<&'a str> {
 // 4. replace the jsonpaths with that value in the original expr string
 // 5. Evaluate the expression with the expressions library.
 // TODO: decide on both error handling and the reporting approach
-fn evaluate_expressions<'a, T: Clone + 'static>(
+fn evaluate_expressions<T: Clone + 'static>(
     ctx: TestContext,
     original_expr: &String,
-    object: &'a Value,
+    object: &Value,
 ) -> Result<(T, String), AssertionError> {
-    let paths = find_all_jsonpaths(&original_expr);
+    let paths = find_all_jsonpaths(original_expr);
     let mut expr = original_expr.clone();
 
     for path in paths {
-        match select(&object, &path) {
+        match select(object, path) {
             Ok(selected_value) => {
                 if let Some(selected_value) = selected_value.first() {
                     expr = expr.replace(path, &selected_value.to_string());
@@ -307,7 +306,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
         src: NamedSource::new(ctx.file, expr.clone()),
         bad_bit: (0, 4).into(),
     })?;
-    Ok((evaluated, expr.clone()))
+    Ok((evaluated, expr))
 }
 
 async fn check_assertions(
@@ -320,9 +319,9 @@ async fn check_assertions(
     for assertion in asserts {
         let eval_result = match assertion {
             Assert::IsTrue(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("IS TRUE ", e , expr, eval_expr)),
             Assert::IsFalse(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("IS FALSE ", !e, expr, eval_expr)),
             Assert::IsArray(_expr) => todo!(),
             Assert::IsEmpty(_expr) => todo!(),
             Assert::IsString(_expr) => todo!(),
