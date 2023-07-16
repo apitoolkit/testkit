@@ -49,12 +49,4 @@ jobs:
         if: ${{ !contains(matrix.target, 'android') && matrix.target != 'aarch64-unknown-linux-gnu' }}
         run: |
           cargo build --release --workspace -p livekit --target ${{ matrix.target }}
-    
-      - name: Compile and release
-        uses: rust-build/rust-build.action@v1.4.3
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-            RUSTTARGET: ${{ matrix.target }}
-            ARCHIVE_TYPES: ${{ matrix.archive }}
       
