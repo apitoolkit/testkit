@@ -2,9 +2,9 @@ name: Builds
 
 on:
   push:
-    branches: ["main"]
+    branches: ["buil-test"]
   pull_request:
-    branches: ["main"]
+    branches: ["buil-test"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install -y libssl-dev libx11-dev libgl1-mesa-dev libxext-dev
-          
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
