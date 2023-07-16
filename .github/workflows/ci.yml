@@ -1,13 +1,13 @@
 name: Builds
 
 on:
-  push:
-        branches: ["buil-test"]
-  pull_request:
-        branches: ["buil-test"]
-tags:
-    - "[0-9]+.[0-9]+.[0-9]+"
-
+    push:
+      # Enable when testing release infrastructure on a branch.
+      branches: ["buil-test"]
+      # branches:
+      # - ag/work
+      tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
 env:
   CARGO_TERM_COLOR: always
 
