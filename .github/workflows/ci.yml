@@ -1,68 +1,38 @@
-name: Build and Release
+name: Rust
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "buil-test" ]
+  pull_request:
+    branches: [ "buil-test" ]
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build
+  rustfmt-check:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Build for Ubuntu
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: linux-binary
-          path: target/x86_64-unknown-linux-gnu/release/your_app
-
-  release:
-    name: Release
-    needs: build
+      - uses: actions/checkout@v2
+      - name: Run cargo fmt
+        run: cargo fmt --all -- --check
+      - name: Run cargo clippy
+        run: cargo clippy --all -- -D warnings
+  macos-check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test
+        run: cargo test --all-features
+  ubuntu-check:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: linux-binary
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - name: Build for macOS
-        run: cargo build --release --target x86_64-apple-darwin
-
-      - name: Build for Windows
-        run: cargo build --release --target x86_64-pc-windows-msvc
-
-      - name: Archive macOS artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: mac-binary
-          path: target/x86_64-apple-darwin/release/your_app
-
-      - name: Archive Windows artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: windows-binary
-          path: target/x86_64-pc-windows-msvc/release/your_app
+      - uses: actions/checkout@v2
+      - name: Test
+        run: cargo test --all-features
+  windows-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test
+        run: cargo test --all-features

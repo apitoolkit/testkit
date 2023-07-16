@@ -1,68 +1,26 @@
-name: Build and Release
-
 on:
-  push:
-    branches:
-      - buil-test
-
-jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Build for Ubuntu
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: linux-binary
-          path: target/x86_64-unknown-linux-gnu/release/your_app
-
   release:
-    name: Release
-    needs: build
+    types: [created]
+jobs:
+  release:
+    name: release ${{ matrix.target }}
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            archive: zip
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v2
+      - uses: actions/checkout@master
+      - name: Compile and release
+        uses: rust-build/rust-build.action@v1.4.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: linux-binary
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - name: Build for macOS
-        run: cargo build --release --target x86_64-apple-darwin
-
-      - name: Build for Windows
-        run: cargo build --release --target x86_64-pc-windows-msvc
-
-      - name: Archive macOS artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: mac-binary
-          path: target/x86_64-apple-darwin/release/your_app
-
-      - name: Archive Windows artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: windows-binary
-          path: target/x86_64-pc-windows-msvc/release/your_app
+          RUSTTARGET: ${{ matrix.target }}
+          ARCHIVE_TYPES: ${{ matrix.archive }}
