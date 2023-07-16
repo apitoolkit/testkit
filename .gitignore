@@ -14,3 +14,16 @@ Cargo.lock
 *.pdb
 test_server/node_modules/
 node_modules/
+
+# Ignore compiled Python files
+*.pyc
+*.pyo
+__pycache__/
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE-specific files and directories
+.idea/
+.vscode/
