@@ -2,18 +2,49 @@ name: Builds
 
 on:
   push:
-    branches: ["buil-test"]
+        branches: ["buil-test"]
   pull_request:
-    branches: ["buil-test"]
+        branches: ["buil-test"]
+tags:
+    - "[0-9]+.[0-9]+.[0-9]+"
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    # env:
+        # Set to force version number, e.g., when no tag exists.
+        # RG_VERSION: TEST-0.0.0
+    outputs:
+        rg_version: ${{ env.RG_VERSION }}
+    steps:
+        - uses: actions/checkout@v3
+        - name: Get the release version from the tag
+          shell: bash
+          if: env.RG_VERSION == ''
+          run: |
+            echo "RG_VERSION=$GITHUB_REF_NAME" >> $GITHUB_ENV
+            echo "version is: ${{ env.RG_VERSION }}"
+        - name: Create GitHub release
+          env:
+            GH_TOKEN: ${{ github.token }}
+           run: gh release create ${{ env.RG_VERSION }}
+
+  build-release:
+    name: build-release
+    needs: ['create-release']
+    runs-on: ${{matrix.os}}
+    env:
+        TARGET_DIR: ./target
+
     strategy:
       fail-fast: false
       matrix:
+        build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
+
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -28,7 +59,6 @@ jobs:
 
 
     name: Build (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -50,3 +80,31 @@ jobs:
         run: |
           cargo build --release --workspace -p livekit --target ${{ matrix.target }}
       
+      - name: Build archive
+        shell: bash
+        run: |
+            outdir="$(ci/cargo-out-dir "${{ env.TARGET_DIR }}")"
+            staging="testkit-${{ needs.create-release.outputs.rg_version }}-${{ matrix.target }}"
+            mkdir -p "$staging"/{complete,doc}
+
+
+            if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp "target/${{ matrix.target }}/release/testkit.exe" "$staging/"
+            7z a "$staging.zip" "$staging"
+            certutil -hashfile "$staging.zip" SHA256 > "$staging.zip.sha256"
+            echo "ASSET=$staging.zip" >> $GITHUB_ENV
+            echo "ASSET_SUM=$staging.zip.sha256" >> $GITHUB_ENV
+            else
+            # The man page is only generated on Unix systems. ¯\_(ツ)_/¯
+            cp "$outdir"/rg.1 "$staging/doc/"
+            cp "target/${{ matrix.target }}/release/rg" "$staging/"
+            tar czf "$staging.tar.gz" "$staging"
+            shasum -a 256 "$staging.tar.gz" > "$staging.tar.gz.sha256"
+            echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+            echo "ASSET_SUM=$staging.tar.gz.sha256" >> $GITHUB_ENV
+            fi
+
+      - name: Upload release archive
+        env:
+            GH_TOKEN: ${{ github.token }}
+        run: gh release upload ${{ needs.create-release.outputs.rg_version }} ${{ env.ASSET }} ${{ env.ASSET_SUM }}
