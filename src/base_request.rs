@@ -319,7 +319,7 @@ async fn check_assertions(
     for assertion in asserts {
         let eval_result = match assertion {
             Assert::IsTrue(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS TRUE ", e , expr, eval_expr)),
+                .map(|(e, eval_expr)| ("IS TRUE ", e, expr, eval_expr)),
             Assert::IsFalse(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
                 .map(|(e, eval_expr)| ("IS FALSE ", !e, expr, eval_expr)),
             Assert::IsArray(_expr) => todo!(),
