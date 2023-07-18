@@ -39,6 +39,8 @@ pub enum Assert {
     IsEmpty(String),
     #[serde(rename = "is_string")]
     IsString(String),
+    #[serde(rename = "is_number")]
+    IsNumber(String),
     // Add other assertion types as needed
 }
 
@@ -360,7 +362,9 @@ async fn check_assertions(
                 .map(|(e, eval_expr)| ("IS ARRAY ", e == true, expr, eval_expr)),
             Assert::IsEmpty(_expr) => todo!(),
             Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
-                .map(|(e, eval_expr)| ("IS String ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("IS STRING ", e == true, expr, eval_expr)),
+            Assert::IsNumber(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "num")
+                .map(|(e, eval_expr)| ("IS NUMBER ", e == true, expr, eval_expr)),
         };
 
         match eval_result {

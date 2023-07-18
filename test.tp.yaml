@@ -11,6 +11,7 @@
         is_true: $.resp.json.number == 5
         is_true: $.resp.status == 201
         is_false: $.resp.json.number != 5
+        is_number: $.resp.json.number
         is_string: $.resp.json.number # will fail
         is_true: $.respx.nonexisting == 5 # will fail
       outputs: null
