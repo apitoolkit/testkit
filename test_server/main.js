@@ -10,7 +10,6 @@ let todos = [];
 
 // Get all todos
 app.get('/todos', (req, res) => {
-  console.log(req.body)
   res.json({ "tasks": ["task one", 4, "task two", "task three"], "empty_str": "", "empty_arr": [], resp_null: null });
 });
 
@@ -51,13 +50,10 @@ app.put('/todos/:id', (req, res) => {
 
 // Delete a todo
 app.delete('/todos/:id', (req, res) => {
-  console.log(req)
   const id = parseInt(req.params.id);
   const index = todos.findIndex(todo => todo.id === id);
-  console.log(id, index)
   if (index !== -1) {
     const deletedTodo = todos.splice(index, 1);
-    console.log(deletedTodo[0])
     res.json(deletedTodo[0]);
   } else {
     res.status(404).json({ error: 'Todo not found' });
