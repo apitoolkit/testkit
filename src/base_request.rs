@@ -303,6 +303,46 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     Ok((evaluated, expr.clone()))
 }
 
+fn evaluate_value<'a, T: Clone + 'static>(
+    ctx: TestContext,
+    expr: &'a String,
+    object: &'a Value,
+    value_type: &str,
+) -> Result<(bool, String), AssertionError> {
+    match select(&object, expr) {
+        Ok(selected_value) => {
+            if let Some(selected_value) = selected_value.first() {
+                // TODO: add the value to the returned tuple
+                // TODO: incase we add function support later
+                match selected_value {
+                    Value::Array(_v) => Ok((value_type == "array", expr.clone())),
+                    Value::String(_v) => Ok((value_type == "str", expr.clone())),
+                    Value::Number(_v) => Ok((value_type == "num", expr.clone())),
+                    _ => todo!(),
+                }
+            } else {
+                // TODO: reproduce and improve this error
+                return Err(AssertionError {
+                        advice: Some(
+                            "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
+                        ),
+                        src: NamedSource::new(ctx.file, expr.clone()),
+                        bad_bit: (0,  expr.len()).into(),
+                    });
+            }
+        }
+        Err(_err) => {
+            // TODO: reproduce and improve this error. Use the _err argument
+            // The given jsonpath could not be evaluated to a value
+            return Err(AssertionError {
+                advice: Some("could not resolve jsonpaths to any real variables".to_string()),
+                src: NamedSource::new(ctx.file, expr.clone()),
+                bad_bit: (0, 4).into(),
+            });
+        }
+    }
+}
+
 async fn check_assertions(
     ctx: TestContext,
     asserts: &[Assert],
@@ -316,9 +356,11 @@ async fn check_assertions(
                 .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr)),
             Assert::IsFalse(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
                 .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr)),
-            Assert::IsArray(_expr) => todo!(),
+            Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
+                .map(|(e, eval_expr)| ("IS ARRAY ", e == true, expr, eval_expr)),
             Assert::IsEmpty(_expr) => todo!(),
-            Assert::IsString(_expr) => todo!(),
+            Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
+                .map(|(e, eval_expr)| ("IS String ", e == true, expr, eval_expr)),
         };
 
         match eval_result {
@@ -335,7 +377,7 @@ async fn check_assertions(
                                 advice: Some(
                                     "check that you're using correct jsonpaths".to_string()
                                 ),
-                                src: NamedSource::new("bad_file.rs", "blablabla"),
+                                src: NamedSource::new("bad_file.rs", expr.to_string()),
                                 bad_bit: (0, 4).into(),
                             })
                             .into()
