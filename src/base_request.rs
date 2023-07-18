@@ -43,6 +43,8 @@ pub enum Assert {
     IsNumber(String),
     #[serde(rename = "is_boolean")]
     IsBoolean(String),
+    #[serde(rename = "is_null")]
+    IsNull(String),
     // Add other assertion types as needed
 }
 
@@ -331,6 +333,7 @@ fn evaluate_value<'a, T: Clone + 'static>(
                     }
                     Value::Number(_v) => Ok((value_type == "num", expr.clone())),
                     Value::Bool(_v) => Ok((value_type == "bool", expr.clone())),
+                    Value::Null => Ok((value_type == "null", expr.clone())),
                     _ => todo!(),
                 }
             } else {
@@ -381,6 +384,8 @@ async fn check_assertions(
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "bool")
                     .map(|(e, eval_expr)| ("IS BOOLEAN ", e == true, expr, eval_expr))
             }
+            Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
+                .map(|(e, eval_expr)| ("IS NULL ", e == true, expr, eval_expr)),
         };
 
         match eval_result {
@@ -436,7 +441,7 @@ mod tests {
                 .header("content-type", "application/json")
                 .json_body(json!({ "req_number": 5 }));
             then.status(201)
-                .json_body(json!({ "resp_string": "test", "resp_number": 4, "resp_bool": true }));
+                .json_body(json!({ "resp_string": "test", "resp_number": 4, "resp_bool": true, "resp_null": null}));
         });
         let m2 = server.mock(|when, then| {
             when.method(GET).path("/todo_get");
@@ -462,6 +467,7 @@ mod tests {
         is_number: $.resp.json.resp_number
         is_string: $.resp.json.resp_string
         is_boolean: $.resp.json.resp_bool
+        is_null: $.resp.json.resp_null
         # is_false: $.resp.json.resp_string != 5
         # is_true: $.respx.nonexisting == 5
       outputs:
