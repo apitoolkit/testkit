@@ -314,11 +314,19 @@ fn evaluate_value<'a, T: Clone + 'static>(
     match select(&object, expr) {
         Ok(selected_value) => {
             if let Some(selected_value) = selected_value.first() {
-                // TODO: add the value to the returned tuple
-                // TODO: incase we add function support later
                 match selected_value {
-                    Value::Array(_v) => Ok((value_type == "array", expr.clone())),
-                    Value::String(_v) => Ok((value_type == "str", expr.clone())),
+                    Value::Array(v) => {
+                        if value_type == "empty" {
+                            return Ok((v.is_empty(), expr.clone()));
+                        }
+                        Ok((value_type == "array", expr.clone()))
+                    }
+                    Value::String(v) => {
+                        if value_type == "empty" {
+                            return Ok((v.is_empty(), expr.clone()));
+                        }
+                        Ok((value_type == "str", expr.clone()))
+                    }
                     Value::Number(_v) => Ok((value_type == "num", expr.clone())),
                     _ => todo!(),
                 }
@@ -360,7 +368,8 @@ async fn check_assertions(
                 .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr)),
             Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
                 .map(|(e, eval_expr)| ("IS ARRAY ", e == true, expr, eval_expr)),
-            Assert::IsEmpty(_expr) => todo!(),
+            Assert::IsEmpty(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")
+                .map(|(e, eval_expr)| ("IS EMPTY ", e == true, expr, eval_expr)),
             Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
                 .map(|(e, eval_expr)| ("IS STRING ", e == true, expr, eval_expr)),
             Assert::IsNumber(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "num")
