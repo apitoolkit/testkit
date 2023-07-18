@@ -41,6 +41,8 @@ pub enum Assert {
     IsString(String),
     #[serde(rename = "is_number")]
     IsNumber(String),
+    #[serde(rename = "is_boolean")]
+    IsBoolean(String),
     // Add other assertion types as needed
 }
 
@@ -328,6 +330,7 @@ fn evaluate_value<'a, T: Clone + 'static>(
                         Ok((value_type == "str", expr.clone()))
                     }
                     Value::Number(_v) => Ok((value_type == "num", expr.clone())),
+                    Value::Bool(_v) => Ok((value_type == "bool", expr.clone())),
                     _ => todo!(),
                 }
             } else {
@@ -374,6 +377,10 @@ async fn check_assertions(
                 .map(|(e, eval_expr)| ("IS STRING ", e == true, expr, eval_expr)),
             Assert::IsNumber(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "num")
                 .map(|(e, eval_expr)| ("IS NUMBER ", e == true, expr, eval_expr)),
+            Assert::IsBoolean(expr) => {
+                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "bool")
+                    .map(|(e, eval_expr)| ("IS BOOLEAN ", e == true, expr, eval_expr))
+            }
         };
 
         match eval_result {
@@ -429,12 +436,13 @@ mod tests {
                 .header("content-type", "application/json")
                 .json_body(json!({ "req_number": 5 }));
             then.status(201)
-                .json_body(json!({ "resp_string": "test", "resp_number": 4 }));
+                .json_body(json!({ "resp_string": "test", "resp_number": 4, "resp_bool": true }));
         });
         let m2 = server.mock(|when, then| {
             when.method(GET).path("/todo_get");
             // .json_body(json!({ "req_string": "test"  }));
-            then.status(200).json_body(json!({ "resp_string": "ok"}));
+            then.status(200)
+                .json_body(json!({ "tasks": ["task one", 4, "task two", "task three"], "empty_str": "", "empty_arr": []}));
         });
 
         let yaml_str = format!(
@@ -451,6 +459,9 @@ mod tests {
       asserts:
         is_true: $.resp.json.resp_string == "test"
         is_true: $.resp.status == 201
+        is_number: $.resp.json.resp_number
+        is_string: $.resp.json.resp_string
+        is_boolean: $.resp.json.resp_bool
         # is_false: $.resp.json.resp_string != 5
         # is_true: $.respx.nonexisting == 5
       outputs:
@@ -461,6 +472,11 @@ mod tests {
             req_string: $.outputs.todoResp
       asserts:
         is_true: $.resp.status == 200
+        is_array: $.resp.json.tasks
+        is_true: $.resp.json.tasks[0] == "task one"
+        is_number: $.resp.json.tasks[1]
+        is_empty: $.resp.json.empty_str
+        is_empty: $.resp.json.empty_arr
 "#,
             server.url("/todos"),
             server.url("/todo_get")
