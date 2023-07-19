@@ -1,6 +1,7 @@
 use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
+use regex::Regex;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use rhai::Engine;
@@ -145,6 +146,25 @@ pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Er
     Ok(())
 }
 
+// Replacce output variables with actual values in request url
+fn format_url(original_url: &String, outputs: &HashMap<String, Value>) -> String {
+    let re = Regex::new(r"\{\{(.*?)\}\}").unwrap_or_else(|err| panic!("{}", err));
+    let mut url = original_url.clone();
+    for caps in re.captures_iter(original_url) {
+        if let Some(matched_string) = caps.get(1) {
+            let st = matched_string.as_str().to_string();
+            let elements: Vec<&str> = st.split('.').collect();
+            if let Some(output_variable) = elements.last() {
+                if let Some(value) = outputs.get(&output_variable.to_string()) {
+                    let repl = format!("{{{{{}}}}}", st);
+                    url = url.replace(&repl, &value.to_string());
+                }
+            }
+        }
+    }
+    url
+}
+
 // base_request would process a test plan, logging status updates as they happen.
 // Logging in place allows tracking of the results earlier
 pub async fn base_request(
@@ -168,10 +188,10 @@ pub async fn base_request(
             ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
         let mut request_builder = match &stage.request.http_method {
-            HttpMethod::GET(url) => client.get(url),
-            HttpMethod::POST(url) => client.post(url),
-            HttpMethod::PUT(url) => client.put(url),
-            HttpMethod::DELETE(url) => client.delete(url),
+            HttpMethod::GET(url) => client.get(format_url(url, &outputs_map)),
+            HttpMethod::POST(url) => client.post(format_url(url, &outputs_map)),
+            HttpMethod::PUT(url) => client.put(format_url(url, &outputs_map)),
+            HttpMethod::DELETE(url) => client.delete(format_url(url, &outputs_map)),
         };
         if let Some(headers) = &stage.request.headers {
             for (name, value) in headers {
@@ -220,7 +240,6 @@ pub async fn base_request(
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
-
         if let Some(outputs) = &stage.outputs {
             for (key, value) in outputs.into_iter() {
                 if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
