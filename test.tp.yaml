@@ -46,7 +46,7 @@
       asserts:
         is_string: $.resp.json.task
         is_number: $.resp.json.id
-        is_true: $.resp.json.id == {{$.stages[1].outputs.todoItem}}
+        is_true: $.resp.json.id == {{$.stages[-1].outputs.todoItem}}
 
     - name: Adds Todo item - POST
       request:

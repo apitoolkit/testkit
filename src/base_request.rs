@@ -162,6 +162,7 @@ pub async fn base_request(
         let mut ctx = ctx.clone();
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
+        ctx.stage_index = i as u32;
         log::info!(
             "{:?} ⬅ {}/{}",
             stage.request.http_method,
@@ -169,10 +170,22 @@ pub async fn base_request(
             ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
         let mut request_builder = match &stage.request.http_method {
-            HttpMethod::GET(url) => client.get(format_url(url, &outputs_map)),
-            HttpMethod::POST(url) => client.post(format_url(url, &outputs_map)),
-            HttpMethod::PUT(url) => client.put(format_url(url, &outputs_map)),
-            HttpMethod::DELETE(url) => client.delete(format_url(url, &outputs_map)),
+            HttpMethod::GET(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.get(url)
+            }
+            HttpMethod::POST(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.post(url)
+            }
+            HttpMethod::PUT(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.put(url)
+            }
+            HttpMethod::DELETE(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.delete(url)
+            }
         };
         if let Some(headers) = &stage.request.headers {
             for (name, value) in headers {
@@ -280,23 +293,36 @@ fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
 }
 
 // Replacce output variables with actual values in request url
-fn format_url(original_url: &String, outputs: &HashMap<String, Value>) -> String {
+fn format_url(
+    ctx: &TestContext,
+    original_url: &String,
+    outputs: &HashMap<String, Value>,
+) -> Result<String, AssertionError> {
     let re = Regex::new(r"\{\{(.*?)\}\}").unwrap_or_else(|err| panic!("{}", err));
     let mut url = original_url.clone();
     for caps in re.captures_iter(original_url) {
         if let Some(matched_string) = caps.get(1) {
             let st = matched_string.as_str().to_string();
-            let target_stage = get_var_stage(&st.clone(), 0).unwrap_or_default();
+            let target_stage = get_var_stage(&st.clone(), ctx.stage_index).unwrap_or_default();
             let elements: Vec<&str> = st.split('.').collect();
             let target_key = elements.last().unwrap_or(&"");
             let output_key = format!("{}_{}", target_stage, target_key);
             if let Some(value) = outputs.get(&output_key) {
                 let repl = format!("{{{{{}}}}}", st);
                 url = url.replace(&repl, &value.to_string());
+            } else {
+                return Err(AssertionError {
+                    advice: Some(format!(
+                        "{}: could not resolve output variable path to any real value",
+                        st
+                    )),
+                    src: NamedSource::new(&ctx.file, st.clone()),
+                    bad_bit: (0, st.len()).into(),
+                });
             }
         }
     }
-    url
+    Ok(url)
 }
 
 fn find_all_output_vars(
@@ -350,7 +376,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     "{}: could not resolve output variable path to any real value",
                     var_path
                 )),
-                src: NamedSource::new(ctx.file, expr),
+                src: NamedSource::new(ctx.file, var_path.clone()),
                 bad_bit: (0, var_path.len()).into(),
             });
         }
