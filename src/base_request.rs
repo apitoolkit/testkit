@@ -146,25 +146,6 @@ pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Er
     Ok(())
 }
 
-// Replacce output variables with actual values in request url
-fn format_url(original_url: &String, outputs: &HashMap<String, Value>) -> String {
-    let re = Regex::new(r"\{\{(.*?)\}\}").unwrap_or_else(|err| panic!("{}", err));
-    let mut url = original_url.clone();
-    for caps in re.captures_iter(original_url) {
-        if let Some(matched_string) = caps.get(1) {
-            let st = matched_string.as_str().to_string();
-            let elements: Vec<&str> = st.split('.').collect();
-            if let Some(output_variable) = elements.last() {
-                if let Some(value) = outputs.get(&output_variable.to_string()) {
-                    let repl = format!("{{{{{}}}}}", st);
-                    url = url.replace(&repl, &value.to_string());
-                }
-            }
-        }
-    }
-    url
-}
-
 // base_request would process a test plan, logging status updates as they happen.
 // Logging in place allows tracking of the results earlier
 pub async fn base_request(
@@ -236,14 +217,16 @@ pub async fn base_request(
                 colored_json::to_colored_json_auto(&assert_context)?
             )
         }
-        let assert_results = check_assertions(ctx, &stage.asserts, assert_context).await?;
+        let assert_results =
+            check_assertions(ctx, &stage.asserts, assert_context, &outputs_map).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
         if let Some(outputs) = &stage.outputs {
             for (key, value) in outputs.into_iter() {
                 if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
-                    outputs_map.insert(key.to_string(), evaled.clone().clone());
+                    outputs_map
+                        .insert(format!("{}_{}", i, key.to_string()), evaled.clone().clone());
                 }
             }
         }
@@ -269,11 +252,77 @@ fn header_map_to_hashmap(headers: &HeaderMap<HeaderValue>) -> HashMap<String, Ve
 
 // Naive implementation that might not work for all jsonpaths and might need to be changed.
 // Should add tests to check which jsonpaths would not be supported
-fn find_all_jsonpaths<'a>(input: &'a String) -> Vec<&'a str> {
+fn find_all_jsonpaths(input: &String) -> Vec<&str> {
     input
         .split_whitespace()
         .filter(|x| x.starts_with("$"))
         .collect()
+}
+
+fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
+    let start_pos = input.find('[')?;
+    let end_pos = input[start_pos + 1..].find(']')? + start_pos + 1;
+    let n_str = &input[start_pos + 1..end_pos];
+
+    if let Ok(n) = n_str.parse::<i32>() {
+        if n < 0 {
+            let target_stage = (current_stage as i32) + n;
+            if target_stage >= 0 {
+                return Some(target_stage.try_into().unwrap());
+            }
+            None
+        } else {
+            Some(n.try_into().unwrap())
+        }
+    } else {
+        None
+    }
+}
+
+// Replacce output variables with actual values in request url
+fn format_url(original_url: &String, outputs: &HashMap<String, Value>) -> String {
+    let re = Regex::new(r"\{\{(.*?)\}\}").unwrap_or_else(|err| panic!("{}", err));
+    let mut url = original_url.clone();
+    for caps in re.captures_iter(original_url) {
+        if let Some(matched_string) = caps.get(1) {
+            let st = matched_string.as_str().to_string();
+            let target_stage = get_var_stage(&st.clone(), 0).unwrap_or_default();
+            let elements: Vec<&str> = st.split('.').collect();
+            let target_key = elements.last().unwrap_or(&"");
+            let output_key = format!("{}_{}", target_stage, target_key);
+            if let Some(value) = outputs.get(&output_key) {
+                let repl = format!("{{{{{}}}}}", st);
+                url = url.replace(&repl, &value.to_string());
+            }
+        }
+    }
+    url
+}
+
+fn find_all_output_vars(
+    input: &str,
+    outputs: &HashMap<String, Value>,
+    stage_index: u32,
+) -> HashMap<String, Option<Value>> {
+    let mut val_map = HashMap::new();
+
+    let vars: Vec<String> = input
+        .split_whitespace()
+        .filter(|x| x.starts_with("{{") && x.ends_with("}}"))
+        .map(|x| x.to_string())
+        .collect();
+
+    for var in vars {
+        let mut s = var.clone();
+        s.truncate(s.len() - 2);
+        s = s.split_off(2);
+        let target_stage = get_var_stage(&s.clone(), stage_index).unwrap_or_default();
+        let elements: Vec<&str> = s.split('.').collect();
+        let target_key = elements.last().unwrap_or(&"");
+        let output_key = format!("{}_{}", target_stage, target_key);
+        val_map.insert(var, outputs.get(&output_key).cloned());
+    }
+    val_map
 }
 
 // 1. First we extract a list of jsonpaths
@@ -286,10 +335,26 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     ctx: TestContext,
     original_expr: &String,
     object: &'a Value,
+    outputs: &HashMap<String, Value>,
 ) -> Result<(T, String), AssertionError> {
     let paths = find_all_jsonpaths(&original_expr);
+    let output_vars = find_all_output_vars(&original_expr, outputs, ctx.stage_index);
     let mut expr = original_expr.clone();
 
+    for (var_path, var_value) in output_vars.iter() {
+        if let Some(value) = var_value {
+            expr = expr.replace(var_path, value.to_string().as_str());
+        } else {
+            return Err(AssertionError {
+                advice: Some(format!(
+                    "{}: could not resolve output variable path to any real value",
+                    var_path
+                )),
+                src: NamedSource::new(ctx.file, expr),
+                bad_bit: (0, var_path.len()).into(),
+            });
+        }
+    }
     for path in paths {
         match select(&object, &path) {
             Ok(selected_value) => {
@@ -382,15 +447,20 @@ async fn check_assertions(
     ctx: TestContext,
     asserts: &[Assert],
     json_body: Value,
+    outputs: &HashMap<String, Value>,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
     let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
-            Assert::IsTrue(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr)),
-            Assert::IsFalse(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr)),
+            Assert::IsTrue(expr) => {
+                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
+                    .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr))
+            }
+            Assert::IsFalse(expr) => {
+                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
+                    .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr))
+            }
             Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
                 .map(|(e, eval_expr)| ("IS ARRAY ", e == true, expr, eval_expr)),
             Assert::IsEmpty(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")

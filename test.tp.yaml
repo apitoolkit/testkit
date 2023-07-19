@@ -44,9 +44,9 @@
       request:
         DELETE: "http://localhost:3000/todos/{{$.stages[1].outputs.todoItem}}"
       asserts:
-        #is_true: $.resp.body.json.id == {{$.stages[1].outputs.todoItem}}
         is_string: $.resp.json.task
         is_number: $.resp.json.id
+        is_true: $.resp.json.id == {{$.stages[1].outputs.todoItem}}
 
     - name: Adds Todo item - POST
       request:
@@ -54,6 +54,6 @@
         json:
           task: "run tests"
       asserts:
-        is_true: $.resp.status_code == 201
+        is_true: $.resp.status == 201
         is_true: $.resp.json.task == "run tests"
         #is_false: $.resp.json.completed
