@@ -2,18 +2,16 @@
 
 ## Introduction
 
-Testkit is a testing tool designed for API manual testing and test automation tasks. It provides a simplified yaml syntax for defining and executing API test scenarios. 
+Testkit is a testing tool designed for API manual testing and test automation tasks. It provides a simplified yaml syntax for defining and executing API test scenarios.
 <img width="1107" alt="image" src="https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c">
 
-
-
 ### Why a testing DSL?
+
 - Teams should not be forced to write javascript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system
 - We should be able to create interactive builders that generate this underlying DSL. So you shouldn't even need to write this DSL by hand in the future
 - We should be able to use the same script for both individual tests and load testing.
 - We should still be able to persist these tests in our version control and collaborate on them with our peers
 - Inspired by [Local-First software](https://www.inkandswitch.com/local-first/) principles
-
 
 ## Table of Contents
 
@@ -53,7 +51,7 @@ To install the `testkit` testing tool, follow the steps below:
    cargo build --release
    ```
 
-5. Once the build process is complete, you can find the ``testkit`` executable file in the `target/release` directory.
+5. Once the build process is complete, you can find the `testkit` executable file in the `target/release` directory.
 
 ## How to Run
 
@@ -113,7 +111,7 @@ describe('TODO api testing', () => {
       request:
         GET: /todos/
       asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
-        true: $.resp.status_code == 200  # Rely on an expressions libray for parsing expressions
+        ok: $.resp.status_code == 200  # Rely on an expressions libray for parsing expressions
         array: $.resp.body.json
       outputs: # values which should be accesible to future steps.
         todoItem: $.resp.body.json[0]._id
@@ -131,9 +129,9 @@ describe('TODO api testing', () => {
         json:
             task: "run tests"
       asserts:
-        true: $.resp.status_code == 200
-        true: $.resp.body.json.task == "run tests"
-        false: $.resp.body.json.completed
+        ok: $.resp.status_code == 200
+        ok: $.resp.body.json.task == "run tests"
+        ok: $.resp.body.json.completed == false
 ```
 
 ## Test Definition Syntax
@@ -148,7 +146,7 @@ describe('TODO api testing', () => {
       request:
         GET: /todos/
       asserts:
-        true: $.resp.status_code == 200
+        ok: $.resp.status_code == 200
         array: $.resp.body.json
       outputs:
         todoItem: $.resp.body.json[0]._id
@@ -166,9 +164,9 @@ describe('TODO api testing', () => {
         json:
             task: "run tests"
       asserts:
-        true: $.resp.status_code == 200
-        true: $.resp.body.json.task == "run tests"
-        false: $.resp.body.json.completed
+        ok: $.resp.status_code == 200
+        ok: $.resp.body.json.task == "run tests"
+        ok: $.resp.body.json.completed
 ```
 
 The YAML file consists of a list of test scenarios. Each scenario contains a `name` field and a list of `stages`. Each stage represents an API request and contains the following fields:
@@ -269,9 +267,9 @@ Here's an example to demonstrate the usage of the `asserts` field:
   request:
     GET: /todos/
   asserts:
-    is_true: $.resp.status_code == 200
-    is_array: $.resp.body.json
-    equals: $.resp.body.json[0].task, "run tests"
+    ok: $.resp.status_code == 200
+    array: $.resp.body.json
+    ok: $.resp.body.json[0].task == "run tests"
 ```
 
 The `.json` tells `testkit` to convert the response into JSON format.
@@ -279,28 +277,22 @@ This allows you to access properties of the response JSON using JSONPath express
 
 In the above example, we have defined three assertions:
 
-1. `is_true`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status_code == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
+1. `ok`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status_code == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
 
-2. `is_array`: This assertion verifies that the response body is an array. The expression `$.resp.body.json` is evaluated, and if the result is an array, the assertion passes.
-
-3. `equals`: This assertion validates whether the value of the `task` property in the first element of the response array is equal to `"run tests"`. The expression `$.resp.body.json[0].task` is evaluated, and if it matches the expected value, the assertion is successful.
+2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.body.json` is evaluated, and if the result is an array, the assertion passes.
 
 You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
 
 By utilizing the `asserts` field effectively, you can ensure that the API response meets the expected criteria, providing confidence in the correctness and reliability of your API.
 All possible assertions you could use in the `asserts` field of `testkit` are as follows:
 
-- `is_true`: Checks if the provided expression evaluates to `true`.
-- `is_false`: Checks if the provided expression evaluates to `false`.
-- `equals`: Compares two values for equality.
-- `contains`: Checks if a value or array contains a specified element.
-- `is_empty`: Checks if a value is empty (e.g., an empty array, string, or null).
-- `is_array`: Checks if a value is an array.
-- `is_string`: Checks if a value is a string.
-- `is_number`: Checks if a value is a number.
-- `is_boolean`: Checks if a value is a boolean.
-- `is_null`: Checks if a value is null.
-- `exists`: Checks if a value exists or is defined.
+- `ok`: Checks if the provided expression evaluates to `true`.
+- `empty`: Checks if a value is empty (e.g., an empty array, string, or null).
+- `array`: Checks if a value is an array.
+- `string`: Checks if a value is a string.
+- `number`: Checks if a value is a number.
+- `boolean`: Checks if a value is a boolean.
+- `null`: Checks if a value is null.
 
 These assertions provide a wide range of options to validate different aspects of the API response, allowing you to ensure the correctness and integrity of the data and behavior. You can select the appropriate assertion based on the specific validation requirements of your API test scenario.
 
@@ -364,8 +356,8 @@ Example:
       request:
         DELETE: /todos/{{$.stages[-1].outputs.todoItem}} #-1 means one stage before me
       asserts:
-        empty: $.resp.body.json.todos
-        string: $.resp.body.json
+        string: $.resp.body.json.task
+        ok: $.resp.body.json.id == {{$.stages[-1].outputs.todoItem}}
 
 ```
 
