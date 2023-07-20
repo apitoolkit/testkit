@@ -564,6 +564,11 @@ mod tests {
             then.status(200)
                 .json_body(json!({ "tasks": ["task one", 4, "task two", "task three"], "empty_str": "", "empty_arr": []}));
         });
+        let m3 = server.mock(|when, then| {
+            when.method(DELETE).path("/todos");
+            then.status(200)
+                .json_body(json!({"task":"delted", "id": 4}));
+        });
 
         let yaml_str = format!(
             r#"
@@ -598,9 +603,16 @@ mod tests {
         is_number: $.resp.json.tasks[1]
         is_empty: $.resp.json.empty_str
         is_empty: $.resp.json.empty_arr
+      outputs:
+        todoId: $.resp.json.tasks[1]
+    - request:
+        DELETE: {}
+      asserts:
+        is_true: $.resp.json.id == {{{{$.stages[-1].outputs.todoId}}}}
 "#,
             server.url("/todos"),
-            server.url("/todo_get")
+            server.url("/todo_get"),
+            server.url("/todos")
         );
 
         let ctx = TestContext {
@@ -614,6 +626,7 @@ mod tests {
         let resp = run(ctx, yaml_str.into()).await;
         log::debug!("{:?}", resp);
         assert_ok!(resp);
+        m3.assert_hits(1);
         m2.assert_hits(1);
         m.assert_hits(1);
 
