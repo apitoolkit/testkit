@@ -539,29 +539,60 @@ mod tests {
     use httpmock::prelude::*;
     use serde_json::json;
 
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Todo<'a> {
+        pub task: &'a str,
+        pub completed: bool,
+        pub id: u32,
+    }
     #[tokio::test]
     async fn test_yaml_kitchen_sink() {
         env_logger::init();
         // testing_logger::setup();
+        let mut todos = vec![
+            Todo {
+                task: "task one",
+                completed: false,
+                id: 1,
+            },
+            Todo {
+                task: "task two",
+                completed: false,
+                id: 2,
+            },
+        ];
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(POST)
                 .path("/todos")
                 .header("content-type", "application/json")
-                .json_body(json!({ "req_number": 5 }));
-            then.status(201)
-                .json_body(json!({ "resp_string": "test", "resp_number": 4, "resp_bool": true, "resp_null": null}));
+                .json_body(json!({ "task": "hit the gym" }));
+            todos.push(Todo {
+                task: "hit the gym",
+                completed: false,
+                id: todos.len() as u32,
+            });
+            then.status(201).json_body(json!(todos[todos.len() - 1]));
         });
         let m2 = server.mock(|when, then| {
             when.method(GET).path("/todo_get");
             // .json_body(json!({ "req_string": "test"  }));
-            then.status(200)
-                .json_body(json!({ "tasks": ["task one", 4, "task two", "task three"], "empty_str": "", "empty_arr": []}));
+            then.status(200).json_body(json!({
+            "tasks": todos,
+             "empty_str": "",
+              "empty_arr": [],
+             "null_val": null
+            }));
         });
         let m3 = server.mock(|when, then| {
+            when.method(PUT).path_contains("/todos");
+            todos[0].completed = true;
+            then.status(200).json_body(json!(todos[0]));
+        });
+        let m4 = server.mock(|when, then| {
             when.method(DELETE).path("/todos");
             then.status(200)
-                .json_body(json!({"task":"delted", "id": 4}));
+                .json_body(json!({"task": "task one", "completed": true,"id":1}));
         });
 
         let yaml_str = format!(
@@ -574,14 +605,13 @@ mod tests {
         headers:
           Content-Type: application/json
         json:
-          req_number: 5
+          task: hit the gym
       asserts:
-        ok: $.resp.json.resp_string == "test"
+        ok: $.resp.json.task == "hit the gym"
         ok: $.resp.status == 201
-        number: $.resp.json.resp_number
-        string: $.resp.json.resp_string
-        boolean: $.resp.json.resp_bool
-        null: $.resp.json.resp_null
+        number: $.resp.json.id
+        string: $.resp.json.task
+        boolean: $.resp.json.completed
       outputs:
         todoResp: $.resp.json.resp_string
     - request: 
@@ -591,19 +621,28 @@ mod tests {
       asserts:
         ok: $.resp.status == 200
         array: $.resp.json.tasks
-        ok: $.resp.json.tasks[0] == "task one"
-        number: $.resp.json.tasks[1]
+        ok: $.resp.json.tasks[0].task == "task one"
+        number: $.resp.json.tasks[1].id
         empty: $.resp.json.empty_str
         empty: $.resp.json.empty_arr
+        null: $.resp.json.null_val
       outputs:
-        todoId: $.resp.json.tasks[1]
+        todoId: $.resp.json.tasks[0].id
+    - request:
+        PUT: {}
+      asserts:
+        ok: $.resp.json.completed
+        ok: $.resp.json.id == {{{{$.stages[1].outputs.todoId}}}}
     - request:
         DELETE: {}
       asserts:
-        ok: $.resp.json.id == {{{{$.stages[-1].outputs.todoId}}}}
+        ok: $.resp.json.id == {{{{$.stages[-2].outputs.todoId}}}}
+        boolean: $.resp.json.completed
+        ok: $.resp.json.task == "task one"
 "#,
             server.url("/todos"),
             server.url("/todo_get"),
+            server.url("/todos"),
             server.url("/todos")
         );
 
@@ -620,6 +659,7 @@ mod tests {
         assert_ok!(resp);
         m3.assert_hits(1);
         m2.assert_hits(1);
+        m4.assert_hits(1);
         m.assert_hits(1);
 
         // // We test the log output, because the logs are an important part of the user facing API of a cli tool like this
