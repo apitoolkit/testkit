@@ -8,10 +8,9 @@
         json:
           number: 5
       asserts:
-        is_true: $.resp.json.number == 5
-        is_true: $.resp.status == 201
-        is_false: $.resp.json.number != 5
-        is_number: $.resp.json.number
+        ok: $.resp.json.number == 5
+        ok: $.resp.status == 201
+        number: $.resp.json.number
       outputs: null
 
 - name: TODO api testing
@@ -20,13 +19,13 @@
       request:
         GET: http://localhost:3000/todos
       asserts:
-        is_true: $.resp.status == 200
-        is_array: $.resp.json.tasks
-        is_true: $.resp.json.tasks[0] == "task one"
-        is_number: $.resp.json.tasks[1]
-        is_empty: $.resp.json.empty_str
-        is_empty: $.resp.json.empty_arr
-        is_null: $.resp.json.resp_null
+        ok: $.resp.status == 200
+        array: $.resp.json.tasks
+        ok: $.resp.json.tasks[0] == "task one"
+        number: $.resp.json.tasks[1]
+        empty: $.resp.json.empty_str
+        empty: $.resp.json.empty_arr
+        null: $.resp.json.resp_null
 
     - name:  TODO ad items - POST
       request:
@@ -36,7 +35,7 @@
         json:
           task: "run tests"
       asserts:
-        is_true: $.resp.status == 201
+        ok: $.resp.status == 201
       outputs:
         todoItem: $.resp.json.id
 
@@ -44,9 +43,9 @@
       request:
         DELETE: "http://localhost:3000/todos/{{$.stages[1].outputs.todoItem}}"
       asserts:
-        is_string: $.resp.json.task
-        is_number: $.resp.json.id
-        is_true: $.resp.json.id == {{$.stages[-1].outputs.todoItem}}
+        string: $.resp.json.task
+        number: $.resp.json.id
+        ok: $.resp.json.id == {{$.stages[-1].outputs.todoItem}}
 
     - name: Adds Todo item - POST
       request:
@@ -54,6 +53,6 @@
         json:
           task: "run tests"
       asserts:
-        is_true: $.resp.status == 201
-        is_true: $.resp.json.task == "run tests"
-        #is_false: $.resp.json.completed
+        ok: $.resp.status == 201
+        ok: $.resp.json.task == "run tests"
+        #ok: $.resp.json.completed

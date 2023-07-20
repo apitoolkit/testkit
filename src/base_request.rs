@@ -30,21 +30,19 @@ pub struct TestStage {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Assert {
-    #[serde(rename = "is_true")]
-    IsTrue(String),
-    #[serde(rename = "is_false")]
-    IsFalse(String),
-    #[serde(rename = "is_array")]
+    #[serde(rename = "ok")]
+    IsOk(String),
+    #[serde(rename = "array")]
     IsArray(String),
-    #[serde(rename = "is_empty")]
+    #[serde(rename = "empty")]
     IsEmpty(String),
-    #[serde(rename = "is_string")]
+    #[serde(rename = "string")]
     IsString(String),
-    #[serde(rename = "is_number")]
+    #[serde(rename = "number")]
     IsNumber(String),
-    #[serde(rename = "is_boolean")]
+    #[serde(rename = "boolean")]
     IsBoolean(String),
-    #[serde(rename = "is_null")]
+    #[serde(rename = "null")]
     IsNull(String),
     // Add other assertion types as needed
 }
@@ -479,28 +477,24 @@ async fn check_assertions(
 
     for assertion in asserts {
         let eval_result = match assertion {
-            Assert::IsTrue(expr) => {
+            Assert::IsOk(expr) => {
                 evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
-                    .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr))
-            }
-            Assert::IsFalse(expr) => {
-                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
-                    .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr))
+                    .map(|(e, eval_expr)| ("OK ", e == true, expr, eval_expr))
             }
             Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
-                .map(|(e, eval_expr)| ("IS ARRAY ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("ARRAY ", e == true, expr, eval_expr)),
             Assert::IsEmpty(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")
-                .map(|(e, eval_expr)| ("IS EMPTY ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("EMPTY ", e == true, expr, eval_expr)),
             Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
-                .map(|(e, eval_expr)| ("IS STRING ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("STRING ", e == true, expr, eval_expr)),
             Assert::IsNumber(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "num")
-                .map(|(e, eval_expr)| ("IS NUMBER ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("NUMBER ", e == true, expr, eval_expr)),
             Assert::IsBoolean(expr) => {
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "bool")
-                    .map(|(e, eval_expr)| ("IS BOOLEAN ", e == true, expr, eval_expr))
+                    .map(|(e, eval_expr)| ("BOOLEAN ", e == true, expr, eval_expr))
             }
             Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
-                .map(|(e, eval_expr)| ("IS NULL ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
         };
 
         match eval_result {
@@ -582,14 +576,12 @@ mod tests {
         json:
           req_number: 5
       asserts:
-        is_true: $.resp.json.resp_string == "test"
-        is_true: $.resp.status == 201
-        is_number: $.resp.json.resp_number
-        is_string: $.resp.json.resp_string
-        is_boolean: $.resp.json.resp_bool
-        is_null: $.resp.json.resp_null
-        # is_false: $.resp.json.resp_string != 5
-        # is_true: $.respx.nonexisting == 5
+        ok: $.resp.json.resp_string == "test"
+        ok: $.resp.status == 201
+        number: $.resp.json.resp_number
+        string: $.resp.json.resp_string
+        boolean: $.resp.json.resp_bool
+        null: $.resp.json.resp_null
       outputs:
         todoResp: $.resp.json.resp_string
     - request: 
@@ -597,18 +589,18 @@ mod tests {
         json:
             req_string: $.outputs.todoResp
       asserts:
-        is_true: $.resp.status == 200
-        is_array: $.resp.json.tasks
-        is_true: $.resp.json.tasks[0] == "task one"
-        is_number: $.resp.json.tasks[1]
-        is_empty: $.resp.json.empty_str
-        is_empty: $.resp.json.empty_arr
+        ok: $.resp.status == 200
+        array: $.resp.json.tasks
+        ok: $.resp.json.tasks[0] == "task one"
+        number: $.resp.json.tasks[1]
+        empty: $.resp.json.empty_str
+        empty: $.resp.json.empty_arr
       outputs:
         todoId: $.resp.json.tasks[1]
     - request:
         DELETE: {}
       asserts:
-        is_true: $.resp.json.id == {{{{$.stages[-1].outputs.todoId}}}}
+        ok: $.resp.json.id == {{{{$.stages[-1].outputs.todoId}}}}
 "#,
             server.url("/todos"),
             server.url("/todo_get"),
