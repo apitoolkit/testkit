@@ -118,7 +118,7 @@ describe('TODO api testing', () => {
 
     - name: deletes TODO items - DELETE
       request:
-        DELETE: /todos/{{$.stages[0].outputs.todoItem}} # relative syntax exists: $.stages[-1].outputs.todoItem, -1 means one stage before me
+        DELETE: /todos/$.stages[0].outputs.todoItem # relative syntax exists: $.stages[-1].outputs.todoItem, -1 means one stage before me
       asserts:
         empty: $.resp.body.json.todos
         string: $.resp.body.json
@@ -153,7 +153,7 @@ describe('TODO api testing', () => {
 
     - name: deletes TODO items - DELETE
       request:
-        DELETE: /todos/{{$.stages[0].outputs.todoItem}}
+        DELETE: /todos/$.stages[0].outputs.todoItem
       asserts:
         empty: $.resp.body.json.todos
         string: $.resp.body.json
@@ -336,28 +336,28 @@ For example, let's say you retrieve an ID from an API response in one stage usin
     userId: $.resp.body.id
 ```
 
-To reference this `userId` output in a subsequent API request, you can use the `{{}}` syntax:
+To reference this `userId` output in a subsequent API request, you can use the `$.stages[n].outputs` syntax:
 
 ```yaml
 - name: Update User - PUT
   request:
-    PUT: /users/{{$.stages[0].outputs.userId}}
+    PUT: /users/$.stages[0].outputs.userId
   json:
     name: 'John Doe'
 ```
 
-In the above example, the `userId` captured in the first stage is accessed using the syntax `{{$.stages[0].outputs.userId}}`. By enclosing the reference in double curly braces (`{{}}`), `testkit` understands that it should substitute the reference with the corresponding value during execution.
+In the above example, the `userId` captured in the first stage is accessed using the syntax `$.stages[0].outputs.userId`. `testkit` understands that it should substitute the reference with the corresponding value during execution.
 
-You can also use relative references like `{{$.stages[-n]}}` which refers to the output of the `nth` stage before the current stage.
+You can also use relative references like `$.stages[-n]` which refers to the output of the `nth` stage before the current stage.
 Example:
 
 ```yaml
 - name: deletes TODO items - DELETE
       request:
-        DELETE: /todos/{{$.stages[-1].outputs.todoItem}} #-1 means one stage before me
+        DELETE: /todos/$.stages[-1].outputs.todoItem #-1 means one stage before me
       asserts:
         string: $.resp.body.json.task
-        ok: $.resp.body.json.id == {{$.stages[-1].outputs.todoItem}}
+        ok: $.resp.body.json.id == $.stages[-1].outputs.todoItem
 
 ```
 
