@@ -266,7 +266,7 @@ fn header_map_to_hashmap(headers: &HeaderMap<HeaderValue>) -> HashMap<String, Ve
 fn find_all_jsonpaths(input: &String) -> Vec<&str> {
     input
         .split_whitespace()
-        .filter(|x| x.starts_with("$"))
+        .filter(|x| x.starts_with("$.resp"))
         .collect()
 }
 
@@ -296,28 +296,30 @@ fn format_url(
     original_url: &String,
     outputs: &HashMap<String, Value>,
 ) -> Result<String, AssertionError> {
-    let re = Regex::new(r"\{\{(.*?)\}\}").unwrap_or_else(|err| panic!("{}", err));
     let mut url = original_url.clone();
-    for caps in re.captures_iter(original_url) {
-        if let Some(matched_string) = caps.get(1) {
-            let st = matched_string.as_str().to_string();
-            let target_stage = get_var_stage(&st.clone(), ctx.stage_index).unwrap_or_default();
-            let elements: Vec<&str> = st.split('.').collect();
-            let target_key = elements.last().unwrap_or(&"");
-            let output_key = format!("{}_{}", target_stage, target_key);
-            if let Some(value) = outputs.get(&output_key) {
-                let repl = format!("{{{{{}}}}}", st);
-                url = url.replace(&repl, &value.to_string());
-            } else {
-                return Err(AssertionError {
-                    advice: Some(format!(
-                        "{}: could not resolve output variable path to any real value",
-                        st
-                    )),
-                    src: NamedSource::new(&ctx.file, st.clone()),
-                    bad_bit: (0, st.len()).into(),
-                });
-            }
+    let output_vars: Vec<String> = url
+        .split("/")
+        .filter(|x| x.starts_with("$.stages"))
+        .map(|x| x.to_string())
+        .collect();
+
+    for var in output_vars {
+        let target_stage = get_var_stage(&var, ctx.stage_index).unwrap_or_default();
+        let elements: Vec<&str> = var.split('.').collect();
+        let target_key = elements.last().unwrap_or(&"");
+        let output_key = format!("{}_{}", target_stage, target_key);
+        if let Some(value) = outputs.get(&output_key) {
+            println!("{}", value);
+            url = url.replace(&var, &value.to_string());
+        } else {
+            return Err(AssertionError {
+                advice: Some(format!(
+                    "{}: could not resolve output variable path to any real value",
+                    var
+                )),
+                src: NamedSource::new(&ctx.file, var.clone()),
+                bad_bit: (0, var.len()).into(),
+            });
         }
     }
     Ok(url)
@@ -332,16 +334,13 @@ fn find_all_output_vars(
 
     let vars: Vec<String> = input
         .split_whitespace()
-        .filter(|x| x.starts_with("{{") && x.ends_with("}}"))
+        .filter(|x| x.starts_with("$.stages"))
         .map(|x| x.to_string())
         .collect();
 
     for var in vars {
-        let mut s = var.clone();
-        s.truncate(s.len() - 2);
-        s = s.split_off(2);
-        let target_stage = get_var_stage(&s.clone(), stage_index).unwrap_or_default();
-        let elements: Vec<&str> = s.split('.').collect();
+        let target_stage = get_var_stage(&var, stage_index).unwrap_or_default();
+        let elements: Vec<&str> = var.split('.').collect();
         let target_key = elements.last().unwrap_or(&"");
         let output_key = format!("{}_{}", target_stage, target_key);
         val_map.insert(var, outputs.get(&output_key).cloned());
@@ -632,11 +631,11 @@ mod tests {
         PUT: {}
       asserts:
         ok: $.resp.json.completed
-        ok: $.resp.json.id == {{{{$.stages[1].outputs.todoId}}}}
+        ok: $.resp.json.id == $.stages[1].outputs.todoId
     - request:
         DELETE: {}
       asserts:
-        ok: $.resp.json.id == {{{{$.stages[-2].outputs.todoId}}}}
+        ok: $.resp.json.id == $.stages[-2].outputs.todoId
         boolean: $.resp.json.completed
         ok: $.resp.json.task == "task one"
 "#,

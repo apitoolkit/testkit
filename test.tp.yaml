@@ -41,11 +41,11 @@
 
     - name: deletes TODO items - DELETE
       request:
-        DELETE: "http://localhost:3000/todos/{{$.stages[1].outputs.todoItem}}"
+        DELETE: "http://localhost:3000/todos/$.stages[1].outputs.todoItem"
       asserts:
         string: $.resp.json.task
         number: $.resp.json.id
-        ok: $.resp.json.id == {{$.stages[-1].outputs.todoItem}}
+        ok: $.resp.json.id == $.stages[-1].outputs.todoItem
 
     - name: Adds Todo item - POST
       request:
