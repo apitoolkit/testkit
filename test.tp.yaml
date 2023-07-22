@@ -1,12 +1,11 @@
 ---
 - name: stage1
   stages:
-    - request:
-        POST: http://localhost:3000/todos
-        headers:
-          Content-Type: application/json
-        json:
-          number: 5
+    - POST: http://localhost:3000/todos
+      headers:
+        Content-Type: application/json
+      json:
+        number: 5
       asserts:
         ok: $.resp.json.number == 5
         ok: $.resp.status == 201
@@ -16,8 +15,7 @@
 - name: TODO api testing
   stages:
     - name: fetches TODO items - GET
-      request:
-        GET: http://localhost:3000/todos
+      GET: http://localhost:3000/todos
       asserts:
         ok: $.resp.status == 200
         array: $.resp.json.tasks
@@ -28,30 +26,27 @@
         null: $.resp.json.resp_null
 
     - name:  TODO ad items - POST
-      request:
-        POST: http://localhost:3000/todos
-        headers:
-            Content-Type: application/json
-        json:
-          task: "run tests"
+      POST: http://localhost:3000/todos
+      headers:
+          Content-Type: application/json
+      json:
+        task: "run tests"
       asserts:
         ok: $.resp.status == 201
       outputs:
         todoItem: $.resp.json.id
 
     - name: deletes TODO items - DELETE
-      request:
-        DELETE: "http://localhost:3000/todos/$.stages[1].outputs.todoItem"
+      DELETE: "http://localhost:3000/todos/$.stages[1].outputs.todoItem"
       asserts:
         string: $.resp.json.task
         number: $.resp.json.id
         ok: $.resp.json.id == $.stages[-1].outputs.todoItem
 
     - name: Adds Todo item - POST
-      request:
-        POST: http://localhost:3000/todos/
-        json:
-          task: "run tests"
+      POST: http://localhost:3000/todos/
+      json:
+        task: "run tests"
       asserts:
         ok: $.resp.status == 201
         ok: $.resp.json.task == "run tests"
