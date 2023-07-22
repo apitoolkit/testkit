@@ -8,7 +8,7 @@
         number: 5
       asserts:
         ok: $.resp.json.number == 5
-        ok: $.resp.status == 201
+        ok: $.resp.status == $.env.STATUS
         number: $.resp.json.number
       outputs: null
 

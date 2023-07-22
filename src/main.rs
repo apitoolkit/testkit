@@ -3,13 +3,17 @@ mod base_request;
 extern crate log;
 use base_cli::BaseCli;
 use base_request::TestContext;
+extern crate dotenv;
+use dotenv::dotenv;
 use env_logger::Builder;
 use log::LevelFilter;
+use std::env;
 use std::fs;
 use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     let base_cli = BaseCli::parse();
     let mut builder = Builder::from_default_env();
 

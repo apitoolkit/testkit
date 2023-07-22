@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, EnumMap};
 use std::collections::HashMap;
+use std::env;
+use std::env::VarError;
 use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -169,22 +171,10 @@ pub async fn base_request(
             ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
         let mut request_builder = match &stage.request.http_method {
-            HttpMethod::GET(url) => {
-                let url = format_url(&ctx, url, &outputs_map)?;
-                client.get(url)
-            }
-            HttpMethod::POST(url) => {
-                let url = format_url(&ctx, url, &outputs_map)?;
-                client.post(url)
-            }
-            HttpMethod::PUT(url) => {
-                let url = format_url(&ctx, url, &outputs_map)?;
-                client.put(url)
-            }
-            HttpMethod::DELETE(url) => {
-                let url = format_url(&ctx, url, &outputs_map)?;
-                client.delete(url)
-            }
+            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &outputs_map)),
+            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &outputs_map)),
+            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &outputs_map)),
+            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &outputs_map)),
         };
         if let Some(headers) = &stage.request.headers {
             for (name, value) in headers {
@@ -193,6 +183,16 @@ pub async fn base_request(
                     let normalized_jsonp_key = format!("$.outputs.{}", k);
                     let v = value.replace(&normalized_jsonp_key, &v.to_string());
                     value = v.to_owned();
+                }
+                for env_var in get_env_variable_paths(&value) {
+                    match get_env_variable(&env_var) {
+                        Ok(val) => value = value.replace(&env_var, &val),
+                        Err(err) => {
+                            let error_message =
+                                format!("Error getting environment variable {}: {}", env_var, err);
+                            log::error!(target:"testkit","{}", error_message)
+                        }
+                    }
                 }
                 request_builder = request_builder.header(name, value);
             }
@@ -206,6 +206,16 @@ pub async fn base_request(
                 // Remove twice. Workaround to support text and number types
                 let normalized_jsonp_key = format!("$.outputs.{}", k);
                 j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
+            }
+            for env_var in get_env_variable_paths(&j_string) {
+                match get_env_variable(&env_var) {
+                    Ok(val) => j_string = j_string.replace(&env_var, &val),
+                    Err(err) => {
+                        let error_message =
+                            format!("Error getting environment variable {}: {}", env_var, err);
+                        log::error!(target:"testkit","{}", error_message)
+                    }
+                }
             }
             let clean_json: Value = serde_json::from_str(&j_string)?;
             request_builder = request_builder.json(&clean_json);
@@ -298,12 +308,12 @@ fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
     }
 }
 
-// Replacce output variables with actual values in request url
+// Replace output variables with actual values in request url
 fn format_url(
     ctx: &TestContext,
     original_url: &String,
     outputs: &HashMap<String, Value>,
-) -> Result<String, AssertionError> {
+) -> String {
     let mut url = original_url.clone();
     let output_vars: Vec<String> = url
         .split("/")
@@ -319,17 +329,22 @@ fn format_url(
         if let Some(value) = outputs.get(&output_key) {
             url = url.replace(&var, &value.to_string());
         } else {
-            return Err(AssertionError {
-                advice: Some(format!(
-                    "{}: could not resolve output variable path to any real value",
-                    var
-                )),
-                src: NamedSource::new(&ctx.file, var.clone()),
-                bad_bit: (0, var.len()).into(),
-            });
+            let error_message = format!("Output variable not found: {}", var);
+            log::error!(target:"testkit","{}", error_message)
         }
     }
-    Ok(url)
+
+    for env_var in get_env_variable_paths(&original_url) {
+        match get_env_variable(&env_var) {
+            Ok(val) => url = url.replace(&env_var, &val),
+            Err(err) => {
+                let error_message =
+                    format!("Error getting environment variable {}: {}", env_var, err);
+                log::error!(target:"testkit","{}", error_message)
+            }
+        }
+    }
+    url
 }
 
 fn find_all_output_vars(
@@ -353,6 +368,21 @@ fn find_all_output_vars(
         val_map.insert(var, outputs.get(&output_key).cloned());
     }
     val_map
+}
+
+fn get_env_variable_paths(val: &String) -> Vec<String> {
+    let regex_pattern = r#"\$\.(env\.[A-Za-z_][A-Za-z0-9_]*)"#;
+    let regex = Regex::new(regex_pattern).unwrap();
+    let env_vars: Vec<String> = regex
+        .find_iter(&val)
+        .map(|v| v.as_str().to_string())
+        .collect();
+    env_vars
+}
+
+fn get_env_variable(env_key_path: &String) -> Result<String, VarError> {
+    let key = env_key_path.split(".").last().unwrap_or_default();
+    env::var(key)
 }
 
 // 1. First we extract a list of jsonpaths
@@ -385,6 +415,18 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
             });
         }
     }
+
+    for env_var in get_env_variable_paths(&original_expr) {
+        match get_env_variable(&env_var) {
+            Ok(val) => expr = expr.replace(&env_var, &val),
+            Err(err) => {
+                let error_message =
+                    format!("Error getting environment variable {}: {}", env_var, err);
+                log::error!(target:"testkit","{}", error_message)
+            }
+        }
+    }
+
     for path in paths {
         match select(&object, &path) {
             Ok(selected_value) => {
@@ -614,7 +656,7 @@ mod tests {
         task: hit the gym
       asserts:
         ok: $.resp.json.task == "hit the gym"
-        ok: $.resp.status == 201
+        ok: $.resp.status == $.env.STATUS
         number: $.resp.json.id
         string: $.resp.json.task
         boolean: $.resp.json.completed
