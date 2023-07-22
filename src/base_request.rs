@@ -22,6 +22,7 @@ pub struct TestPlan {
 pub struct TestStage {
     name: Option<String>,
     dump: Option<bool>,
+    #[serde(flatten)]
     request: RequestConfig,
     #[serde_as(as = "EnumMap")]
     asserts: Vec<Assert>,
@@ -316,7 +317,6 @@ fn format_url(
         let target_key = elements.last().unwrap_or(&"");
         let output_key = format!("{}_{}", target_stage, target_key);
         if let Some(value) = outputs.get(&output_key) {
-            println!("{}", value);
             url = url.replace(&var, &value.to_string());
         } else {
             return Err(AssertionError {
@@ -607,12 +607,11 @@ mod tests {
 ---
 - name: stage1
   stages:
-    - request:
-        POST: {}
-        headers:
-          Content-Type: application/json
-        json:
-          task: hit the gym
+    - POST: {}
+      headers:
+        Content-Type: application/json
+      json:
+        task: hit the gym
       asserts:
         ok: $.resp.json.task == "hit the gym"
         ok: $.resp.status == 201
@@ -621,10 +620,10 @@ mod tests {
         boolean: $.resp.json.completed
       outputs:
         todoResp: $.resp.json.resp_string
-    - request: 
-        GET: {}
-        json:
-            req_string: $.outputs.todoResp
+
+    - GET: {}
+      json:
+        req_string: $.outputs.todoResp
       asserts:
         ok: $.resp.status == 200
         array: $.resp.json.tasks
@@ -635,13 +634,11 @@ mod tests {
         null: $.resp.json.null_val
       outputs:
         todoId: $.resp.json.tasks[0].id
-    - request:
-        PUT: {}
+    - PUT: {}
       asserts:
         ok: $.resp.json.completed
         ok: $.resp.json.id == $.stages[1].outputs.todoId
-    - request:
-        DELETE: {}
+    - DELETE: {}
       asserts:
         ok: $.resp.json.id == $.stages[-2].outputs.todoId
         boolean: $.resp.json.completed
