@@ -1,6 +1,7 @@
 use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
+use regex::Regex;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use rhai::Engine;
@@ -29,16 +30,20 @@ pub struct TestStage {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Assert {
-    #[serde(rename = "is_true")]
-    IsTrue(String),
-    #[serde(rename = "is_false")]
-    IsFalse(String),
-    #[serde(rename = "is_array")]
+    #[serde(rename = "ok")]
+    IsOk(String),
+    #[serde(rename = "array")]
     IsArray(String),
-    #[serde(rename = "is_empty")]
+    #[serde(rename = "empty")]
     IsEmpty(String),
-    #[serde(rename = "is_string")]
+    #[serde(rename = "string")]
     IsString(String),
+    #[serde(rename = "number")]
+    IsNumber(String),
+    #[serde(rename = "boolean")]
+    IsBoolean(String),
+    #[serde(rename = "null")]
+    IsNull(String),
     // Add other assertion types as needed
 }
 
@@ -155,6 +160,7 @@ pub async fn base_request(
         let mut ctx = ctx.clone();
         ctx.plan = plan.name.clone();
         ctx.stage = stage.name.clone();
+        ctx.stage_index = i as u32;
         log::info!(target:"testkit",
             "{:?} ⬅ {}/{}",
             stage.request.http_method,
@@ -162,10 +168,22 @@ pub async fn base_request(
             ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
         let mut request_builder = match &stage.request.http_method {
-            HttpMethod::GET(url) => client.get(url),
-            HttpMethod::POST(url) => client.post(url),
-            HttpMethod::PUT(url) => client.put(url),
-            HttpMethod::DELETE(url) => client.delete(url),
+            HttpMethod::GET(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.get(url)
+            }
+            HttpMethod::POST(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.post(url)
+            }
+            HttpMethod::PUT(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.put(url)
+            }
+            HttpMethod::DELETE(url) => {
+                let url = format_url(&ctx, url, &outputs_map)?;
+                client.delete(url)
+            }
         };
         if let Some(headers) = &stage.request.headers {
             for (name, value) in headers {
@@ -217,15 +235,16 @@ pub async fn base_request(
                 colored_json::to_colored_json_auto(&assert_context)?
             )
         }
-        let assert_results = check_assertions(ctx, &stage.asserts, assert_context).await?;
+        let assert_results =
+            check_assertions(ctx, &stage.asserts, assert_context, &outputs_map).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
-
         if let Some(outputs) = &stage.outputs {
             for (key, value) in outputs.into_iter() {
                 if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
-                    outputs_map.insert(key.to_string(), evaled.clone().clone());
+                    outputs_map
+                        .insert(format!("{}_{}", i, key.to_string()), evaled.clone().clone());
                 }
             }
         }
@@ -251,11 +270,89 @@ fn header_map_to_hashmap(headers: &HeaderMap<HeaderValue>) -> HashMap<String, Ve
 
 // Naive implementation that might not work for all jsonpaths and might need to be changed.
 // Should add tests to check which jsonpaths would not be supported
-fn find_all_jsonpaths<'a>(input: &'a String) -> Vec<&'a str> {
+fn find_all_jsonpaths(input: &String) -> Vec<&str> {
     input
         .split_whitespace()
-        .filter(|x| x.starts_with("$"))
+        .filter(|x| x.starts_with("$.resp"))
         .collect()
+}
+
+fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
+    let start_pos = input.find('[')?;
+    let end_pos = input[start_pos + 1..].find(']')? + start_pos + 1;
+    let n_str = &input[start_pos + 1..end_pos];
+
+    if let Ok(n) = n_str.parse::<i32>() {
+        if n < 0 {
+            let target_stage = (current_stage as i32) + n;
+            if target_stage >= 0 {
+                return Some(target_stage.try_into().unwrap());
+            }
+            None
+        } else {
+            Some(n.try_into().unwrap())
+        }
+    } else {
+        None
+    }
+}
+
+// Replacce output variables with actual values in request url
+fn format_url(
+    ctx: &TestContext,
+    original_url: &String,
+    outputs: &HashMap<String, Value>,
+) -> Result<String, AssertionError> {
+    let mut url = original_url.clone();
+    let output_vars: Vec<String> = url
+        .split("/")
+        .filter(|x| x.starts_with("$.stages"))
+        .map(|x| x.to_string())
+        .collect();
+
+    for var in output_vars {
+        let target_stage = get_var_stage(&var, ctx.stage_index).unwrap_or_default();
+        let elements: Vec<&str> = var.split('.').collect();
+        let target_key = elements.last().unwrap_or(&"");
+        let output_key = format!("{}_{}", target_stage, target_key);
+        if let Some(value) = outputs.get(&output_key) {
+            println!("{}", value);
+            url = url.replace(&var, &value.to_string());
+        } else {
+            return Err(AssertionError {
+                advice: Some(format!(
+                    "{}: could not resolve output variable path to any real value",
+                    var
+                )),
+                src: NamedSource::new(&ctx.file, var.clone()),
+                bad_bit: (0, var.len()).into(),
+            });
+        }
+    }
+    Ok(url)
+}
+
+fn find_all_output_vars(
+    input: &str,
+    outputs: &HashMap<String, Value>,
+    stage_index: u32,
+) -> HashMap<String, Option<Value>> {
+    let mut val_map = HashMap::new();
+
+    let vars: Vec<String> = input
+        .split_whitespace()
+        .filter(|x| x.starts_with("$.stages"))
+        .map(|x| x.to_string())
+        .collect();
+
+    for var in vars {
+        let target_stage = get_var_stage(&var, stage_index).unwrap_or_default();
+        let elements: Vec<&str> = var.split('.').collect();
+        let target_key = elements.last().unwrap_or(&"");
+        let output_key = format!("{}_{}", target_stage, target_key);
+        val_map.insert(var, outputs.get(&output_key).cloned());
+    }
+    val_map
 }
 
 // 1. First we extract a list of jsonpaths
@@ -268,10 +365,26 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     ctx: TestContext,
     original_expr: &String,
     object: &'a Value,
+    outputs: &HashMap<String, Value>,
 ) -> Result<(T, String), AssertionError> {
     let paths = find_all_jsonpaths(&original_expr);
+    let output_vars = find_all_output_vars(&original_expr, outputs, ctx.stage_index);
     let mut expr = original_expr.clone();
 
+    for (var_path, var_value) in output_vars.iter() {
+        if let Some(value) = var_value {
+            expr = expr.replace(var_path, value.to_string().as_str());
+        } else {
+            return Err(AssertionError {
+                advice: Some(format!(
+                    "{}: could not resolve output variable path to any real value",
+                    var_path
+                )),
+                src: NamedSource::new(ctx.file, var_path.clone()),
+                bad_bit: (0, var_path.len()).into(),
+            });
+        }
+    }
     for path in paths {
         match select(&object, &path) {
             Ok(selected_value) => {
@@ -310,22 +423,84 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     Ok((evaluated, expr.clone()))
 }
 
+fn evaluate_value<'a, T: Clone + 'static>(
+    ctx: TestContext,
+    expr: &'a String,
+    object: &'a Value,
+    value_type: &str,
+) -> Result<(bool, String), AssertionError> {
+    match select(&object, expr) {
+        Ok(selected_value) => {
+            if let Some(selected_value) = selected_value.first() {
+                match selected_value {
+                    Value::Array(v) => {
+                        if value_type == "empty" {
+                            return Ok((v.is_empty(), expr.clone()));
+                        }
+                        Ok((value_type == "array", expr.clone()))
+                    }
+                    Value::String(v) => {
+                        if value_type == "empty" {
+                            return Ok((v.is_empty(), expr.clone()));
+                        }
+                        Ok((value_type == "str", expr.clone()))
+                    }
+                    Value::Number(_v) => Ok((value_type == "num", expr.clone())),
+                    Value::Bool(_v) => Ok((value_type == "bool", expr.clone())),
+                    Value::Null => Ok((value_type == "null", expr.clone())),
+                    _ => todo!(),
+                }
+            } else {
+                // TODO: reproduce and improve this error
+                return Err(AssertionError {
+                        advice: Some(
+                            "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
+                        ),
+                        src: NamedSource::new(ctx.file, expr.clone()),
+                        bad_bit: (0,  expr.len()).into(),
+                    });
+            }
+        }
+        Err(_err) => {
+            // TODO: reproduce and improve this error. Use the _err argument
+            // The given jsonpath could not be evaluated to a value
+            return Err(AssertionError {
+                advice: Some("could not resolve jsonpaths to any real variables".to_string()),
+                src: NamedSource::new(ctx.file, expr.clone()),
+                bad_bit: (0, 4).into(),
+            });
+        }
+    }
+}
+
 async fn check_assertions(
     ctx: TestContext,
     asserts: &[Assert],
     json_body: Value,
+    outputs: &HashMap<String, Value>,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
     let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
-            Assert::IsTrue(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS TRUE ", e == true, expr, eval_expr)),
-            Assert::IsFalse(expr) => evaluate_expressions::<bool>(ctx.clone(), expr, &json_body)
-                .map(|(e, eval_expr)| ("IS FALSE ", e == false, expr, eval_expr)),
-            Assert::IsArray(_expr) => todo!(),
-            Assert::IsEmpty(_expr) => todo!(),
-            Assert::IsString(_expr) => todo!(),
+            Assert::IsOk(expr) => {
+                evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
+                    .map(|(e, eval_expr)| ("OK ", e == true, expr, eval_expr))
+            }
+            Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
+                .map(|(e, eval_expr)| ("ARRAY ", e == true, expr, eval_expr)),
+            Assert::IsEmpty(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")
+                .map(|(e, eval_expr)| ("EMPTY ", e == true, expr, eval_expr)),
+            Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
+                .map(|(e, eval_expr)| ("STRING ", e == true, expr, eval_expr)),
+            Assert::IsNumber(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "num")
+                .map(|(e, eval_expr)| ("NUMBER ", e == true, expr, eval_expr)),
+            Assert::IsBoolean(expr) => {
+                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "bool")
+                    .map(|(e, eval_expr)| ("BOOLEAN ", e == true, expr, eval_expr))
+            }
+            Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
+                .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
         };
 
         match eval_result {
@@ -343,7 +518,7 @@ async fn check_assertions(
                                 advice: Some(
                                     "check that you're using correct jsonpaths".to_string()
                                 ),
-                                src: NamedSource::new("bad_file.rs", "blablabla"),
+                                src: NamedSource::new("bad_file.rs", expr.to_string()),
                                 bad_bit: (0, 4).into(),
                             })
                             .into()
@@ -371,23 +546,60 @@ mod tests {
     use httpmock::prelude::*;
     use serde_json::json;
 
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Todo<'a> {
+        pub task: &'a str,
+        pub completed: bool,
+        pub id: u32,
+    }
     #[tokio::test]
     async fn test_yaml_kitchen_sink() {
         env_logger::init();
         // testing_logger::setup();
+        let mut todos = vec![
+            Todo {
+                task: "task one",
+                completed: false,
+                id: 1,
+            },
+            Todo {
+                task: "task two",
+                completed: false,
+                id: 2,
+            },
+        ];
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(POST)
                 .path("/todos")
                 .header("content-type", "application/json")
-                .json_body(json!({ "req_number": 5 }));
-            then.status(201)
-                .json_body(json!({ "resp_string": "test", "resp_number": 4 }));
+                .json_body(json!({ "task": "hit the gym" }));
+            todos.push(Todo {
+                task: "hit the gym",
+                completed: false,
+                id: todos.len() as u32,
+            });
+            then.status(201).json_body(json!(todos[todos.len() - 1]));
         });
         let m2 = server.mock(|when, then| {
             when.method(GET).path("/todo_get");
             // .json_body(json!({ "req_string": "test"  }));
-            then.status(200).json_body(json!({ "resp_string": "ok"}));
+            then.status(200).json_body(json!({
+            "tasks": todos,
+             "empty_str": "",
+              "empty_arr": [],
+             "null_val": null
+            }));
+        });
+        let m3 = server.mock(|when, then| {
+            when.method(PUT).path_contains("/todos");
+            todos[0].completed = true;
+            then.status(200).json_body(json!(todos[0]));
+        });
+        let m4 = server.mock(|when, then| {
+            when.method(DELETE).path("/todos");
+            then.status(200)
+                .json_body(json!({"task": "task one", "completed": true,"id":1}));
         });
 
         let yaml_str = format!(
@@ -400,12 +612,13 @@ mod tests {
         headers:
           Content-Type: application/json
         json:
-          req_number: 5
+          task: hit the gym
       asserts:
-        is_true: $.resp.json.resp_string == "test"
-        is_true: $.resp.status == 201
-        # is_false: $.resp.json.resp_string != 5
-        # is_true: $.respx.nonexisting == 5
+        ok: $.resp.json.task == "hit the gym"
+        ok: $.resp.status == 201
+        number: $.resp.json.id
+        string: $.resp.json.task
+        boolean: $.resp.json.completed
       outputs:
         todoResp: $.resp.json.resp_string
     - request: 
@@ -413,10 +626,31 @@ mod tests {
         json:
             req_string: $.outputs.todoResp
       asserts:
-        is_true: $.resp.status == 200
+        ok: $.resp.status == 200
+        array: $.resp.json.tasks
+        ok: $.resp.json.tasks[0].task == "task one"
+        number: $.resp.json.tasks[1].id
+        empty: $.resp.json.empty_str
+        empty: $.resp.json.empty_arr
+        null: $.resp.json.null_val
+      outputs:
+        todoId: $.resp.json.tasks[0].id
+    - request:
+        PUT: {}
+      asserts:
+        ok: $.resp.json.completed
+        ok: $.resp.json.id == $.stages[1].outputs.todoId
+    - request:
+        DELETE: {}
+      asserts:
+        ok: $.resp.json.id == $.stages[-2].outputs.todoId
+        boolean: $.resp.json.completed
+        ok: $.resp.json.task == "task one"
 "#,
             server.url("/todos"),
-            server.url("/todo_get")
+            server.url("/todo_get"),
+            server.url("/todos"),
+            server.url("/todos")
         );
 
         let ctx = TestContext {
@@ -430,7 +664,9 @@ mod tests {
         let resp = run(ctx, yaml_str.into()).await;
         log::debug!("{:?}", resp);
         assert_ok!(resp);
+        m3.assert_hits(1);
         m2.assert_hits(1);
+        m4.assert_hits(1);
         m.assert_hits(1);
 
         // // We test the log output, because the logs are an important part of the user facing API of a cli tool like this
