@@ -1,0 +1,533 @@
+---
+- name: Auth
+  stages:
+    - name: Register
+      POST: '$.env.APIURL/users'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      json: '{"user":{"email":"$.env.EMAIL", "password":"$.env.PASSWORD", "username":"$.env.USERNAME"}}'
+      asserts:
+        exists: $.resp.json.user
+        exists: $.resp.json.user.email
+        exists: $.resp.json.user.username
+        exists: $.resp.json.user.bio
+        exists: $.resp.json.user.image
+        exists: $.resp.json.user.token
+    - name: Login
+      POST: '$.env.APIURL/users/login'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      json: '{"user":{"email":"$.env.EMAIL", "password":"$.env.PASSWORD"}}'
+      asserts:
+        exists: $.resp.body.json.user
+        exists: $.resp.body.json.user.email
+        exists: $.resp.body.json.user.username
+        exists: $.resp.body.json.user.bio
+        exists: $.resp.body.json.user.image
+        exists: $.resp.body.json.user.token
+
+    - name: Login and Remember Token
+      POST: '$.env.APIURL/users/login'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      json: '{"user":{"email":"$.env.EMAIL", "password":"$.env.PASSWORD"}}'
+      asserts:
+        exists: $.resp.body.json.user
+        exists: $.resp.body.json.user.email
+        exists: $.resp.body.json.user.username
+        exists: $.resp.body.json.user.bio
+        exists: $.resp.body.json.user.image
+        exists: $.resp.body.json.user.token
+
+    - name: Current User
+      GET: '$.env.APIURL/user'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: 'Token $.env.TOKEN'
+      asserts:
+        exists: $.resp.json.user
+        exists: $.resp.json.user.email
+        exists: $.resp.json.user.username
+        exists: $.resp.json.user.bio
+        exists: $.resp.json.user.image
+        exists: $.resp.json.user.token
+
+    - name: Update User
+      PUT: '$.env.APIURL/user'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: 'Token $.env.TOKEN'
+      json: '{"user":{"email":"$.env.EMAIL"}}'
+      asserts:
+        exists: $.resp.json.user
+        exists: $.resp.json.user.email
+        exists: $.resp.json.user.username
+        exists: $.resp.json.user.bio
+        exists: $.resp.json.user.image
+        exists: $.resp.json.user.token
+- name: Articles
+  stages:
+    - name: Get All Articles
+      GET: '$.env.APIURL/articles'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.articles
+        array: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date:  $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date:  $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+    - name: Get Articles by Author
+      GET: $.env.APIURL/articles?author=johnjacob
+      headers:
+          Content-Type: application/json
+          X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.articles
+        array: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        boolean: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+        ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
+    - name: Get Articles Favorited by Username
+      GET: $.envn.APIURL/articles?favorited=$.envn.USERNAME
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.articles
+        array: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+        ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
+    - name: Get Articles by Tag
+      GET: $.env.APIURL/articles?tag=dragons
+      headers:
+          Content-Type: application/json
+          X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.articles
+        array: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+        ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
+    - name: Create an Article
+      POST: $.env.APIURL/articles
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.token
+      json: '{"article":{"title":"How to train your dragon", "description":"Ever wonder how?", "body":"Very carefully.", "tagList":["training", "dragons"]}}'
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.article
+        eq: $.resp.body.json.article.title, "How to train your dragon"
+        eq: $.resp.body.json.article.description, "Ever wonder how?"
+        eq: $.resp.body.json.article.body, "Very carefully."
+        eq: $.resp.body.json.article.tagList, ["training", "dragons"]
+        date: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.updatedAt
+        exists: $.resp.body.json.article.author
+        ok: $.resp.body.json.article.favorited == false
+        ok: $.resp.body.json.article.favoritesCount == 0
+    - name: Get Feed Articles
+      GET: $.env.APIURL/articles/feed
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.token
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.articles
+        array: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        ok: $.resp.body.json.articlesCount, $.resp.body.json.articles.length
+        ok: $.resp.body.json.articles.length() > 0
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+    - name: Get Articles by Author
+      request:
+        method: GET
+        url:
+          raw: '$.envn.APIURL/articles?author=$.envn.USERNAME'
+        headers:
+          Content-Type: application/json
+          X-Requested-With: XMLHttpRequest
+          - key: Authorization
+            value: Token $.envn.TOKEN
+        body:
+          mode: raw
+          raw: ''
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.articles
+        array: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+    - name: Get Single Article by Slug
+      GET: $.envn.APIURL/articles/{{slug}}'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.envn.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.article
+        exists: $.resp.body.json.article.title
+        exists: $.resp.body.json.article.slug
+        exists: $.resp.body.json.article.body
+        exists: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
+        exists: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
+        exists: $.resp.body.json.article.description
+        exists: $.resp.body.json.article.tagList
+        array: $.resp.body.json.article.tagList
+        exists: $.resp.body.json.article.author
+        exists: $.resp.body.json.article.favorited
+        exists: $.resp.body.json.article.favoritesCount
+        number: $.resp.body.json.article.favoritesCount
+    - name: Articles by Tag
+      GET: '$.env.APIURL/articles?tag=dragons'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        exist: $.resp.body.json.articles[0]
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        ok: $.resp.body.json.articles[0].tagList[0] == dragons
+        ok: $.resp.body.json.articles[0].tagList[1] == training
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+    - name: Update Article
+      PUT: '$.env.APIURL/articles/{{slug}}'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      json: '{"article":{"body":"With two hands"}}'
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.article
+        exists: $.resp.body.json.article.title
+        exists: $.resp.body.json.article.slug
+        exists: $.resp.body.json.article.body
+        exists: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
+        exists: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
+        exists: $.resp.body.json.article.description
+        exists: $.resp.body.json.article.tagList
+        array: $.resp.body.json.article.tagList
+        exists: $.resp.body.json.article.author
+        exists: $.resp.body.json.article.favorited
+        exists: $.resp.body.json.article.favoritesCount
+        number: $.resp.body.json.article.favoritesCount
+    - name: Favorite Article
+      POST: '$.env.APIURL/articles/{{slug}}/favorite'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.article
+        exists: $.resp.body.json.article.title
+        exists: $.resp.body.json.article.slug
+        exists: $.resp.body.json.article.body
+        exists: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
+        exists: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
+        exists: $.resp.body.json.article.description
+        exists: $.resp.body.json.article.tagList
+        array: $.resp.body.json.article.tagList
+        exists: $.resp.body.json.article.author
+        exists: $.resp.body.json.article.favorited
+        ok: $.resp.body.json.article.favorited == true
+        exists: $.resp.body.json.article.favoritesCount
+        number: $.resp.body.json.article.favoritesCount
+        ok: $.resp.body.json.article.favoritesCount > 0
+    - name: Articles Favorited by Username
+      GET: '$.env.APIURL/articles?favorited={{USERNAME}}'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.articles
+        exists: $.resp.body.json.articlesCount
+        number: $.resp.body.json.articlesCount
+        exist: $.resp.body.json.articles[0]
+        exists: $.resp.body.json.articles[0].title
+        exists: $.resp.body.json.articles[0].slug
+        exists: $.resp.body.json.articles[0].body
+        exists: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
+        exists: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
+        exists: $.resp.body.json.articles[0].description
+        exists: $.resp.body.json.articles[0].tagList
+        array: $.resp.body.json.articles[0].tagList
+        exists: $.resp.body.json.articles[0].author
+        exists: $.resp.body.json.articles[0].favorited
+        ok: $.resp.body.json.articles[0].favorited, true
+        exists: $.resp.body.json.articles[0].favoritesCount
+        number: $.resp.body.json.articles[0].favoritesCount
+        ok: $.resp.body.json.articles[0].favoritesCount == 1
+    - name: Unfavorite Article
+      DELETE: '$.env.APIURL/articles/{{slug}}/favorite'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.article
+        exists: $.resp.body.json.article.title
+        exists: $.resp.body.json.article.slug
+        exists: $.resp.body.json.article.body
+        exists: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
+        exists: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
+        exists: $.resp.body.json.article.description
+        exists: $.resp.body.json.article.tagList
+        array: $.resp.body.json.article.tagList
+        exists: $.resp.body.json.article.author
+        exists: $.resp.body.json.article.favorited
+        eq: $.resp.body.json.article.favorited, false
+        exists: $.resp.body.json.article.favoritesCount
+        number: $.resp.body.json.article.favoritesCount
+    - name: Create Comment for Article
+      POST: '$.env.APIURL/articles/{{slug}}/comments'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      json: '{"comment":{"body":"Thank you so much!"}}'
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.comment
+        exists: $.resp.body.json.comment.id
+        exists: $.resp.body.json.comment.body
+        exists: $.resp.body.json.comment.createdAt
+        date: $.resp.body.json.comment.createdAt
+        exists: $.resp.body.json.comment.updatedAt
+        date: $.resp.body.json.comment.updatedAt
+        exists: $.resp.body.json.comment.author
+    - name: All Comments for Article
+      GET:  '$.env.APIURL/articles/{{slug}}/comments'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.comments
+        exists: $.resp.body.json.comments[0].id
+        exists: $.resp.body.json.comments[0].body
+        exists: $.resp.body.json.comments[0].createdAt
+        date: $.resp.body.json.comments[0].createdAt
+        exists: $.resp.body.json.comments[0].updatedAt
+        date: $.resp.body.json.comments[0].updatedAt
+        exists: $.resp.body.json.comments[0].author
+    - name: All Comments for Article without login
+      GET: '$.env.APIURL/articles/{{slug}}/comments'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.comments
+        exists: $.resp.body.json.comments[0].id
+        exists: $.resp.body.json.comments[0].body
+        exists: $.resp.body.json.comments[0].createdAt
+        date: $.resp.body.json.comments[0].createdAt
+        exists: $.resp.body.json.comments[0].updatedAt
+        date: $.resp.body.json.comments[0].updatedAt
+        exists: $.resp.body.json.comments[0].author
+    - name: Delete Comment for Article
+      DELETE: '$.env.APIURL/articles/{{slug}}/comments/{{commentId}}'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exist: $.resp.body.json.comment
+        exists: $.resp.body.json.comment.id
+        exists: $.resp.body.json.comment.body
+        exists: $.resp.body.json.comment.createdAt
+        date: $.resp.body.json.comment.createdAt
+        exists: $.resp.body.json.comment.updatedAt
+        date: $.resp.body.json.comment.updatedAt
+        exists: $.resp.body.json.comment.author
+    - name: Delete Article
+      DELETE: '$.env.APIURL/articles/{{slug}}'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+    - name: Profile
+      GET: '$.env.APIURL/profiles/celeb_{{USERNAME}}'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.profile
+        exists: $.resp.body.json.profile.username
+        exists: $.resp.body.json.profile.bio
+        exists: $.resp.body.json.profile.image
+        exists: $.resp.body.json.profile.following
+    - name: Follow Profile
+      POST: '$.env.APIURL/profiles/celeb_{{USERNAME}}/follow'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.env.TOKEN
+      json: '{"user":{"email":"{{EMAIL}}"}}'
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.profile
+        exists: $.resp.body.json.profile.username
+        exists: $.resp.body.json.profile.bio
+        exists: $.resp.body.json.profile.image
+        exists: $.resp.body.json.profile.following
+        ok: $.resp.body.json.profile.following == true
+    - name: Unfollow Profile
+      DELETE: '$.env.APIURL/profiles/celeb_{{USERNAME}}/follow'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.profile
+        exists: $.resp.body.json.profile.username
+        exists: $.resp.body.json.profile.bio
+        exists: $.resp.body.json.profile.image
+        exists: $.resp.body.json.profile.following
+        ok: $.resp.body.json.profile.following == false
+    - name: All Tags
+      GET: '$.env.APIURL/tags'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+      asserts:
+        ok: $.resp.status == 200
+        exists: $.resp.body.json.tags
+        array: $.resp.body.json.tags
