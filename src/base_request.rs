@@ -47,6 +47,8 @@ pub enum Assert {
     IsBoolean(String),
     #[serde(rename = "null")]
     IsNull(String),
+    #[serde(rename = "exist")]
+    Exist(String),
     // Add other assertion types as needed
 }
 
@@ -474,6 +476,9 @@ fn evaluate_value<'a, T: Clone + 'static>(
     match select(&object, expr) {
         Ok(selected_value) => {
             if let Some(selected_value) = selected_value.first() {
+                if value_type == "exist" {
+                    return Ok((true, expr.clone()));
+                }
                 match selected_value {
                     Value::Array(v) => {
                         if value_type == "empty" {
@@ -542,6 +547,8 @@ async fn check_assertions(
                     .map(|(e, eval_expr)| ("BOOLEAN ", e == true, expr, eval_expr))
             }
             Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
+                .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
+            Assert::Exist(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "exist")
                 .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
         };
 
