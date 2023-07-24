@@ -1,21 +1,17 @@
 mod base_cli;
 mod base_request;
+use base_cli::Commands;
 use base_request::TestContext;
-use log::LevelFilter;
-use std::fs;
-use std::str::FromStr;
 use clap::Parser;
-use std::path::PathBuf;
-use base_cli::{Commands, Cli};
-use dioxus::prelude::hot_reload_init;
+
+use log::LevelFilter;
+use std::{fs, path::PathBuf, str::FromStr};
 
 mod app;
 extern crate log;
 
 #[tokio::main]
 async fn main() {
-    // hot_reload_init!();
-
     let cli_instance = base_cli::Cli::parse();
 
     let mut builder = env_logger::Builder::from_default_env();
@@ -28,15 +24,10 @@ async fn main() {
 
     match cli_instance.command {
         None | Some(Commands::App {}) => {
-           app::app_init(); 
-        },
-        Some(Commands::Test{file}) => {
-            cli(file).await.unwrap()        
+            app::app_init();
         }
-
+        Some(Commands::Test { file }) => cli(file).await.unwrap(),
     }
-
-    
 }
 
 async fn cli(file: PathBuf) -> Result<(), anyhow::Error> {

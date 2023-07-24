@@ -1,25 +1,21 @@
 #![allow(non_snake_case)]
 
 use dioxus::prelude::*;
-use dioxus_desktop::WindowBuilder;
+
 
 pub fn app_init() {
-    // dioxus_desktop::launch_cfg(
-    //     app,
-    //     dioxus_desktop::Config::default().with_window(WindowBuilder::new().with_maximized(true)),
-    // )
-    // dioxus_desktop::launch(app);
-    dioxus_web::launch(app);
+    dioxus_desktop::launch_cfg(
+        app,
+        dioxus_desktop::Config::default().with_window(dioxus_desktop::WindowBuilder::new().with_maximized(true)),
+    );
 }
 
-fn app(cx: Scope) -> Element {
-    let contenteditableRef = use_ref(cx, ||"Please press - or ? for help");
-    let mut ctxmenu = use_state(cx, || false);
-    let mut ctxmenu_class = if *ctxmenu.get() { "" } else {"hidden"};
+pub fn app(cx: Scope) -> Element {
+    let _contenteditableRef = use_ref(cx, || "Please press - or ? for help");
+    let ctxmenu = use_state(cx, || false);
+    let _ctxmenu_class = if *ctxmenu.get() { "" } else { "hidden" };
 
-    let selectAction = |action:&str| {
-
-    } ;
+    let _selectAction = |_action: &str| {};
 
     cx.render(rsx! {
         // script { src: "https://cdn.tailwindcss.com" }
@@ -158,7 +154,7 @@ fn BodySxn(cx: Scope) -> Element {
                         option {"xml"},
                         option {"json"},
                         option {"form-data"},
-                        
+
                     }
                 }
             }

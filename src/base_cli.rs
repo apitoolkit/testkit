@@ -1,6 +1,5 @@
-use clap::{Parser, Arg, Command, Subcommand};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-
 
 #[derive(Parser)]
 #[command(name = "testkit")]
@@ -16,7 +15,6 @@ pub struct Cli {
     pub log_level: String,
 }
 
-
 #[derive(Subcommand)]
 pub enum Commands {
     Test {
@@ -24,6 +22,5 @@ pub enum Commands {
         #[arg(short, long)]
         file: PathBuf,
     },
-    App {}
+    App {},
 }
-
