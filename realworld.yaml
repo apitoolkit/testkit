@@ -87,9 +87,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date:  $.resp.body.json.articles[0].createdAt
+        string:  $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date:  $.resp.body.json.articles[0].updatedAt
+        string:  $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -112,9 +112,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -139,9 +139,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -165,9 +165,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -190,8 +190,8 @@
         eq: $.resp.body.json.article.description, "Ever wonder how?"
         eq: $.resp.body.json.article.body, "Very carefully."
         eq: $.resp.body.json.article.tagList, ["training", "dragons"]
-        date: $.resp.body.json.article.createdAt
-        date: $.resp.body.json.article.updatedAt
+        string: $.resp.body.json.article.createdAt
+        string: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.author
         ok: $.resp.body.json.article.favorited == false
         ok: $.resp.body.json.article.favoritesCount == 0
@@ -213,9 +213,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -247,9 +247,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -257,8 +257,10 @@
         exists: $.resp.body.json.articles[0].favorited
         exists: $.resp.body.json.articles[0].favoritesCount
         number: $.resp.body.json.articles[0].favoritesCount
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Get Single Article by Slug
-      GET: $.envn.APIURL/articles/{{slug}}'
+      GET: $.envn.APIURL/articles/$.stages[-1].slug'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -270,9 +272,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        date: $.resp.body.json.article.createdAt
+        string: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        date: $.resp.body.json.article.updatedAt
+        string: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -296,9 +298,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -308,8 +310,10 @@
         exists: $.resp.body.json.articles[0].favorited
         exists: $.resp.body.json.articles[0].favoritesCount
         number: $.resp.body.json.articles[0].favoritesCount
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Update Article
-      PUT: '$.env.APIURL/articles/{{slug}}'
+      PUT: '$.env.APIURL/articles/$.stages[-1].outputs.slug'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -322,9 +326,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        date: $.resp.body.json.article.createdAt
+        string: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        date: $.resp.body.json.article.updatedAt
+        string: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -332,8 +336,10 @@
         exists: $.resp.body.json.article.favorited
         exists: $.resp.body.json.article.favoritesCount
         number: $.resp.body.json.article.favoritesCount
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Favorite Article
-      POST: '$.env.APIURL/articles/{{slug}}/favorite'
+      POST: '$.env.APIURL/articles/$.stages[-1].outputs.slug/favorite'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -345,9 +351,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        date: $.resp.body.json.article.createdAt
+        string: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        date: $.resp.body.json.article.updatedAt
+        string: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -358,7 +364,7 @@
         number: $.resp.body.json.article.favoritesCount
         ok: $.resp.body.json.article.favoritesCount > 0
     - name: Articles Favorited by Username
-      GET: '$.env.APIURL/articles?favorited={{USERNAME}}'
+      GET: '$.env.APIURL/articles?favorited=$.env.USERNAME'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -373,9 +379,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        date: $.resp.body.json.articles[0].createdAt
+        string: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        date: $.resp.body.json.articles[0].updatedAt
+        string: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -385,8 +391,10 @@
         exists: $.resp.body.json.articles[0].favoritesCount
         number: $.resp.body.json.articles[0].favoritesCount
         ok: $.resp.body.json.articles[0].favoritesCount == 1
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Unfavorite Article
-      DELETE: '$.env.APIURL/articles/{{slug}}/favorite'
+      DELETE: '$.env.APIURL/articles/$.stages[-1].outputs.slug/favorite'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -398,9 +406,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        date: $.resp.body.json.article.createdAt
+        string: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        date: $.resp.body.json.article.updatedAt
+        string: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -409,8 +417,10 @@
         eq: $.resp.body.json.article.favorited, false
         exists: $.resp.body.json.article.favoritesCount
         number: $.resp.body.json.article.favoritesCount
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Create Comment for Article
-      POST: '$.env.APIURL/articles/{{slug}}/comments'
+      POST: '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -422,12 +432,14 @@
         exists: $.resp.body.json.comment.id
         exists: $.resp.body.json.comment.body
         exists: $.resp.body.json.comment.createdAt
-        date: $.resp.body.json.comment.createdAt
+        string: $.resp.body.json.comment.createdAt
         exists: $.resp.body.json.comment.updatedAt
-        date: $.resp.body.json.comment.updatedAt
+        string: $.resp.body.json.comment.updatedAt
         exists: $.resp.body.json.comment.author
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: All Comments for Article
-      GET:  '$.env.APIURL/articles/{{slug}}/comments'
+      GET:  '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -438,12 +450,14 @@
         exists: $.resp.body.json.comments[0].id
         exists: $.resp.body.json.comments[0].body
         exists: $.resp.body.json.comments[0].createdAt
-        date: $.resp.body.json.comments[0].createdAt
+        string: $.resp.body.json.comments[0].createdAt
         exists: $.resp.body.json.comments[0].updatedAt
-        date: $.resp.body.json.comments[0].updatedAt
+        string: $.resp.body.json.comments[0].updatedAt
         exists: $.resp.body.json.comments[0].author
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: All Comments for Article without login
-      GET: '$.env.APIURL/articles/{{slug}}/comments'
+      GET: '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -453,12 +467,14 @@
         exists: $.resp.body.json.comments[0].id
         exists: $.resp.body.json.comments[0].body
         exists: $.resp.body.json.comments[0].createdAt
-        date: $.resp.body.json.comments[0].createdAt
+        string: $.resp.body.json.comments[0].createdAt
         exists: $.resp.body.json.comments[0].updatedAt
-        date: $.resp.body.json.comments[0].updatedAt
+        string: $.resp.body.json.comments[0].updatedAt
         exists: $.resp.body.json.comments[0].author
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Delete Comment for Article
-      DELETE: '$.env.APIURL/articles/{{slug}}/comments/{{commentId}}'
+      DELETE: '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments/{{commentId}}'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -469,12 +485,14 @@
         exists: $.resp.body.json.comment.id
         exists: $.resp.body.json.comment.body
         exists: $.resp.body.json.comment.createdAt
-        date: $.resp.body.json.comment.createdAt
+        string: $.resp.body.json.comment.createdAt
         exists: $.resp.body.json.comment.updatedAt
-        date: $.resp.body.json.comment.updatedAt
+        string: $.resp.body.json.comment.updatedAt
         exists: $.resp.body.json.comment.author
+      outputs:
+        slug: $.resp.body.json.articles[0].slug
     - name: Delete Article
-      DELETE: '$.env.APIURL/articles/{{slug}}'
+      DELETE: '$.env.APIURL/articles/$.stages[-1].outputs.slug'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -482,7 +500,7 @@
       asserts:
         ok: $.resp.status == 200
     - name: Profile
-      GET: '$.env.APIURL/profiles/celeb_{{USERNAME}}'
+      GET: '$.env.APIURL/profiles/celeb_$.env.USERNAME'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -495,7 +513,7 @@
         exists: $.resp.body.json.profile.image
         exists: $.resp.body.json.profile.following
     - name: Follow Profile
-      POST: '$.env.APIURL/profiles/celeb_{{USERNAME}}/follow'
+      POST: '$.env.APIURL/profiles/celeb_$.env.USERNAME/follow'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
@@ -510,7 +528,7 @@
         exists: $.resp.body.json.profile.following
         ok: $.resp.body.json.profile.following == true
     - name: Unfollow Profile
-      DELETE: '$.env.APIURL/profiles/celeb_{{USERNAME}}/follow'
+      DELETE: '$.env.APIURL/profiles/celeb_$.env.USERNAME/follow'
       headers:
         Content-Type: application/json
         X-Requested-With: XMLHttpRequest
