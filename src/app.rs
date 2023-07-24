@@ -2,11 +2,11 @@
 
 use dioxus::prelude::*;
 
-
 pub fn app_init() {
     dioxus_desktop::launch_cfg(
         app,
-        dioxus_desktop::Config::default().with_window(dioxus_desktop::WindowBuilder::new().with_maximized(true)),
+        dioxus_desktop::Config::default()
+            .with_window(dioxus_desktop::WindowBuilder::new().with_maximized(true)),
     );
 }
 
