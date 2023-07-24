@@ -542,7 +542,6 @@ fn parse_expression<T: Clone + 'static>(expr: &str) -> Result<T, Box<dyn std::er
 #[cfg(test)]
 mod tests {
     use super::*;
-    use claim::*;
     use httpmock::prelude::*;
     use serde_json::json;
 
