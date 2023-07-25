@@ -17,5 +17,4 @@ test_server/node_modules/
 node_modules/
 
 .vscode
-||||||| parent of 5dfddb1 (add dist to gitignore)
-node_modules/
+.env

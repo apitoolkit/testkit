@@ -19,6 +19,7 @@ rhai = "1.15.0"
 jsonpath_lib = "0.3.0"
 jsonpath = "0.1.1"
 regex = "1.8.4"
+dotenv = "0.15.0"
 anyhow = "1.0"
 miette = { version = "5.9.0", features = ["fancy"] }
 thiserror = "1.0.43"
