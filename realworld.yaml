@@ -87,9 +87,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string:  $.resp.body.json.articles[0].createdAt
+        date:  $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string:  $.resp.body.json.articles[0].updatedAt
+        date:  $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -112,9 +112,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -139,9 +139,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt 
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -165,9 +165,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -190,8 +190,8 @@
         eq: $.resp.body.json.article.description, "Ever wonder how?"
         eq: $.resp.body.json.article.body, "Very carefully."
         eq: $.resp.body.json.article.tagList, ["training", "dragons"]
-        string: $.resp.body.json.article.createdAt
-        string: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.author
         ok: $.resp.body.json.article.favorited == false
         ok: $.resp.body.json.article.favoritesCount == 0
@@ -213,9 +213,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -247,9 +247,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -272,9 +272,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        string: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        string: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -298,9 +298,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -326,9 +326,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        string: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        string: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -351,9 +351,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        string: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        string: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -379,9 +379,9 @@
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
         exists: $.resp.body.json.articles[0].createdAt
-        string: $.resp.body.json.articles[0].createdAt
+        date: $.resp.body.json.articles[0].createdAt
         exists: $.resp.body.json.articles[0].updatedAt
-        string: $.resp.body.json.articles[0].updatedAt
+        date: $.resp.body.json.articles[0].updatedAt
         exists: $.resp.body.json.articles[0].description
         exists: $.resp.body.json.articles[0].tagList
         array: $.resp.body.json.articles[0].tagList
@@ -406,9 +406,9 @@
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
         exists: $.resp.body.json.article.createdAt
-        string: $.resp.body.json.article.createdAt
+        date: $.resp.body.json.article.createdAt
         exists: $.resp.body.json.article.updatedAt
-        string: $.resp.body.json.article.updatedAt
+        date: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.description
         exists: $.resp.body.json.article.tagList
         array: $.resp.body.json.article.tagList
@@ -432,9 +432,9 @@
         exists: $.resp.body.json.comment.id
         exists: $.resp.body.json.comment.body
         exists: $.resp.body.json.comment.createdAt
-        string: $.resp.body.json.comment.createdAt
+        date: $.resp.body.json.comment.createdAt
         exists: $.resp.body.json.comment.updatedAt
-        string: $.resp.body.json.comment.updatedAt
+        date: $.resp.body.json.comment.updatedAt
         exists: $.resp.body.json.comment.author
       outputs:
         slug: $.resp.body.json.articles[0].slug
@@ -450,9 +450,9 @@
         exists: $.resp.body.json.comments[0].id
         exists: $.resp.body.json.comments[0].body
         exists: $.resp.body.json.comments[0].createdAt
-        string: $.resp.body.json.comments[0].createdAt
+        date: $.resp.body.json.comments[0].createdAt
         exists: $.resp.body.json.comments[0].updatedAt
-        string: $.resp.body.json.comments[0].updatedAt
+        date: $.resp.body.json.comments[0].updatedAt
         exists: $.resp.body.json.comments[0].author
       outputs:
         slug: $.resp.body.json.articles[0].slug
@@ -467,9 +467,9 @@
         exists: $.resp.body.json.comments[0].id
         exists: $.resp.body.json.comments[0].body
         exists: $.resp.body.json.comments[0].createdAt
-        string: $.resp.body.json.comments[0].createdAt
+        date: $.resp.body.json.comments[0].createdAt
         exists: $.resp.body.json.comments[0].updatedAt
-        string: $.resp.body.json.comments[0].updatedAt
+        date: $.resp.body.json.comments[0].updatedAt
         exists: $.resp.body.json.comments[0].author
       outputs:
         slug: $.resp.body.json.articles[0].slug
@@ -485,9 +485,9 @@
         exists: $.resp.body.json.comment.id
         exists: $.resp.body.json.comment.body
         exists: $.resp.body.json.comment.createdAt
-        string: $.resp.body.json.comment.createdAt
+        date: $.resp.body.json.comment.createdAt
         exists: $.resp.body.json.comment.updatedAt
-        string: $.resp.body.json.comment.updatedAt
+        date: $.resp.body.json.comment.updatedAt
         exists: $.resp.body.json.comment.author
       outputs:
         slug: $.resp.body.json.articles[0].slug

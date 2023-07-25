@@ -1,3 +1,4 @@
+use chrono::Date;
 use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
@@ -7,9 +8,7 @@ use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, EnumMap};
-use std::collections::HashMap;
-use std::env;
-use std::env::VarError;
+use std::{collections::HashMap, env, env::VarError};
 use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,6 +47,8 @@ pub enum Assert {
     IsNull(String),
     #[serde(rename = "exists")]
     Exists(String),
+    #[serde[rename = "date"]]
+    IsDate(String),
     // Add other assertion types as needed
 }
 
@@ -472,7 +473,21 @@ fn evaluate_value<'a, T: Clone + 'static>(
     object: &'a Value,
     value_type: &str,
 ) -> Result<(bool, String), AssertionError> {
-    match select(&object, expr) {
+    let mut path = expr;
+    let mut format;
+    if value_type == "date" {
+        let elements: Vec<&str> = expr.split_whitespace().collect();
+        if elements.len() < 2 {
+            return Err(AssertionError {
+                advice: Some("date format is required".to_string()),
+                src: NamedSource::new(ctx.file, expr.clone()),
+                bad_bit: (0, 4).into(),
+            });
+        }
+        path = elements[0];
+        format = elements[1];
+    }
+    match select(&object, path) {
         Ok(selected_value) => {
             if let Some(selected_value) = selected_value.first() {
                 if value_type == "exists" {
@@ -486,6 +501,20 @@ fn evaluate_value<'a, T: Clone + 'static>(
                         Ok((value_type == "array", expr.clone()))
                     }
                     Value::String(v) => {
+                        if value_type == "date" {
+                            if let Ok(_) = NaiveDate::parse_from_str(v, format) {
+                                Ok((true, expr.clone()))
+                            } else {
+                                return Err(AssertionError {
+                                    advice: Some(
+                                        "Erro parsing date, check the date format or date value"
+                                            .to_string(),
+                                    ),
+                                    src: NamedSource::new(ctx.file, expr.clone()),
+                                    bad_bit: (0, expr.len()).into(),
+                                });
+                            }
+                        }
                         if value_type == "empty" {
                             return Ok((v.is_empty(), expr.clone()));
                         }
@@ -548,7 +577,9 @@ async fn check_assertions(
             Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
                 .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
             Assert::Exists(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "exists")
-                .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("EXISTS ", e == true, expr, eval_expr)),
+            Assert::IsDate(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "date")
+                .map(|(e, eval_expr)| ("DATE ", e == true, expr, eval_expr)),
         };
 
         match eval_result {
