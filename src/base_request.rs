@@ -2,8 +2,7 @@ use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use regex::Regex;
-use reqwest::header::HeaderMap;
-use reqwest::header::HeaderValue;
+use reqwest::header::{HeaderMap, HeaderValue};
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -591,7 +590,6 @@ fn parse_expression<T: Clone + 'static>(expr: &str) -> Result<T, Box<dyn std::er
 #[cfg(test)]
 mod tests {
     use super::*;
-    use claim::*;
     use httpmock::prelude::*;
     use serde_json::json;
 
