@@ -24,6 +24,7 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 - [The `asserts` Field](#asserts-field)
 - [The `outputs` Field](#outputs)
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
+- [Using environment variables](#using-environment-variables)
 
 FYI, this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
 
@@ -108,8 +109,7 @@ describe('TODO api testing', () => {
 - name: TODO api testing
   stages:
     - name: fetches TODO items - GET
-      request:
-        GET: /todos/
+      GET: /todos/
       asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
         ok: $.resp.status_code == 200  # Rely on an expressions libray for parsing expressions
         array: $.resp.body.json
@@ -117,17 +117,15 @@ describe('TODO api testing', () => {
         todoItem: $.resp.body.json[0]._id
 
     - name: deletes TODO items - DELETE
-      request:
-        DELETE: /todos/$.stages[0].outputs.todoItem # relative syntax exists: $.stages[-1].outputs.todoItem, -1 means one stage before me
+      DELETE: /todos/$.stages[0].outputs.todoItem # relative syntax exists: $.stages[-1].outputs.todoItem, -1 means one stage before me
       asserts:
         empty: $.resp.body.json.todos
         string: $.resp.body.json
 
     - name: Adds Todo item - POST
-      request:
-        POST: /todos/
-        json:
-            task: "run tests"
+      POST: /todos/
+      json:
+        task: "run tests"
       asserts:
         ok: $.resp.status_code == 200
         ok: $.resp.body.json.task == "run tests"
@@ -143,8 +141,7 @@ describe('TODO api testing', () => {
 - name: TODO api testing
   stages:
     - name: fetches TODO items - GET
-      request:
-        GET: /todos/
+      GET: /todos/
       asserts:
         ok: $.resp.status_code == 200
         array: $.resp.body.json
@@ -152,17 +149,15 @@ describe('TODO api testing', () => {
         todoItem: $.resp.body.json[0]._id
 
     - name: deletes TODO items - DELETE
-      request:
-        DELETE: /todos/$.stages[0].outputs.todoItem
+      DELETE: /todos/$.stages[0].outputs.todoItem
       asserts:
         empty: $.resp.body.json.todos
         string: $.resp.body.json
 
     - name: Adds Todo item - POST
-      request:
-        POST: /todos/
-        json:
-            task: "run tests"
+      POST: /todos/
+      json:
+          task: "run tests"
       asserts:
         ok: $.resp.status_code == 200
         ok: $.resp.body.json.task == "run tests"
@@ -209,13 +204,11 @@ The `request` field in `testkit` defines the API request to be made and consists
   ```yaml
   # POST request
   - name: Adds Todo item - POST
-    request:
-      POST: /todos/
+    POST: /todos/
 
   # GET request
   - name: Fetches Todo items - GET
-    request:
-      GET: /todos/
+    GET: /todos/
   ```
 
 - `headers` (optional): This property allows you to include HTTP headers in the request. Headers can be used to pass additional information to the server, such as authentication tokens or content type.
@@ -224,8 +217,7 @@ The `request` field in `testkit` defines the API request to be made and consists
 
   ```yaml
   - name: Fetches Todo items - GET with headers
-    request:
-      GET: /todos/
+    GET: /todos/
     headers:
       Authorization: Bearer <token>
       Content-Type: application/json
@@ -240,12 +232,11 @@ The `request` field in `testkit` defines the API request to be made and consists
 
   ```yaml
   - name: Create User - POST
-    request:
-      POST: /users/
-      json:
-        name: John Doe
-        age: 25
-        email: john.doe@example.com
+    POST: /users/
+    json:
+      name: John Doe
+      age: 25
+      email: john.doe@example.com
   ```
 
   In the above example, a POST request is made to create a new user. The `json` property contains the user data in JSON format, including properties such as `name`, `age`, and `email`.
@@ -264,8 +255,7 @@ Here's an example to demonstrate the usage of the `asserts` field:
 
 ```yaml
 - name: Fetches Todo items - GET
-  request:
-    GET: /todos/
+  GET: /todos/
   asserts:
     ok: $.resp.status_code == 200
     array: $.resp.body.json
@@ -306,8 +296,7 @@ Here's an example that demonstrates the usage of the `outputs` field:
 
 ```yaml
 - name: Fetches Todo items - GET
-  request:
-    GET: /todos/
+  GET: /todos/
   outputs:
     todoItem: $.resp.body.json[0]._id
 ```
@@ -330,8 +319,7 @@ For example, let's say you retrieve an ID from an API response in one stage usin
 
 ```yaml
 - name: Fetch User - GET
-  request:
-    GET: /users/1
+  GET: /users/1
   outputs:
     userId: $.resp.body.id
 ```
@@ -340,8 +328,7 @@ To reference this `userId` output in a subsequent API request, you can use the `
 
 ```yaml
 - name: Update User - PUT
-  request:
-    PUT: /users/$.stages[0].outputs.userId
+  PUT: /users/$.stages[0].outputs.userId
   json:
     name: 'John Doe'
 ```
@@ -353,12 +340,56 @@ Example:
 
 ```yaml
 - name: deletes TODO items - DELETE
-      request:
-        DELETE: /todos/$.stages[-1].outputs.todoItem #-1 means one stage before me
-      asserts:
-        string: $.resp.body.json.task
-        ok: $.resp.body.json.id == $.stages[-1].outputs.todoItem
-
+  DELETE: /todos/$.stages[-1].outputs.todoItem #-1 means one stage before me
+  asserts:
+    string: $.resp.body.json.task
+    ok: $.resp.body.json.id == $.stages[-1].outputs.todoItem
 ```
 
 By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
+
+## Using environment variables
+
+Testkit supports environment variables in two ways: using a `.env` file or directly setting environment variables. These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
+
+Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution.
+
+Example `.env` file:
+
+```shell
+APIURL=https://api.example.com
+EMAIL=user@example.com
+PASSWORD=mysecretpassword
+USERNAME=myusername
+APIKEY=mysecretapikey
+```
+
+Setting environment variables directly is done via the command-line or the test environment.
+
+Example command-line usage:
+
+```shell
+APIKEY=SECRETAPIKEY cargo run -- --file test.yaml
+```
+
+To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details.
+
+Example:
+
+```yaml
+- name: Register
+  POST: '$.env.APIURL/users'
+  headers:
+    Content-Type: application/json
+    X-Requested-With: XMLHttpRequest
+  json: '{"user":{"email":"$.env.EMAIL", "password":"$.env.PASSWORD", "username":"$.env.USERNAME"}}'
+  asserts:
+    exists: $.resp.json.user
+    exists: $.resp.json.user.email
+    exists: $.resp.json.user.username
+    exists: $.resp.json.user.bio
+    exists: $.resp.json.user.image
+    exists: $.resp.json.user.token
+```
+
+In this example, Testkit performs a POST request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.

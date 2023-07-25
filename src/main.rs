@@ -3,13 +3,11 @@ mod base_request;
 use base_cli::Commands;
 use base_request::TestContext;
 extern crate dotenv;
+use clap::Parser;
 use dotenv::dotenv;
 use env_logger::Builder;
-use std::env;
-use std::str::FromStr;
-use clap::Parser;
 use log::LevelFilter;
-use std::{fs, path::PathBuf, str::FromStr};
+use std::{env, fs, path::PathBuf, str::FromStr};
 
 mod app;
 extern crate log;
@@ -18,7 +16,6 @@ extern crate log;
 async fn main() {
     dotenv().ok();
     let cli_instance = base_cli::Cli::parse();
-
 
     let mut builder = env_logger::Builder::from_default_env();
     builder
