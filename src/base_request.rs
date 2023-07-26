@@ -485,7 +485,7 @@ fn evaluate_value<'a, T: Clone + 'static>(
             });
         }
         path = elements[0];
-        format = elements[1];
+        format = elements[1..].join(" ");
     }
     match select(&object, path) {
         Ok(selected_value) => {
@@ -502,17 +502,19 @@ fn evaluate_value<'a, T: Clone + 'static>(
                     }
                     Value::String(v) => {
                         if value_type == "date" {
-                            if let Ok(_) = NaiveDate::parse_from_str(v, format) {
-                                Ok((true, expr.clone()))
-                            } else {
-                                return Err(AssertionError {
-                                    advice: Some(
-                                        "Erro parsing date, check the date format or date value"
-                                            .to_string(),
-                                    ),
-                                    src: NamedSource::new(ctx.file, expr.clone()),
-                                    bad_bit: (0, expr.len()).into(),
-                                });
+                            match NaiveDateTime::parse_from_str(v, format) {
+                                Ok(v) => Ok((true, expr.clone())),
+                                Err(e) => match NaiveDate::parse_from_str(v, format) {
+                                    Ok(v) => Ok((true, expr.clone())),
+                                    Err(err) => {
+                                        let err_message = format!("Error parsing date: {}", e);
+                                        return Err(AssertionError {
+                                            advice: Some(err_message),
+                                            src: NamedSource::new(ctx.file, expr.clone()),
+                                            bad_bit: (0, expr.len()).into(),
+                                        });
+                                    }
+                                },
                             }
                         }
                         if value_type == "empty" {
