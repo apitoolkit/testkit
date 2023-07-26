@@ -1,6 +1,5 @@
 ---
-- name: Auth
-  stages:
+
     - name: Register
       POST: '$.env.APIURL/users'
       headers:
@@ -70,8 +69,6 @@
         exists: $.resp.json.user.bio
         exists: $.resp.json.user.image
         exists: $.resp.json.user.token
-- name: Articles
-  stages:
     - name: Get All Articles
       GET: '$.env.APIURL/articles'
       headers:
@@ -186,10 +183,10 @@
       asserts:
         ok: $.resp.status == 200
         exists: $.resp.body.json.article
-        eq: $.resp.body.json.article.title, "How to train your dragon"
-        eq: $.resp.body.json.article.description, "Ever wonder how?"
-        eq: $.resp.body.json.article.body, "Very carefully."
-        eq: $.resp.body.json.article.tagList, ["training", "dragons"]
+        ok: $.resp.body.json.article.title, "How to train your dragon"
+        ok: $.resp.body.json.article.description, "Ever wonder how?"
+        ok: $.resp.body.json.article.body, "Very carefully."
+        ok: $.resp.body.json.article.tagList, ["training", "dragons"]
         date: $.resp.body.json.article.createdAt
         date: $.resp.body.json.article.updatedAt
         exists: $.resp.body.json.article.author
@@ -224,18 +221,14 @@
         exists: $.resp.body.json.articles[0].favoritesCount
         number: $.resp.body.json.articles[0].favoritesCount
     - name: Get Articles by Author
-      request:
-        method: GET
-        url:
-          raw: '$.envn.APIURL/articles?author=$.envn.USERNAME'
-        headers:
-          Content-Type: application/json
-          X-Requested-With: XMLHttpRequest
-          - key: Authorization
-            value: Token $.envn.TOKEN
-        body:
-          mode: raw
-          raw: ''
+      GET: '$.envn.APIURL/articles?author=$.envn.USERNAME'
+      headers:
+        Content-Type: application/json
+        X-Requested-With: XMLHttpRequest
+        Authorization: Token $.envn.TOKEN
+      body:
+        mode: raw
+        raw: ''
       asserts:
         ok: $.resp.status == 200
         exists: $.resp.body.json.articles
@@ -290,10 +283,10 @@
         Authorization: Token $.env.TOKEN
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.articles
+        exists: $.resp.body.json.articles
         exists: $.resp.body.json.articlesCount
         number: $.resp.body.json.articlesCount
-        exist: $.resp.body.json.articles[0]
+        exists: $.resp.body.json.articles[0]
         exists: $.resp.body.json.articles[0].title
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
@@ -321,7 +314,7 @@
       json: '{"article":{"body":"With two hands"}}'
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.article
+        exists: $.resp.body.json.article
         exists: $.resp.body.json.article.title
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
@@ -346,7 +339,7 @@
         Authorization: Token $.env.TOKEN
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.article
+        exists: $.resp.body.json.article
         exists: $.resp.body.json.article.title
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
@@ -371,10 +364,10 @@
         Authorization: Token $.env.TOKEN
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.articles
+        exists: $.resp.body.json.articles
         exists: $.resp.body.json.articlesCount
         number: $.resp.body.json.articlesCount
-        exist: $.resp.body.json.articles[0]
+        exists: $.resp.body.json.articles[0]
         exists: $.resp.body.json.articles[0].title
         exists: $.resp.body.json.articles[0].slug
         exists: $.resp.body.json.articles[0].body
@@ -401,7 +394,7 @@
         Authorization: Token $.env.TOKEN
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.article
+        exists: $.resp.body.json.article
         exists: $.resp.body.json.article.title
         exists: $.resp.body.json.article.slug
         exists: $.resp.body.json.article.body
@@ -414,7 +407,7 @@
         array: $.resp.body.json.article.tagList
         exists: $.resp.body.json.article.author
         exists: $.resp.body.json.article.favorited
-        eq: $.resp.body.json.article.favorited, false
+        ok: $.resp.body.json.article.favorited, false
         exists: $.resp.body.json.article.favoritesCount
         number: $.resp.body.json.article.favoritesCount
       outputs:
@@ -428,7 +421,7 @@
       json: '{"comment":{"body":"Thank you so much!"}}'
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.comment
+        exists: $.resp.body.json.comment
         exists: $.resp.body.json.comment.id
         exists: $.resp.body.json.comment.body
         exists: $.resp.body.json.comment.createdAt
@@ -446,7 +439,7 @@
         Authorization: Token $.env.TOKEN
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.comments
+        exists: $.resp.body.json.comments
         exists: $.resp.body.json.comments[0].id
         exists: $.resp.body.json.comments[0].body
         exists: $.resp.body.json.comments[0].createdAt
@@ -463,7 +456,7 @@
         X-Requested-With: XMLHttpRequest
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.comments
+        exists: $.resp.body.json.comments
         exists: $.resp.body.json.comments[0].id
         exists: $.resp.body.json.comments[0].body
         exists: $.resp.body.json.comments[0].createdAt
@@ -481,7 +474,7 @@
         Authorization: Token $.env.TOKEN
       asserts:
         ok: $.resp.status == 200
-        exist: $.resp.body.json.comment
+        exists: $.resp.body.json.comment
         exists: $.resp.body.json.comment.id
         exists: $.resp.body.json.comment.body
         exists: $.resp.body.json.comment.createdAt

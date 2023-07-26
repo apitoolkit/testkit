@@ -22,7 +22,7 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 - [What is JSONPath](#what-is-jsonpath)
 - [The `request` Field](#request-field)
 - [The `asserts` Field](#asserts-field)
-- [The `outputs` Field](#outputs)
+- [The `exports` Field](#exports)
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
 - [Date assertions](#date-assertions)
 - [Using environment variables](#using-environment-variables)
@@ -107,30 +107,28 @@ describe('TODO api testing', () => {
 
 ```yaml
 ---
-- name: TODO api testing
-  stages:
     - name: fetches TODO items - GET
       GET: /todos/
       asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
-        ok: $.resp.status_code == 200  # Rely on an expressions libray for parsing expressions
-        array: $.resp.body.json
-      outputs: # values which should be accesible to future steps.
-        todoItem: $.resp.body.json[0]._id
+        ok: $.resp.status == 200  # Rely on an expressions libray for parsing expressions
+        array: $.resp.json
+      exports: # values which should be accesible to future steps.
+        todoItem: $.resp.json[0]._id
 
     - name: deletes TODO items - DELETE
-      DELETE: /todos/$.stages[0].outputs.todoItem # relative syntax exists: $.stages[-1].outputs.todoItem, -1 means one stage before me
+      DELETE: /todos/$.stages[0].todoItem # relative syntax exists: $.stages[-1].todoItem, -1 means one stage before me
       asserts:
-        empty: $.resp.body.json.todos
-        string: $.resp.body.json
+        empty: $.resp.json.todos
+        string: $.resp.json
 
     - name: Adds Todo item - POST
       POST: /todos/
       json:
         task: "run tests"
       asserts:
-        ok: $.resp.status_code == 200
-        ok: $.resp.body.json.task == "run tests"
-        ok: $.resp.body.json.completed == false
+        ok: $.resp.status == 200
+        ok: $.resp.json.task == "run tests"
+        ok: $.resp.json.completed == false
 ```
 
 ## Test Definition Syntax
@@ -139,45 +137,43 @@ describe('TODO api testing', () => {
 
 ```yaml
 ---
-- name: TODO api testing
-  stages:
     - name: fetches TODO items - GET
       GET: /todos/
       asserts:
-        ok: $.resp.status_code == 200
-        array: $.resp.body.json
-      outputs:
-        todoItem: $.resp.body.json[0]._id
+        ok: $.resp.status == 200
+        array: $.resp.json
+      exports:
+        todoItem: $.resp.json[0]._id
 
     - name: deletes TODO items - DELETE
-      DELETE: /todos/$.stages[0].outputs.todoItem
+      DELETE: /todos/$.stages[0].todoItem
       asserts:
-        empty: $.resp.body.json.todos
-        string: $.resp.body.json
+        empty: $.resp.json.todos
+        string: $.resp.json
 
     - name: Adds Todo item - POST
       POST: /todos/
       json:
           task: "run tests"
       asserts:
-        ok: $.resp.status_code == 200
-        ok: $.resp.body.json.task == "run tests"
-        ok: $.resp.body.json.completed
+        ok: $.resp.status == 200
+        ok: $.resp.json.task == "run tests"
+        ok: $.resp.json.completed
 ```
 
-The YAML file consists of a list of test scenarios. Each scenario contains a `name` field and a list of `stages`. Each stage represents an API request and contains the following fields:
+The YAML file consists of a list of test scenarios. Each scenario represents an API request and contains the following fields:
 
 - `name` (required): A descriptive name for the stage.
 - `request` (required): Defines the API request to be made. It can include HTTP methods (`GET`, `POST`, `PUT`, `DELETE`, etc.) and the corresponding request URL or endpoint.
 - `asserts` (optional): Defines the assertions to be performed on the response. It specifies conditions that must be satisfied for the test to pass.
-- `outputs` (optional): Specifies the values to be captured from the response and made available to future stages.
+- `exports` (optional): Specifies the values to be captured from the response and made available to future stages.
 
-In the example above, the YAML test file defines three stages: fetching TODO items using a GET request, deleting a specific TODO item using a DELETE request, and adding a new TODO item using a POST request.
+In the example above, the YAML test file defines three test items fetching TODO items using a GET request, deleting a specific TODO item using a DELETE request, and adding a new TODO item using a POST request.
 The `name` field is self explanatory and so we'll take more about the rest of the fields in detail but before that let's talk about JSONPath.
 
 ### What is JSONPath
 
-JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and outputs.
+JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and exports.
 
 To illustrate how JSONPath works, consider the following examples:
 
@@ -192,7 +188,7 @@ The syntax of JSONPath expressions includes several key components:
 - Recursive descent (`..`): Enables searching for elements at any depth within the JSON structure, including nested objects and arrays.
 - Filters (`[?]`): Allows applying conditions or filters to select specific elements based on certain criteria.
 
-By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing outputs during the testing process. learn more about jsonpaths [here](https://lzone.de/cheat-sheet/JSONPath)
+By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing exports during the testing process. learn more about jsonpaths [here](https://lzone.de/cheat-sheet/JSONPath)
 
 ### request field
 
@@ -258,9 +254,9 @@ Here's an example to demonstrate the usage of the `asserts` field:
 - name: Fetches Todo items - GET
   GET: /todos/
   asserts:
-    ok: $.resp.status_code == 200
-    array: $.resp.body.json
-    ok: $.resp.body.json[0].task == "run tests"
+    ok: $.resp.status == 200
+    array: $.resp.json
+    ok: $.resp.json[0].task == "run tests"
 ```
 
 The `.json` tells `testkit` to convert the response into JSON format.
@@ -268,9 +264,9 @@ This allows you to access properties of the response JSON using JSONPath express
 
 In the above example, we have defined three assertions:
 
-1. `ok`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status_code == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
+1. `ok`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
 
-2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.body.json` is evaluated, and if the result is an array, the assertion passes.
+2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.json` is evaluated, and if the result is an array, the assertion passes.
 
 You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
 
@@ -284,67 +280,69 @@ All possible assertions you could use in the `asserts` field of `testkit` are as
 - `number`: Checks if a value is a number.
 - `boolean`: Checks if a value is a boolean.
 - `null`: Checks if a value is null.
+- `exists`: Check if a value exists
+- `date`: Checks if a value is a valid date string
 
 These assertions provide a wide range of options to validate different aspects of the API response, allowing you to ensure the correctness and integrity of the data and behavior. You can select the appropriate assertion based on the specific validation requirements of your API test scenario.
 
-## outputs
+## exports
 
-The `outputs` field in `testkit` allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
+The `exports` field in `testkit` allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
 
-To use the `outputs` field, you define key-value pairs where the keys represent the names of the outputs (think of it as a variable), and the values define the JSON paths or expressions used to extract the desired data from the response.
+To use the `exports` field, you define key-value pairs where the keys represent the names of the exports (think of it as a variable), and the values define the JSON paths or expressions used to extract the desired data from the response.
 
-Here's an example that demonstrates the usage of the `outputs` field:
+Here's an example that demonstrates the usage of the `exports` field:
 
 ```yaml
 - name: Fetches Todo items - GET
   GET: /todos/
-  outputs:
-    todoItem: $.resp.body.json[0]._id
+  exports:
+    todoItem: $.resp.json[0]._id
 ```
 
-In the above example, the `outputs` field captures the value of the `_id` property from the first element of the API response array. It assigns this value to the `todoItem` output.
+In the above example, the `exports` field captures the value of the `_id` property from the first element of the API response array. It assigns this value to the `todoItem` export.
 
-By capturing the `_id` value in the `todoItem` output, you can access it in subsequent stages of the test scenario. This allows you to use the extracted data for further API requests, assertions, or any other necessary operations.
+By capturing the `_id` value in the `todoItem` exports, you can access it in subsequent stages of the test scenario. This allows you to use the extracted data for further API requests, assertions, or any other necessary operations.
 
-The `outputs` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests.
+The `exports` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests.
 
-Using the `outputs` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
+Using the `exports` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
 
 ## Referencing Values and Dynamic Inputs for Subsequent API Requests
 
-The `outputs` field in `testkit` not only allows you to capture values from the API response but also provides a powerful mechanism for referencing those values and dynamically generating inputs for subsequent API requests.
+The `exports` field in `testkit` not only allows you to capture values from the API response but also provides a powerful mechanism for referencing those values and dynamically generating inputs for subsequent API requests.
 
-By capturing relevant data using the `outputs` field, you can store it as an output and easily refer to it in later stages of your test scenario. This capability becomes particularly useful when you need to access specific values extracted from the response and utilize them in subsequent API requests.
+By capturing relevant data using the `exports` field, you can store it as an export and easily refer to it in later stages of your test scenario. This capability becomes particularly useful when you need to access specific values extracted from the response and utilize them in subsequent API requests.
 
-For example, let's say you retrieve an ID from an API response in one stage using the `outputs` field:
+For example, let's say you retrieve an ID from an API response in one stage using the `exports` field:
 
 ```yaml
 - name: Fetch User - GET
   GET: /users/1
-  outputs:
+  exports:
     userId: $.resp.body.id
 ```
 
-To reference this `userId` output in a subsequent API request, you can use the `$.stages[n].outputs` syntax:
+To reference this `userId` export in a subsequent API request, you can use the `$.stages[n].<VAL>` syntax:
 
 ```yaml
 - name: Update User - PUT
-  PUT: /users/$.stages[0].outputs.userId
+  PUT: /users/$.stages[0].userId
   json:
     name: 'John Doe'
 ```
 
-In the above example, the `userId` captured in the first stage is accessed using the syntax `$.stages[0].outputs.userId`. `testkit` understands that it should substitute the reference with the corresponding value during execution.
+In the above example, the `userId` captured in the first stage is accessed using the syntax `$.stages[0].userId`. `testkit` understands that it should substitute the reference with the corresponding value during execution.
 
-You can also use relative references like `$.stages[-n]` which refers to the output of the `nth` stage before the current stage.
+You can also use relative references like `$.stages[-n]` which refers to the `exports` of the `nth` stage before the current stage.
 Example:
 
 ```yaml
 - name: deletes TODO items - DELETE
-  DELETE: /todos/$.stages[-1].outputs.todoItem #-1 means one stage before me
+  DELETE: /todos/$.stages[-1].todoItem #-1 means one stage before me
   asserts:
-    string: $.resp.body.json.task
-    ok: $.resp.body.json.id == $.stages[-1].outputs.todoItem
+    string: $.resp.json.task
+    ok: $.resp.json.id == $.stages[-1].todoItem
 ```
 
 By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
@@ -358,7 +356,7 @@ Example:
 - name: Get User Profile - GET
   GET: /user/jon_doe
   asserts:
-    date: $.resp.body.json.createdAt %Y-%m-%d %H:%M:%S %Z
+    date: $.resp.json.createdAt %Y-%m-%d %H:%M:%S %Z
 ```
 
 As you can we first provide a json path to the date followed by the date's format.
