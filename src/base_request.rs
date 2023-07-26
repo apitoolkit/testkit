@@ -14,13 +14,13 @@ use thiserror::Error;
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestItem {
-    pub name: Option<String>,
-    pub dump: Option<bool>,
+    name: Option<String>,
+    dump: Option<bool>,
     #[serde(flatten)]
-    pub request: RequestConfig,
+    request: RequestConfig,
     #[serde_as(as = "EnumMap")]
-    pub asserts: Vec<Assert>,
-    pub outputs: Option<HashMap<String, String>>,
+    asserts: Vec<Assert>,
+    exports: Option<HashMap<String, String>>,
 }
 
 // #[serde_as]
@@ -154,7 +154,7 @@ pub async fn base_request(
         .connection_verbose(true)
         .build()?;
     let mut results = Vec::new();
-    let mut outputs_map: HashMap<String, Value> = HashMap::new();
+    let mut exports_map: HashMap<String, Value> = HashMap::new();
 
     for (i, test_item) in test_items.iter().enumerate() {
         let mut ctx = ctx.clone();
@@ -168,18 +168,22 @@ pub async fn base_request(
             ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
         let mut request_builder = match &test_item.request.http_method {
-            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &outputs_map)),
-            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &outputs_map)),
-            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &outputs_map)),
-            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &outputs_map)),
+            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
+            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
+            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
+            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
         };
         if let Some(headers) = &test_item.request.headers {
             for (name, value) in headers {
                 let mut value = value.clone();
-                for (k, v) in &outputs_map {
-                    let normalized_jsonp_key = format!("$.outputs.{}", k);
-                    let v = value.replace(&normalized_jsonp_key, &v.to_string());
-                    value = v.to_owned();
+                for export in get_exports_paths(&value) {
+                    match get_export_variable(&export, ctx.stage_index, &exports_map) {
+                        Some(v) => value = value.replace(&export, &v.to_string()),
+                        None => {
+                            let error_message = format!("Export not found: {}", export);
+                            log::error!(target:"testkit","{}", error_message)
+                        }
+                    }
                 }
                 for env_var in get_env_variable_paths(&value) {
                     match get_env_variable(&env_var) {
@@ -191,19 +195,23 @@ pub async fn base_request(
                         }
                     }
                 }
+
                 request_builder = request_builder.header(name, value);
             }
         }
 
         if let Some(json) = &test_item.request.json {
             let mut j_string = json.to_string();
-            for (k, v) in &outputs_map {
-                let normalized_jsonp_key = format!("\"$.outputs.{}\"", k);
-                j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
-                // Remove twice. Workaround to support text and number types
-                let normalized_jsonp_key = format!("$.outputs.{}", k);
-                j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
+            for export in get_exports_paths(&j_string) {
+                match get_export_variable(&export, ctx.stage_index, &exports_map) {
+                    Some(v) => j_string = j_string.replace(&export, &v.to_string()),
+                    None => {
+                        let error_message = format!("Export not found: {}", export);
+                        log::error!(target:"testkit","{}", error_message)
+                    }
+                }
             }
+
             for env_var in get_env_variable_paths(&j_string) {
                 match get_env_variable(&env_var) {
                     Ok(val) => j_string = j_string.replace(&env_var, &val),
@@ -244,19 +252,18 @@ pub async fn base_request(
             )
         }
         let assert_results =
-            check_assertions(ctx, &test_item.asserts, assert_context, &outputs_map).await?;
+            check_assertions(ctx, &test_item.asserts, assert_context, &exports_map).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
-        if let Some(outputs) = &test_item.outputs {
-            for (key, value) in outputs.into_iter() {
+        if let Some(exports) = &test_item.exports {
+            for (key, value) in exports.into_iter() {
                 if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
-                    outputs_map
+                    exports_map
                         .insert(format!("{}_{}", i, key.to_string()), evaled.clone().clone());
                 }
             }
         }
-
         results.push(RequestResult {
             stage_name: test_item.name.clone(),
             stage_index: i as u32,
@@ -309,25 +316,16 @@ fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
 fn format_url(
     ctx: &TestContext,
     original_url: &String,
-    outputs: &HashMap<String, Value>,
+    exports_map: &HashMap<String, Value>,
 ) -> String {
     let mut url = original_url.clone();
-    let output_vars: Vec<String> = url
-        .split("/")
-        .filter(|x| x.starts_with("$.stages"))
-        .map(|x| x.to_string())
-        .collect();
-
-    for var in output_vars {
-        let target_stage = get_var_stage(&var, ctx.stage_index).unwrap_or_default();
-        let elements: Vec<&str> = var.split('.').collect();
-        let target_key = elements.last().unwrap_or(&"");
-        let output_key = format!("{}_{}", target_stage, target_key);
-        if let Some(value) = outputs.get(&output_key) {
-            url = url.replace(&var, &value.to_string());
-        } else {
-            let error_message = format!("Output variable not found: {}", var);
-            log::error!(target:"testkit","{}", error_message)
+    for export in get_exports_paths(&url) {
+        match get_export_variable(&export, ctx.stage_index, &exports_map) {
+            Some(v) => url = url.replace(&export, &v.to_string()),
+            None => {
+                let error_message = format!("Export not found: {}", export);
+                log::error!(target:"testkit","{}", error_message)
+            }
         }
     }
 
@@ -367,6 +365,17 @@ fn find_all_output_vars(
     val_map
 }
 
+fn get_exports_paths(val: &String) -> Vec<String> {
+    let regex_pattern = r#"\$\.stages\[(-?\d+)\]\.([a-zA-Z0-9]+)"#;
+    let regex = Regex::new(regex_pattern).unwrap();
+    let exports: Vec<String> = regex
+        .find_iter(&val)
+        .map(|v| v.as_str().to_string())
+        .collect();
+    println!("{:?}: {val}", exports);
+    exports
+}
+
 fn get_env_variable_paths(val: &String) -> Vec<String> {
     let regex_pattern = r#"\$\.(env\.[A-Za-z_][A-Za-z0-9_]*)"#;
     let regex = Regex::new(regex_pattern).unwrap();
@@ -382,6 +391,17 @@ fn get_env_variable(env_key_path: &String) -> Result<String, VarError> {
     env::var(key)
 }
 
+fn get_export_variable<'a>(
+    export_path: &String,
+    current_stage: u32,
+    exports_map: &'a HashMap<String, Value>,
+) -> Option<&'a Value> {
+    let target_stage = get_var_stage(&export_path, current_stage).unwrap_or_default();
+    let elements: Vec<&str> = export_path.split('.').collect();
+    let target_key = elements.last().unwrap_or(&"");
+    let export_key = format!("{}_{}", target_stage, target_key);
+    exports_map.get(&export_key)
+}
 // 1. First we extract a list of jsonpaths
 // 2. Build a json with all the fields which can be referenced via jsonpath
 // 3. Apply the jsonpaths over this json and save their values to a map

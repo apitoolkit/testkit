@@ -8,7 +8,6 @@
       ok: $.resp.json.number == 5
       ok: $.resp.status == $.env.STATUS
       number: $.resp.json.number
-    outputs: null
   - name: fetches TODO items - GET
     GET: http://localhost:3000/todos
     asserts:
@@ -19,22 +18,26 @@
       empty: $.resp.json.empty_str
       empty: $.resp.json.empty_arr
       null: $.resp.json.resp_null
+    exports:
+      header: $.resp.json.tasks[0]
   - name:  TODO ad items - POST
     POST: http://localhost:3000/todos
     headers:
         Content-Type: application/json
+        Authorization: $.stages[-1].header
+        X-Target: $.env.STATUS
     json:
-      task: "run tests"
+      task: run tests
     asserts:
       ok: $.resp.status == 201
-    outputs:
+    exports:
       todoItem: $.resp.json.id
   - name: deletes TODO items - DELETE
-    DELETE: "http://localhost:3000/todos/$.stages[2].outputs.todoItem"
+    DELETE: "http://localhost:3000/todos/$.stages[2].todoItem"
     asserts:
       string: $.resp.json.task
       number: $.resp.json.id
-      ok: $.resp.json.id == $.stages[-1].outputs.todoItem
+      ok: $.resp.json.id == $.stages[-1].todoItem
   - name: Adds Todo item - POST
     POST: http://localhost:3000/todos/
     json:
