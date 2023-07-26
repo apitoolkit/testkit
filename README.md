@@ -24,6 +24,7 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 - [The `asserts` Field](#asserts-field)
 - [The `outputs` Field](#outputs)
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
+- [Date assertions](#date-assertions)
 - [Using environment variables](#using-environment-variables)
 
 FYI, this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
@@ -347,6 +348,53 @@ Example:
 ```
 
 By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
+
+## Date asserstions
+
+To make date assertions in Testkit you'll need to provided the date string and the date format
+Example:
+
+```yaml
+- name: Get User Profile - GET
+  GET: /user/jon_doe
+  asserts:
+    date: $.resp.body.json.createdAt %Y-%m-%d %H:%M:%S %Z
+```
+
+As you can we first provide a json path to the date followed by the date's format.
+
+### More on date format
+
+Testkit uses the chrono crate's formatting tokens to represent different components of a date. Here are some commonly used formatting tokens:
+
+- `%Y`: Year with century as a decimal number (e.g., 2023).
+- `%m`: Month as a zero-padded decimal number (e.g., 07 for July).
+- `%b` or `%h`: Abbreviated month name (e.g., Jul).
+- `%B`: Full month name (e.g., July).
+- `%d`: Day of the month as a zero-padded decimal number (e.g., 03).
+- `%A`: Full weekday name (e.g., Monday).
+- `%a`: Abbreviated weekday name (e.g., Mon).
+- `%H`: Hour (00-23).
+- `%I`: Hour (01-12).
+- `%M`: Minute (00-59).
+- `%S`: Second (00-59).
+- `%p`: AM/PM designation for 12-hour clock (e.g., AM or PM).
+- `%Z`: Timezone offset or name.
+
+#### Examples dates and their formats
+
+Here's some example dates and their correct formats:
+
+| Date String                     | Format                     |
+| ------------------------------- | -------------------------- |
+| 2023-07-26                      | `%Y-%m-%d`                 |
+| 2023-07-26 12:34:56 UTC         | `%Y-%m-%d %H:%M:%S %Z`     |
+| 15 August, 1995, 03:45 PM UTC   | `%d %B, %Y, %I:%M %p %Z`   |
+| Mon, 05 Dec 2022 11:05:30 UTC   | `%a, %d %b %Y %H:%M:%S %Z` |
+| January 01, 2000 - 00:00:00 UTC | `%B %d, %Y - %H:%M:%S %Z`  |
+| 1987/03/10 06:30 AM UTC         | `%Y/%m/%d %I:%M %p %Z`     |
+
+In this table, the "Date String" column represents the example date string, and the "Format" column contains the corresponding format string to parse the given date string.
 
 ## Using environment variables
 
