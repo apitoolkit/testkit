@@ -31,17 +31,32 @@ pub fn app(cx: Scope) -> Element {
             option { value: "PUT" }
             option { value: "DELETE" }
         }
-        datalist { id: "req-subsection",
-            option { value: "queryparams" }
-            option { value: "headers" }
-            option { value: "json_body" }
-        }
+        section { class: "bg-[#030303] xbg-stone-950 flex  text-gray-300 h-screen  divide-x divide-gray-700",
+            aside { class:"shrink p-4 text-lg pt-8 space-y-3 text-center", 
+               a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", "DE"}, 
+                a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", i {class: "fa fa-plus"}},
+            }
+            section { class: "flex-1 grid grid-cols-12 h-full bg-stone-950 divide-x divide-gray-800",
+                aside { class: "col-span-2 py-16 px-3 h-full space-y-4", 
+                    a{
+                        class: "block space-x-2 px-4 py-2 bg-gray-800 rounded-3xl text-center cursor-pointer hover:bg-gray-700 mb-5",
+                        i {class: "fa fa-plus"},
+                        span {"New test group"}    
+                    }
 
-        section { class: "bg-stone-900 text-gray-200 h-screen grid grid-cols-5 divide-x divide-gray-700",
-            aside { class: "col-span-1" }
-            div { class: "col-span-4 p-8",
-                div { class: "text-right", p { "Press ? for help" } }
-                div { class: "", RequestElement {} }
+                    a{
+                        class: "cursor-pointer block space-x-2 px-4 py-2 hover:bg-gray-800 rounded-xl flex justify-center items-center",
+                        div{
+                            class: "flex-1 flex-row",
+                        strong {class:"block",  "Test Auth Flow"}
+                        small {class:"block", "test_auth_flow.yml"}    
+                        }
+                    }
+                }
+                div { class: "col-span-10 p-8",
+                    div { class: "text-right", p { "Press ? for help" } }
+                    div { class: "", RequestElement {} }
+                }
             }
         }
     })
@@ -50,8 +65,14 @@ pub fn app(cx: Scope) -> Element {
 #[derive(Default, Clone)]
 struct RequestStep {
     queryparams: Option<Vec<(String, String)>>,
-    headers: Option<HashMap<String, String>>,
+    headers: Option<Vec<(String, String)>>,
     body: Option<ReqBody>,
+    tests: Option<Tests>,
+}
+
+#[derive(Clone)]
+enum Tests {
+    Raw(String),
 }
 
 #[derive(Default, Clone)]
@@ -64,20 +85,34 @@ enum ReqBody {
 
 fn RequestElement(cx: Scope) -> Element {
     let toggle_sxn_option = use_state(cx, || false);
+    let hide_sxn = use_state(cx, || false);
     let req_obj = use_ref(cx, RequestStep::default);
 
-    let add_section = |p: &str| match p {
-        "q" => req_obj
-            .with_mut(|ro| ro.queryparams = ro.queryparams.clone().or(Some(Default::default()))),
-        "h" => req_obj.with_mut(|ro| ro.headers = ro.headers.clone().or(Some(HashMap::new()))),
-        "b" => req_obj.with_mut(|ro| ro.body = ro.body.clone().or(Some(ReqBody::default()))),
-        _ => (),
+    let add_section = |p: &str| {
+        match p {
+            "q" => req_obj.with_mut(|ro| {
+                ro.queryparams = ro.queryparams.clone().or(Some(Default::default()))
+            }),
+            "h" => {
+                req_obj.with_mut(|ro| ro.headers = ro.headers.clone().or(Some(Default::default())))
+            }
+            "b" => req_obj.with_mut(|ro| ro.body = ro.body.clone().or(Some(ReqBody::default()))),
+            _ => (),
+        };
+        toggle_sxn_option.set(false);
     };
 
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4 space-y-2",
             div { class: " flex items-center space-x-3 ",
-                a { class: " cursor-pointer", i { class: "fa-solid fa-chevron-down" } }
+                a { class: "inline-block cursor-pointer", onclick: |_| hide_sxn.with_mut(|hs| *hs = !*hs),
+                    if *hide_sxn.get(){
+                        rsx!{i { class: "w-4 fa-solid fa-chevron-right" } }
+                    }else{
+                        rsx!{i { class: "w-4 fa-solid fa-chevron-down" } }
+                    },
+                },
+
                 div { class: "flex gap-3 flex-1",
                     input {
                         list: "methods-list",
@@ -92,123 +127,49 @@ fn RequestElement(cx: Scope) -> Element {
                     }
                 }
             },
-            req_obj.with(|req_objj|{
-                if let Some(queryparams) = req_objj.queryparams.clone() {
-                         rsx!( HMSxn {datalist:queryparams, req_o: req_obj, title:"QueryParams", field:"q"})
-                } else {rsx!( div {})}
-            }),
-            req_obj.with(|req_objj|{
-                if let Some(_headers) = &req_objj.headers {
-                    rsx!(HeadersSxn {})
-                } else {rsx!( div {})}
-            }),
-            req_obj.with(|req_objj|{
-                if let Some(_body) = &req_objj.body{
-                    rsx!(BodySxn {})
-                }else {rsx!( div {})}
+            if !*hide_sxn.get(){
+                rsx!{
+                req_obj.with(|req_objj|{
+                    if let Some(queryparams) = req_objj.queryparams.clone() {
+                             rsx!( HMSxn {datalist:queryparams, req_o: req_obj, title:"Query Params", field:"q"})
+                    }else {rsx!( div {})}
+                }),
+                req_obj.with(|req_objj|{
+                    if let Some(headers) = req_objj.headers.clone() {
+                         rsx!( HMSxn {datalist:headers, req_o: req_obj, title:"Headers", field:"h"})
+                    } else {rsx!( div {})}
+                }),
+                req_obj.with(|req_objj|{
+                    if let Some(_body) = &req_objj.body{
+                        rsx!(BodySxn {})
+                    }else {rsx!( div {})}
 
-            }),
-            div { class: " relative",
-                a {
-                    class: " cursor-pointer p-2 inline-block",
-                    onclick: move |_| toggle_sxn_option.with_mut(|x| *x = !*x),
-                    i { class: "fa-solid fa-plus" }
-                }
-                if *toggle_sxn_option.get() {
-                    rsx!{div { class: "flex flex-col gap-3 flex-1 absolute left-0 bg-stone-900 p-3 border-[.5px] border-gray-100 shadow-md rounded",
-                        a {class: "cursor-pointer", onclick: move |_|add_section("q"),i {class: "fa-solid fa-plus"}, " Query Parameter"},
-                        a {class: "cursor-pointer", onclick: move |_|add_section("h"),i {class: "fa-solid fa-plus"}, " Headers"},
-                        a {class: "cursor-pointer", onclick: move |_|add_section("b"),i {class: "fa-solid fa-plus"}, " Body"},
-                        a {class: "cursor-pointer", onclick: move |_|add_section("t"),i {class: "fa-solid fa-plus"}, " Tests"},
-                    }}
-                }
-            }
-        }
-    })
-}
-
-#[inline_props]
-fn QueryParamSxn<'a>(
-    cx: Scope<'a>,
-    req_o: &'a UseRef<RequestStep>,
-    queryparams: Vec<(String, String)>,
-) -> Element {
-    let new_key = use_state(cx, || "".to_string());
-    let new_value = use_state(cx, || "".to_string());
-    cx.render(rsx! {
-        div { class: "pl-4  space-x-3",
-            div { class: "flex items-center",
-                a { class: " cursor-pointer p-2", i { class: "fa-solid fa-chevron-down" } }
-                span { class: "flex gap-3 flex-1", "QueryParams"}
-            }
-            for (i, (k, v)) in queryparams.iter().enumerate() {
-                div { class: "pl-8 flex",
-                    input {
-                        r#type: "text",
-                        name: "key",
-                        placeholder: "key",
-                        oninput:move |e| {
-                            let mut p = queryparams.clone();
-                            p[i] = (e.value.clone(), v.to_string());
-                            req_o.write().queryparams = Some((p).to_vec());
-                        },
-                        value: "{k}",
-                        class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
+                }),
+                div { class: " relative pl-8 mt-5 pt-3",
+                    a {
+                        class: " cursor-pointer p-2 inline-block",
+                        onclick: move |_| toggle_sxn_option.with_mut(|x| *x = !*x),
+                        i { class: "w-4 fa-solid fa-plus" },
+                        span {" or CMD c for context menu"}
                     }
-                    span { class: "shrink inline-block px-2", "=" }
-                    input {
-                        r#type: "text",
-                        name: "value",
-                        placeholder: "value",
-                        oninput:move |e| {
-                            let mut p = queryparams.clone();
-                            p[i] = (k.to_string(), e.value.clone());
-                            req_o.write().queryparams = Some((p).to_vec());
-                        },
-                        value: "{v}",
-                        class: "flex-1 bg-transparent border-b-[.5px] border-gray-100 p-1 "
+                    if *toggle_sxn_option.get() {
+                        rsx!{div { class: "flex flex-col gap-3 flex-1 absolute left-0 bg-stone-900 p-3 border-[.5px] border-gray-100 shadow-md rounded",
+                            if !req_obj.read().queryparams.is_some() {
+                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("q"), " Query Parameter"}}
+                            },
+                            if !req_obj.read().headers.is_some() {
+                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("h"), " Headers"}}
+                            },
+                            if !req_obj.read().body.is_some() {
+                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("b"), " Body"}}
+                            },
+                            if !req_obj.read().tests.is_some() {
+                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("t"), " Tests"}}
+                            },
+                        }}
                     }
                 }
-            },
-            div { class: "pl-8 flex",
-                input {
-                    r#type: "text",
-                    name: "key",
-                    placeholder: "key",
-                    value: "{new_key.get()}",
-                    oninput:move |e| {
-                        new_key.set(e.value.clone())
-                    },
-                    class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
-                }
-                span { class: "shrink inline-block px-2", "=" }
-                input {
-                    r#type: "text",
-                    name: "value",
-                    placeholder: "value",
-                    value: "{new_value.get()}",
-                    oninput:move |e| {
-                            new_value.set(e.value.clone())
-                    },
-                    onkeyup: move |e| {
-                        if (e.key == "Enter") {
-                            let mut p = queryparams.clone();
-                            p.push((new_key.get().to_string(), new_value.get().to_string()));
-                            new_value.set("".to_string());
-                            new_key.set("".to_string());
-                            req_o.write().queryparams = Some((p).to_vec());
-
-                        }
-                    },
-                    class: "flex-1 bg-transparent border-b-[.5px] border-gray-100 p-1 "
-                }
-                a { class: " cursor-pointer p-2", onclick: |_| {
-                            let mut p = queryparams.clone();
-                            p.push((new_key.get().to_string(), new_value.get().to_string()));
-                            new_value.set("".to_string());
-                            new_key.set("".to_string());
-                            req_o.write().queryparams = Some((p).to_vec());
-                }, i { class: "fa-solid fa-person-walking-arrow-loop-left" } }
+            }
             }
         }
     })
@@ -224,30 +185,66 @@ fn HMSxn<'a>(
 ) -> Element {
     let new_key = use_state(cx, || "".to_string());
     let new_value = use_state(cx, || "".to_string());
+    let hide_sxn = use_state(cx, || false);
     let overwrite_reqo = |p: Vec<(String, String)>| {
         match *field {
             "q" => req_o.write().queryparams = Some(p),
+            "h" => req_o.write().headers = Some(p),
             _ => (),
         };
     };
     cx.render(rsx! {
         div { class: "pl-4  space-x-3",
             div { class: "flex items-center",
-                a { class: " cursor-pointer p-2", i { class: "fa-solid fa-chevron-down" } }
+                a { class: " cursor-pointer p-2", onclick: |_e| hide_sxn.with_mut(|hs| *hs = !*hs),
+                if *hide_sxn.get(){
+                     rsx!{ i { class: "w-4 fa-solid fa-chevron-right" }}
+                }else{
+                    rsx!{i { class: "w-4 fa-solid fa-chevron-down" } }
+                },
+                },
                 span { class: "flex gap-3 flex-1", *title}
             }
-            for (i, (k, v)) in datalist.iter().enumerate() {
+            if !*hide_sxn.get() {
+                rsx!{
+                for (i, (k, v)) in datalist.iter().enumerate() {
+                    div { class: "pl-8 flex",
+                        input {
+                            r#type: "text",
+                            name: "key",
+                            placeholder: "key",
+                            oninput:move |e| {
+                                let mut p = datalist.clone();
+                                p[i] = (e.value.clone(), v.to_string());
+                                overwrite_reqo((p).to_vec());
+                            },
+                            value: "{k}",
+                            class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
+                        }
+                        span { class: "shrink inline-block px-2", "=" }
+                        input {
+                            r#type: "text",
+                            name: "value",
+                            placeholder: "value",
+                            oninput:move |e| {
+                                let mut p = datalist.clone();
+                                p[i] = (k.to_string(), e.value.clone());
+                                overwrite_reqo((p).to_vec());
+                            },
+                            value: "{v}",
+                            class: "flex-1 bg-transparent border-b-[.5px] border-gray-100 p-1 "
+                        }
+                    }
+                },
                 div { class: "pl-8 flex",
                     input {
                         r#type: "text",
                         name: "key",
                         placeholder: "key",
+                        value: "{new_key.get()}",
                         oninput:move |e| {
-                            let mut p = datalist.clone();
-                            p[i] = (e.value.clone(), v.to_string());
-                            overwrite_reqo((p).to_vec());
+                            new_key.set(e.value.clone())
                         },
-                        value: "{k}",
                         class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
                     }
                     span { class: "shrink inline-block px-2", "=" }
@@ -255,80 +252,30 @@ fn HMSxn<'a>(
                         r#type: "text",
                         name: "value",
                         placeholder: "value",
+                        value: "{new_value.get()}",
                         oninput:move |e| {
-                            let mut p = datalist.clone();
-                            p[i] = (k.to_string(), e.value.clone());
-                            overwrite_reqo((p).to_vec());
+                                new_value.set(e.value.clone())
                         },
-                        value: "{v}",
+                        onkeyup: move |e| {
+                            if e.key().to_string() == "Enter" {
+                                let mut p = datalist.clone();
+                                p.push((new_key.get().to_string(), new_value.get().to_string()));
+                                new_value.set("".to_string());
+                                new_key.set("".to_string());
+                                overwrite_reqo((p).to_vec());
+                            }
+                        },
                         class: "flex-1 bg-transparent border-b-[.5px] border-gray-100 p-1 "
                     }
+                    a { class: " cursor-pointer p-2", onclick: move |_| {
+                                let mut p = datalist.clone();
+                                p.push((new_key.get().to_string(), new_value.get().to_string()));
+                                new_value.set("".to_string());
+                                new_key.set("".to_string());
+                        overwrite_reqo((p).to_vec());
+                    }, i { class: "fa-solid fa-person-walking-arrow-loop-left" } }
                 }
-            },
-            div { class: "pl-8 flex",
-                input {
-                    r#type: "text",
-                    name: "key",
-                    placeholder: "key",
-                    value: "{new_key.get()}",
-                    oninput:move |e| {
-                        new_key.set(e.value.clone())
-                    },
-                    class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
-                }
-                span { class: "shrink inline-block px-2", "=" }
-                input {
-                    r#type: "text",
-                    name: "value",
-                    placeholder: "value",
-                    value: "{new_value.get()}",
-                    oninput:move |e| {
-                            new_value.set(e.value.clone())
-                    },
-                    onkeyup: move |e| {
-                        if e.key().to_string() == "Enter" {
-                            let mut p = datalist.clone();
-                            p.push((new_key.get().to_string(), new_value.get().to_string()));
-                            new_value.set("".to_string());
-                            new_key.set("".to_string());
-                            overwrite_reqo((p).to_vec());
-                        }
-                    },
-                    class: "flex-1 bg-transparent border-b-[.5px] border-gray-100 p-1 "
-                }
-                a { class: " cursor-pointer p-2", onclick: move |_| {
-                            let mut p = datalist.clone();
-                            p.push((new_key.get().to_string(), new_value.get().to_string()));
-                            new_value.set("".to_string());
-                            new_key.set("".to_string());
-                    overwrite_reqo((p).to_vec());
-                }, i { class: "fa-solid fa-person-walking-arrow-loop-left" } }
             }
-        }
-    })
-}
-
-fn HeadersSxn(cx: Scope) -> Element {
-    cx.render(rsx! {
-        div { class: "pl-4  space-x-3",
-            div { class: "flex items-center",
-                a { class: " cursor-pointer p-2", i { class: "fa-solid fa-chevron-down" } }
-                span { class: "flex gap-3 flex-1", "Headers"}
-            }
-            div { class: "pl-8 flex",
-                input {
-                    r#type: "text",
-                    name: "key",
-                    placeholder: "key",
-                    class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
-                }
-                span { class: "shrink inline-block px-2", "=" }
-                input {
-                    r#type: "text",
-                    name: "value",
-                    placeholder: "value",
-                    class: "flex-1 bg-transparent border-b-[.5px] border-gray-100 p-1 "
-                }
             }
         }
     })
