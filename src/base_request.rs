@@ -372,7 +372,6 @@ fn get_exports_paths(val: &String) -> Vec<String> {
         .find_iter(&val)
         .map(|v| v.as_str().to_string())
         .collect();
-    println!("{:?}: {val}", exports);
     exports
 }
 
