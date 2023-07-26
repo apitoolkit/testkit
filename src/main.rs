@@ -1,3 +1,5 @@
+#![feature(extend_one)]
+
 mod base_cli;
 mod base_request;
 use base_cli::Commands;
@@ -5,9 +7,11 @@ use base_request::TestContext;
 extern crate dotenv;
 use clap::Parser;
 use dotenv::dotenv;
+use env_logger::Builder;
 use log::LevelFilter;
-use std::{fs, path::PathBuf, str::FromStr};
+use std::{env, fs, path::PathBuf, str::FromStr};
 
+use std::io::Write;
 mod app;
 extern crate log;
 
