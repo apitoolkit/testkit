@@ -4,14 +4,16 @@ mod base_cli;
 mod base_request;
 use base_cli::Commands;
 use base_request::TestContext;
-extern crate dotenv;
 use clap::Parser;
 use dotenv::dotenv;
-use env_logger::Builder;
 use log::LevelFilter;
-use std::{env, fs, path::PathBuf, str::FromStr};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
+use walkdir::WalkDir;
 
-use std::io::Write;
 mod app;
 extern crate log;
 
@@ -37,11 +39,46 @@ async fn main() {
 }
 
 async fn cli(file: PathBuf) -> Result<(), anyhow::Error> {
-    let content = fs::read_to_string(file.clone())?;
-    let ctx = TestContext {
-        file: file.to_str().unwrap().into(),
-        file_source: content.clone(),
-        ..Default::default()
-    };
-    base_request::run(ctx, content).await
+    if file.exists() {
+        let content = fs::read_to_string(file.clone())?;
+        let ctx = TestContext {
+            file: file.to_str().unwrap().into(),
+            file_source: content.clone(),
+            ..Default::default()
+        };
+        base_request::run(ctx, content).await
+    } else {
+        let files = find_tk_yaml_files(Path::new("."));
+        for file in files {
+            let content = fs::read_to_string(file.clone())?;
+            let ctx = TestContext {
+                file: file.to_str().unwrap().into(),
+                file_source: content.clone(),
+                ..Default::default()
+            };
+            base_request::run(ctx, content).await;
+        }
+        Ok(())
+    }
+}
+
+fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    for entry in WalkDir::new(dir).into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            if let Some(extension) = entry.path().extension() {
+                if extension == "yaml"
+                    && entry
+                        .path()
+                        .file_stem()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .contains(".tk")
+                {
+                    result.push(entry.path().to_path_buf());
+                }
+            }
+        }
+    }
+    result
 }
