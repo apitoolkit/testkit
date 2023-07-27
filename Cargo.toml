@@ -29,7 +29,9 @@ colored_json = "3"
 # TODO: gate the desktop only dependencies behind a feature gate
 dioxus = { git = "https://github.com/DioxusLabs/dioxus/" }
 dioxus-desktop = { git = "https://github.com/DioxusLabs/dioxus/" }
+chrono = "0.4.26"
 dioxus-logger = "0.4.1"
+walkdir = "2.3.3"
 # dioxus-web = { git = "https://github.com/DioxusLabs/dioxus/" }
 # dioxus-hot-reload = { git = "https://github.com/DioxusLabs/dioxus/" }
 # dioxus-hot-reload = "0.1.1"

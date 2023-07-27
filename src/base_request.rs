@@ -1,3 +1,4 @@
+use chrono::{NaiveDate, NaiveDateTime};
 use jsonpath_lib::select;
 use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
@@ -7,28 +8,24 @@ use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, EnumMap};
-use std::collections::HashMap;
-use std::env;
-use std::env::VarError;
+use std::{collections::HashMap, env, env::VarError};
 use thiserror::Error;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TestPlan {
-    pub name: Option<String>,
-    pub stages: Vec<TestStage>,
-}
 
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TestStage {
+pub struct TestItem {
     name: Option<String>,
     dump: Option<bool>,
     #[serde(flatten)]
     request: RequestConfig,
     #[serde_as(as = "EnumMap")]
     asserts: Vec<Assert>,
-    outputs: Option<HashMap<String, String>>,
+    exports: Option<HashMap<String, String>>,
 }
+
+// #[serde_as]
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct TestStage {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Assert {
@@ -48,6 +45,8 @@ pub enum Assert {
     IsNull(String),
     #[serde(rename = "exists")]
     Exists(String),
+    #[serde[rename = "date"]]
+    IsDate(String),
     // Add other assertion types as needed
 }
 
@@ -130,21 +129,18 @@ pub struct TestContext {
 }
 
 pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
-    let test_plans: Vec<TestPlan> = serde_yaml::from_str(&exec_string)?;
-    log::debug!(target:"testkit","test_plans: {:#?}", test_plans);
+    let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
+    log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
-    for test in test_plans {
-        let result = base_request(ctx.clone(), &test).await;
-        match result {
-            Ok(res) => {
-                log::debug!("Test passed: {:?}", res);
-            }
-            Err(err) => {
-                log::error!(target:"testkit","{}", err)
-            }
+    let result = base_request(ctx.clone(), &test_items).await;
+    match result {
+        Ok(res) => {
+            log::debug!("Test passed: {:?}", res);
+        }
+        Err(err) => {
+            log::error!(target:"testkit","{}", err)
         }
     }
-
     Ok(())
 }
 
@@ -152,38 +148,42 @@ pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Er
 // Logging in place allows tracking of the results earlier
 pub async fn base_request(
     ctx: TestContext,
-    plan: &TestPlan,
+    test_items: &Vec<TestItem>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .connection_verbose(true)
         .build()?;
     let mut results = Vec::new();
-    let mut outputs_map: HashMap<String, Value> = HashMap::new();
+    let mut exports_map: HashMap<String, Value> = HashMap::new();
 
-    for (i, stage) in plan.stages.iter().enumerate() {
+    for (i, test_item) in test_items.iter().enumerate() {
         let mut ctx = ctx.clone();
-        ctx.plan = plan.name.clone();
-        ctx.stage = stage.name.clone();
+        ctx.plan = test_item.name.clone();
+        ctx.stage = test_item.name.clone();
         ctx.stage_index = i as u32;
         log::info!(target:"testkit",
             "{:?} ⬅ {}/{}",
-            stage.request.http_method,
+            test_item.request.http_method,
             ctx.plan.clone().unwrap_or("_plan".into()),
             ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
         );
-        let mut request_builder = match &stage.request.http_method {
-            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &outputs_map)),
-            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &outputs_map)),
-            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &outputs_map)),
-            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &outputs_map)),
+        let mut request_builder = match &test_item.request.http_method {
+            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
+            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
+            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
+            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
         };
-        if let Some(headers) = &stage.request.headers {
+        if let Some(headers) = &test_item.request.headers {
             for (name, value) in headers {
                 let mut value = value.clone();
-                for (k, v) in &outputs_map {
-                    let normalized_jsonp_key = format!("$.outputs.{}", k);
-                    let v = value.replace(&normalized_jsonp_key, &v.to_string());
-                    value = v.to_owned();
+                for export in get_exports_paths(&value) {
+                    match get_export_variable(&export, ctx.stage_index, &exports_map) {
+                        Some(v) => value = value.replace(&export, &v.to_string()),
+                        None => {
+                            let error_message = format!("Export not found: {}", export);
+                            log::error!(target:"testkit","{}", error_message)
+                        }
+                    }
                 }
                 for env_var in get_env_variable_paths(&value) {
                     match get_env_variable(&env_var) {
@@ -195,19 +195,23 @@ pub async fn base_request(
                         }
                     }
                 }
+
                 request_builder = request_builder.header(name, value);
             }
         }
 
-        if let Some(json) = &stage.request.json {
+        if let Some(json) = &test_item.request.json {
             let mut j_string = json.to_string();
-            for (k, v) in &outputs_map {
-                let normalized_jsonp_key = format!("\"$.outputs.{}\"", k);
-                j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
-                // Remove twice. Workaround to support text and number types
-                let normalized_jsonp_key = format!("$.outputs.{}", k);
-                j_string = j_string.replace(&normalized_jsonp_key, &v.to_string());
+            for export in get_exports_paths(&j_string) {
+                match get_export_variable(&export, ctx.stage_index, &exports_map) {
+                    Some(v) => j_string = j_string.replace(&export, &v.to_string()),
+                    None => {
+                        let error_message = format!("Export not found: {}", export);
+                        log::error!(target:"testkit","{}", error_message)
+                    }
+                }
             }
+
             for env_var in get_env_variable_paths(&j_string) {
                 match get_env_variable(&env_var) {
                     Ok(val) => j_string = j_string.replace(&env_var, &val),
@@ -230,7 +234,7 @@ pub async fn base_request(
         let json_body: Value = serde_json::from_str(&raw_body)?;
 
         let assert_object = ResponseAssertion {
-            req: stage.request.clone(),
+            req: test_item.request.clone(),
             resp: ResponseObject {
                 status: status_code,
                 headers: serde_json::json!(header_hashmap),
@@ -240,7 +244,7 @@ pub async fn base_request(
         };
 
         let assert_context: Value = serde_json::json!(&assert_object);
-        if stage.dump.unwrap_or(false) {
+        if test_item.dump.unwrap_or(false) {
             log::info!(
                 target:"testkit",
                 "💡 DUMP jsonpath request response context:\n {}",
@@ -248,21 +252,20 @@ pub async fn base_request(
             )
         }
         let assert_results =
-            check_assertions(ctx, &stage.asserts, assert_context, &outputs_map).await?;
+            check_assertions(ctx, &test_item.asserts, assert_context, &exports_map).await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
-        if let Some(outputs) = &stage.outputs {
-            for (key, value) in outputs.into_iter() {
+        if let Some(exports) = &test_item.exports {
+            for (key, value) in exports.into_iter() {
                 if let Some(evaled) = select(&serde_json::json!(assert_object), &value)?.first() {
-                    outputs_map
+                    exports_map
                         .insert(format!("{}_{}", i, key.to_string()), evaled.clone().clone());
                 }
             }
         }
-
         results.push(RequestResult {
-            stage_name: stage.name.clone(),
+            stage_name: test_item.name.clone(),
             stage_index: i as u32,
             assert_results,
         });
@@ -313,25 +316,16 @@ fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
 fn format_url(
     ctx: &TestContext,
     original_url: &String,
-    outputs: &HashMap<String, Value>,
+    exports_map: &HashMap<String, Value>,
 ) -> String {
     let mut url = original_url.clone();
-    let output_vars: Vec<String> = url
-        .split("/")
-        .filter(|x| x.starts_with("$.stages"))
-        .map(|x| x.to_string())
-        .collect();
-
-    for var in output_vars {
-        let target_stage = get_var_stage(&var, ctx.stage_index).unwrap_or_default();
-        let elements: Vec<&str> = var.split('.').collect();
-        let target_key = elements.last().unwrap_or(&"");
-        let output_key = format!("{}_{}", target_stage, target_key);
-        if let Some(value) = outputs.get(&output_key) {
-            url = url.replace(&var, &value.to_string());
-        } else {
-            let error_message = format!("Output variable not found: {}", var);
-            log::error!(target:"testkit","{}", error_message)
+    for export in get_exports_paths(&url) {
+        match get_export_variable(&export, ctx.stage_index, &exports_map) {
+            Some(v) => url = url.replace(&export, &v.to_string()),
+            None => {
+                let error_message = format!("Export not found: {}", export);
+                log::error!(target:"testkit","{}", error_message)
+            }
         }
     }
 
@@ -371,6 +365,16 @@ fn find_all_output_vars(
     val_map
 }
 
+fn get_exports_paths(val: &String) -> Vec<String> {
+    let regex_pattern = r#"\$\.stages\[(-?\d+)\]\.([a-zA-Z0-9]+)"#;
+    let regex = Regex::new(regex_pattern).unwrap();
+    let exports: Vec<String> = regex
+        .find_iter(&val)
+        .map(|v| v.as_str().to_string())
+        .collect();
+    exports
+}
+
 fn get_env_variable_paths(val: &String) -> Vec<String> {
     let regex_pattern = r#"\$\.(env\.[A-Za-z_][A-Za-z0-9_]*)"#;
     let regex = Regex::new(regex_pattern).unwrap();
@@ -386,6 +390,17 @@ fn get_env_variable(env_key_path: &String) -> Result<String, VarError> {
     env::var(key)
 }
 
+fn get_export_variable<'a>(
+    export_path: &String,
+    current_stage: u32,
+    exports_map: &'a HashMap<String, Value>,
+) -> Option<&'a Value> {
+    let target_stage = get_var_stage(&export_path, current_stage).unwrap_or_default();
+    let elements: Vec<&str> = export_path.split('.').collect();
+    let target_key = elements.last().unwrap_or(&"");
+    let export_key = format!("{}_{}", target_stage, target_key);
+    exports_map.get(&export_key)
+}
 // 1. First we extract a list of jsonpaths
 // 2. Build a json with all the fields which can be referenced via jsonpath
 // 3. Apply the jsonpaths over this json and save their values to a map
@@ -472,7 +487,21 @@ fn evaluate_value<'a, T: Clone + 'static>(
     object: &'a Value,
     value_type: &str,
 ) -> Result<(bool, String), AssertionError> {
-    match select(&object, expr) {
+    let mut path = expr.clone();
+    let mut format = String::new();
+    if value_type == "date" {
+        let elements: Vec<&str> = expr.split_whitespace().collect();
+        if elements.len() < 2 {
+            return Err(AssertionError {
+                advice: Some("date format is required".to_string()),
+                src: NamedSource::new(ctx.file, expr.clone()),
+                bad_bit: (0, 4).into(),
+            });
+        }
+        path = elements[0].to_string();
+        format = elements[1..].join(" ");
+    }
+    match select(&object, &path) {
         Ok(selected_value) => {
             if let Some(selected_value) = selected_value.first() {
                 if value_type == "exists" {
@@ -486,6 +515,22 @@ fn evaluate_value<'a, T: Clone + 'static>(
                         Ok((value_type == "array", expr.clone()))
                     }
                     Value::String(v) => {
+                        if value_type == "date" {
+                            match NaiveDateTime::parse_from_str(v, format.as_str()) {
+                                Ok(_v) => return Ok((true, expr.clone())),
+                                Err(e) => match NaiveDate::parse_from_str(v, format.as_str()) {
+                                    Ok(_v) => return Ok((true, expr.clone())),
+                                    Err(_err) => {
+                                        let err_message = format!("Error parsing date: {}", e);
+                                        return Err(AssertionError {
+                                            advice: Some(err_message),
+                                            src: NamedSource::new(ctx.file, expr.clone()),
+                                            bad_bit: (0, expr.len()).into(),
+                                        });
+                                    }
+                                },
+                            }
+                        }
                         if value_type == "empty" {
                             return Ok((v.is_empty(), expr.clone()));
                         }
@@ -548,7 +593,9 @@ async fn check_assertions(
             Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
                 .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
             Assert::Exists(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "exists")
-                .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("EXISTS ", e == true, expr, eval_expr)),
+            Assert::IsDate(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "date")
+                .map(|(e, eval_expr)| ("DATE ", e == true, expr, eval_expr)),
         };
 
         match eval_result {
@@ -652,44 +699,42 @@ mod tests {
         let yaml_str = format!(
             r#"
 ---
-- name: stage1
-  stages:
-    - POST: {}
-      headers:
-        Content-Type: application/json
-      json:
-        task: hit the gym
-      asserts:
-        ok: $.resp.json.task == "hit the gym"
-        ok: $.resp.status == $.env.STATUS
-        number: $.resp.json.id
-        string: $.resp.json.task
-        boolean: $.resp.json.completed
-      outputs:
-        todoResp: $.resp.json.resp_string
-
-    - GET: {}
-      json:
-        req_string: $.outputs.todoResp
-      asserts:
-        ok: $.resp.status == 200
-        array: $.resp.json.tasks
-        ok: $.resp.json.tasks[0].task == "task one"
-        number: $.resp.json.tasks[1].id
-        empty: $.resp.json.empty_str
-        empty: $.resp.json.empty_arr
-        null: $.resp.json.null_val
-      outputs:
-        todoId: $.resp.json.tasks[0].id
-    - PUT: {}
-      asserts:
-        ok: $.resp.json.completed
-        ok: $.resp.json.id == $.stages[1].outputs.todoId
-    - DELETE: {}
-      asserts:
-        ok: $.resp.json.id == $.stages[-2].outputs.todoId
-        boolean: $.resp.json.completed
-        ok: $.resp.json.task == "task one"
+ - name: stage1
+   POST: {}
+   headers:
+     Content-Type: application/json
+   json:
+     task: hit the gym
+   asserts:
+     ok: $.resp.json.task == "hit the gym"
+     ok: $.resp.status == 201
+     number: $.resp.json.id
+     string: $.resp.json.task
+     boolean: $.resp.json.completed
+   exports:
+     todoResp: $.resp.json.resp_string 
+ - GET: {}
+   json:
+     req_string: $.outputs.todoResp
+   asserts:
+     ok: $.resp.status == 200
+     array: $.resp.json.tasks
+     ok: $.resp.json.tasks[0].task == "task one"
+     number: $.resp.json.tasks[1].id
+     empty: $.resp.json.empty_str
+     empty: $.resp.json.empty_arr
+     null: $.resp.json.null_val
+   exports:
+     todoId: $.resp.json.tasks[0].id
+ - PUT: {}
+   asserts:
+     ok: $.resp.json.completed
+     ok: $.resp.json.id == $.stages[1].outputs.todoId
+ - DELETE: {}
+   asserts:
+     ok: $.resp.json.id == $.stages[-2].outputs.todoId
+     boolean: $.resp.json.completed
+     ok: $.resp.json.task == "task one"
 "#,
             server.url("/todos"),
             server.url("/todo_get"),
@@ -700,14 +745,14 @@ mod tests {
         let ctx = TestContext {
             plan: Some("plan".into()),
             file_source: "file source".into(),
-            file: "file.tp.yml".into(),
+            file: "file.tk.yaml".into(),
             path: ".".into(),
             stage: Some("stage_name".into()),
             stage_index: 0,
         };
         let resp = run(ctx, yaml_str.into()).await;
         log::debug!("{:?}", resp);
-        assert_ok!(resp);
+        assert!(resp.is_ok());
         m3.assert_hits(1);
         m2.assert_hits(1);
         m4.assert_hits(1);
