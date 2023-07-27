@@ -20,7 +20,7 @@ pub enum Commands {
     Test {
         /// Sets the YAML test configuration file
         #[arg(short, long)]
-        file: PathBuf,
+        file: Option<PathBuf>,
     },
     App {},
 }

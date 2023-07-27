@@ -38,27 +38,30 @@ async fn main() {
     }
 }
 
-async fn cli(file: PathBuf) -> Result<(), anyhow::Error> {
-    if file.exists() {
-        let content = fs::read_to_string(file.clone())?;
-        let ctx = TestContext {
-            file: file.to_str().unwrap().into(),
-            file_source: content.clone(),
-            ..Default::default()
-        };
-        base_request::run(ctx, content).await
-    } else {
-        let files = find_tk_yaml_files(Path::new("."));
-        for file in files {
+async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
+    match file_op {
+        Some(file) => {
             let content = fs::read_to_string(file.clone())?;
             let ctx = TestContext {
                 file: file.to_str().unwrap().into(),
                 file_source: content.clone(),
                 ..Default::default()
             };
-            let _ = base_request::run(ctx, content).await;
+            base_request::run(ctx, content).await
         }
-        Ok(())
+        None => {
+            let files = find_tk_yaml_files(Path::new("."));
+            for file in files {
+                let content = fs::read_to_string(file.clone())?;
+                let ctx = TestContext {
+                    file: file.to_str().unwrap().into(),
+                    file_source: content.clone(),
+                    ..Default::default()
+                };
+                let _ = base_request::run(ctx, content).await;
+            }
+            Ok(())
+        }
     }
 }
 
