@@ -130,7 +130,7 @@ pub struct TestContext {
 
 pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
-    log::debug!(target:"testkit","test_plans: {:#?}", test_items);
+    log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
     let result = base_request(ctx.clone(), &test_items).await;
     match result {
@@ -700,18 +700,18 @@ mod tests {
             r#"
 ---
  - name: stage1
- - POST: {}
+   POST: {}
    headers:
      Content-Type: application/json
    json:
      task: hit the gym
    asserts:
      ok: $.resp.json.task == "hit the gym"
-     ok: $.resp.status == $.env.STATUS
+     ok: $.resp.status == 201
      number: $.resp.json.id
      string: $.resp.json.task
      boolean: $.resp.json.completed
-   outputs:
+   exports:
      todoResp: $.resp.json.resp_string 
  - GET: {}
    json:
@@ -724,7 +724,7 @@ mod tests {
      empty: $.resp.json.empty_str
      empty: $.resp.json.empty_arr
      null: $.resp.json.null_val
-   outputs:
+   exports:
      todoId: $.resp.json.tasks[0].id
  - PUT: {}
    asserts:
@@ -745,14 +745,14 @@ mod tests {
         let ctx = TestContext {
             plan: Some("plan".into()),
             file_source: "file source".into(),
-            file: "file.tp.yml".into(),
+            file: "file.tk.yaml".into(),
             path: ".".into(),
             stage: Some("stage_name".into()),
             stage_index: 0,
         };
         let resp = run(ctx, yaml_str.into()).await;
         log::debug!("{:?}", resp);
-        // assert_ok!(resp);
+        assert!(resp.is_ok());
         m3.assert_hits(1);
         m2.assert_hits(1);
         m4.assert_hits(1);
