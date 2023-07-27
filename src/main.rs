@@ -56,7 +56,7 @@ async fn cli(file: PathBuf) -> Result<(), anyhow::Error> {
                 file_source: content.clone(),
                 ..Default::default()
             };
-            base_request::run(ctx, content).await;
+            let _ = base_request::run(ctx, content).await;
         }
         Ok(())
     }
