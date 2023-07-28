@@ -38,13 +38,13 @@ To install the `testkit` testing tool, follow the steps below:
 2. Clone the `testkit` repository from GitHub using the following command:
 
    ```
-   git clone https://github.com/`testkit`/`testkit`.git
+   git clone https://github.com/testkit/testkit
    ```
 
 3. Change into the cloned directory:
 
    ```
-   cd `testkit`
+   cd testkit
    ```
 
 4. Build the project using Cargo:
