@@ -1,4 +1,4 @@
-- name: Register
+- title: Register
   POST: $.env.APIURL/users
   headers:
     Content-Type: application/json
@@ -11,7 +11,7 @@
     exists: $.resp.json.user.bio
     exists: $.resp.json.user.image
     exists: $.resp.json.user.token
-- name: Login
+- title: Login
   POST: '$.env.APIURL/users/login'
   headers:
     Content-Type: application/json
@@ -24,7 +24,7 @@
     exists: $.resp.body.json.user.bio
     exists: $.resp.body.json.user.image
     exists: $.resp.body.json.user.token
-- name: Login and Remember Token
+- title: Login and Remember Token
   POST: '$.env.APIURL/users/login'
   headers:
     Content-Type: application/json
@@ -37,7 +37,7 @@
     exists: $.resp.body.json.user.bio
     exists: $.resp.body.json.user.image
     exists: $.resp.body.json.user.token
-- name: Current User
+- title: Current User
   GET: '$.env.APIURL/user'
   headers:
     Content-Type: application/json
@@ -50,7 +50,7 @@
     exists: $.resp.json.user.bio
     exists: $.resp.json.user.image
     exists: $.resp.json.user.token
-- name: Update User
+- title: Update User
   PUT: '$.env.APIURL/user'
   headers:
     Content-Type: application/json
@@ -64,7 +64,7 @@
     exists: $.resp.json.user.bio
     exists: $.resp.json.user.image
     exists: $.resp.json.user.token
-- name: Get All Articles
+- title: Get All Articles
   GET: '$.env.APIURL/articles'
   headers:
     Content-Type: application/json
@@ -89,7 +89,7 @@
     exists: $.resp.body.json.articles[0].favorited
     exists: $.resp.body.json.articles[0].favoritesCount
     number: $.resp.body.json.articles[0].favoritesCount
-- name: Get Articles by Author
+- title: Get Articles by Author
   GET: $.env.APIURL/articles?author=johnjacob
   headers:
       Content-Type: application/json
@@ -116,7 +116,7 @@
     exists: $.resp.body.json.articles[0].favoritesCount
     number: $.resp.body.json.articles[0].favoritesCount
     ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
-- name: Get Articles Favorited by Username
+- title: Get Articles Favorited by Username
   GET: $.envn.APIURL/articles?favorited=$.envn.USERNAME
   headers:
     Content-Type: application/json
@@ -142,7 +142,7 @@
     exists: $.resp.body.json.articles[0].favoritesCount
     number: $.resp.body.json.articles[0].favoritesCount
     ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
-- name: Get Articles by Tag
+- title: Get Articles by Tag
   GET: $.env.APIURL/articles?tag=dragons
   headers:
       Content-Type: application/json
@@ -168,7 +168,7 @@
     exists: $.resp.body.json.articles[0].favoritesCount
     number: $.resp.body.json.articles[0].favoritesCount
     ok: $.resp.body.json.articlesCount == $.resp.body.json.articles.length()
-- name: Create an Article
+- title: Create an Article
   POST: $.env.APIURL/articles
   headers:
     Content-Type: application/json
@@ -187,7 +187,7 @@
     exists: $.resp.body.json.article.author
     ok: $.resp.body.json.article.favorited == false
     ok: $.resp.body.json.article.favoritesCount == 0
-- name: Get Feed Articles
+- title: Get Feed Articles
   GET: $.env.APIURL/articles/feed
   headers:
     Content-Type: application/json
@@ -215,7 +215,7 @@
     exists: $.resp.body.json.articles[0].favorited
     exists: $.resp.body.json.articles[0].favoritesCount
     number: $.resp.body.json.articles[0].favoritesCount
-- name: Get Articles by Author
+- title: Get Articles by Author
   GET: '$.envn.APIURL/articles?author=$.envn.USERNAME'
   headers:
     Content-Type: application/json
@@ -244,7 +244,7 @@
     number: $.resp.body.json.articles[0].favoritesCount
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Get Single Article by Slug
+- title: Get Single Article by Slug
   GET: $.envn.APIURL/articles/$.stages[-1].slug'
   headers:
     Content-Type: application/json
@@ -267,7 +267,7 @@
     exists: $.resp.body.json.article.favorited
     exists: $.resp.body.json.article.favoritesCount
     number: $.resp.body.json.article.favoritesCount
-- name: Articles by Tag
+- title: Articles by Tag
   GET: '$.env.APIURL/articles?tag=dragons'
   headers:
     Content-Type: application/json
@@ -297,7 +297,7 @@
     number: $.resp.body.json.articles[0].favoritesCount
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Update Article
+- title: Update Article
   PUT: '$.env.APIURL/articles/$.stages[-1].outputs.slug'
   headers:
     Content-Type: application/json
@@ -323,7 +323,7 @@
     number: $.resp.body.json.article.favoritesCount
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Favorite Article
+- title: Favorite Article
   POST: '$.env.APIURL/articles/$.stages[-1].outputs.slug/favorite'
   headers:
     Content-Type: application/json
@@ -348,7 +348,7 @@
     exists: $.resp.body.json.article.favoritesCount
     number: $.resp.body.json.article.favoritesCount
     ok: $.resp.body.json.article.favoritesCount > 0
-- name: Articles Favorited by Username
+- title: Articles Favorited by Username
   GET: '$.env.APIURL/articles?favorited=$.env.USERNAME'
   headers:
     Content-Type: application/json
@@ -378,7 +378,7 @@
     ok: $.resp.body.json.articles[0].favoritesCount == 1
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Unfavorite Article
+- title: Unfavorite Article
   DELETE: $.env.APIURL/articles/$.stages[-1].outputs.slug/favorite
   headers:
     Content-Type: application/json
@@ -404,7 +404,7 @@
     number: $.resp.body.json.article.favoritesCount
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Create Comment for Article
+- title: Create Comment for Article
   POST: $.env.APIURL/articles/$.stages[-1].outputs.slug/comments
   headers:
     Content-Type: application/json
@@ -423,7 +423,7 @@
     exists: $.resp.body.json.comment.author
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: All Comments for Article
+- title: All Comments for Article
   GET:  '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments'
   headers:
     Content-Type: application/json
@@ -441,7 +441,7 @@
     exists: $.resp.body.json.comments[0].author
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: All Comments for Article without login
+- title: All Comments for Article without login
   GET: '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments'
   headers:
     Content-Type: application/json
@@ -458,7 +458,7 @@
     exists: $.resp.body.json.comments[0].author
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Delete Comment for Article
+- title: Delete Comment for Article
   DELETE: '$.env.APIURL/articles/$.stages[-1].outputs.slug/comments/{{commentId}}'
   headers:
     Content-Type: application/json
@@ -476,7 +476,7 @@
     exists: $.resp.body.json.comment.author
   exports:
     slug: $.resp.body.json.articles[0].slug
-- name: Delete Article
+- title: Delete Article
   DELETE: '$.env.APIURL/articles/$.stages[-1].outputs.slug'
   headers:
     Content-Type: application/json
@@ -484,7 +484,7 @@
     Authorization: Token $.env.TOKEN
   asserts:
     ok: $.resp.status == 200
-- name: Profile
+- title: Profile
   GET: '$.env.APIURL/profiles/celeb_$.env.USERNAME'
   headers:
     Content-Type: application/json
@@ -497,7 +497,7 @@
     exists: $.resp.body.json.profile.bio
     exists: $.resp.body.json.profile.image
     exists: $.resp.body.json.profile.following
-- name: Follow Profile
+- title: Follow Profile
   POST: '$.env.APIURL/profiles/celeb_$.env.USERNAME/follow'
   headers:
     Content-Type: application/json
@@ -512,7 +512,7 @@
     exists: $.resp.body.json.profile.image
     exists: $.resp.body.json.profile.following
     ok: $.resp.body.json.profile.following == true
-- name: Unfollow Profile
+- title: Unfollow Profile
   DELETE: '$.env.APIURL/profiles/celeb_$.env.USERNAME/follow'
   headers:
     Content-Type: application/json
@@ -525,7 +525,7 @@
     exists: $.resp.body.json.profile.image
     exists: $.resp.body.json.profile.following
     ok: $.resp.body.json.profile.following == false
-- name: All Tags
+- title: All Tags
   GET: '$.env.APIURL/tags'
   headers:
     Content-Type: application/json

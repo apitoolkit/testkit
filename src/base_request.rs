@@ -14,7 +14,7 @@ use thiserror::Error;
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TestItem {
-    name: Option<String>,
+    title: Option<String>,
     dump: Option<bool>,
     #[serde(flatten)]
     request: RequestConfig,
@@ -158,8 +158,8 @@ pub async fn base_request(
 
     for (i, test_item) in test_items.iter().enumerate() {
         let mut ctx = ctx.clone();
-        ctx.plan = test_item.name.clone();
-        ctx.stage = test_item.name.clone();
+        ctx.plan = test_item.title.clone();
+        ctx.stage = test_item.title.clone();
         ctx.stage_index = i as u32;
         log::info!(target:"testkit",
             "{:?} ⬅ {}/{}",
@@ -265,7 +265,7 @@ pub async fn base_request(
             }
         }
         results.push(RequestResult {
-            stage_name: test_item.name.clone(),
+            stage_name: test_item.title.clone(),
             stage_index: i as u32,
             assert_results,
         });
@@ -699,7 +699,7 @@ mod tests {
         let yaml_str = format!(
             r#"
 ---
- - name: stage1
+ - title: stage1
    POST: {}
    headers:
      Content-Type: application/json
