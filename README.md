@@ -347,7 +347,7 @@ Example:
 
 By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
 
-## Date asserstions
+## Date assertions
 
 To make date assertions in Testkit you'll need to provided the date string and the date format
 Example:
