@@ -107,7 +107,7 @@ describe('TODO api testing', () => {
 
 ```yaml
 ---
-    - name: fetches TODO items - GET
+    - title: fetches TODO items - GET
       GET: /todos/
       asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
         ok: $.resp.status == 200  # Rely on an expressions libray for parsing expressions
@@ -115,13 +115,13 @@ describe('TODO api testing', () => {
       exports: # values which should be accesible to future steps.
         todoItem: $.resp.json[0]._id
 
-    - name: deletes TODO items - DELETE
+    - title: deletes TODO items - DELETE
       DELETE: /todos/$.stages[0].todoItem # relative syntax exists: $.stages[-1].todoItem, -1 means one stage before me
       asserts:
         empty: $.resp.json.todos
         string: $.resp.json
 
-    - name: Adds Todo item - POST
+    - title: Adds Todo item - POST
       POST: /todos/
       json:
         task: "run tests"
@@ -137,7 +137,7 @@ describe('TODO api testing', () => {
 
 ```yaml
 ---
-    - name: fetches TODO items - GET
+    - title: fetches TODO items - GET
       GET: /todos/
       asserts:
         ok: $.resp.status == 200
@@ -145,13 +145,13 @@ describe('TODO api testing', () => {
       exports:
         todoItem: $.resp.json[0]._id
 
-    - name: deletes TODO items - DELETE
+    - title: deletes TODO items - DELETE
       DELETE: /todos/$.stages[0].todoItem
       asserts:
         empty: $.resp.json.todos
         string: $.resp.json
 
-    - name: Adds Todo item - POST
+    - title: Adds Todo item - POST
       POST: /todos/
       json:
           task: "run tests"
@@ -200,11 +200,11 @@ The `request` field in `testkit` defines the API request to be made and consists
 
   ```yaml
   # POST request
-  - name: Adds Todo item - POST
+  - title: Adds Todo item - POST
     POST: /todos/
 
   # GET request
-  - name: Fetches Todo items - GET
+  - title: Fetches Todo items - GET
     GET: /todos/
   ```
 
@@ -213,7 +213,7 @@ The `request` field in `testkit` defines the API request to be made and consists
   Example:
 
   ```yaml
-  - name: Fetches Todo items - GET with headers
+  - title: Fetches Todo items - GET with headers
     GET: /todos/
     headers:
       Authorization: Bearer <token>
@@ -228,7 +228,7 @@ The `request` field in `testkit` defines the API request to be made and consists
   Here's an example illustrating the usage of the `json` property:
 
   ```yaml
-  - name: Create User - POST
+  - title: Create User - POST
     POST: /users/
     json:
       name: John Doe
@@ -251,7 +251,7 @@ The `asserts` field accepts a collection of key-value pairs, where the keys repr
 Here's an example to demonstrate the usage of the `asserts` field:
 
 ```yaml
-- name: Fetches Todo items - GET
+- title: Fetches Todo items - GET
   GET: /todos/
   asserts:
     ok: $.resp.status == 200
@@ -294,7 +294,7 @@ To use the `exports` field, you define key-value pairs where the keys represent 
 Here's an example that demonstrates the usage of the `exports` field:
 
 ```yaml
-- name: Fetches Todo items - GET
+- title: Fetches Todo items - GET
   GET: /todos/
   exports:
     todoItem: $.resp.json[0]._id
@@ -317,7 +317,7 @@ By capturing relevant data using the `exports` field, you can store it as an exp
 For example, let's say you retrieve an ID from an API response in one stage using the `exports` field:
 
 ```yaml
-- name: Fetch User - GET
+- title: Fetch User - GET
   GET: /users/1
   exports:
     userId: $.resp.body.id
@@ -326,7 +326,7 @@ For example, let's say you retrieve an ID from an API response in one stage usin
 To reference this `userId` export in a subsequent API request, you can use the `$.stages[n].<VAL>` syntax:
 
 ```yaml
-- name: Update User - PUT
+- title: Update User - PUT
   PUT: /users/$.stages[0].userId
   json:
     name: 'John Doe'
@@ -338,7 +338,7 @@ You can also use relative references like `$.stages[-n]` which refers to the `ex
 Example:
 
 ```yaml
-- name: deletes TODO items - DELETE
+- title: deletes TODO items - DELETE
   DELETE: /todos/$.stages[-1].todoItem #-1 means one stage before me
   asserts:
     string: $.resp.json.task
@@ -353,7 +353,7 @@ To make date assertions in Testkit you'll need to provided the date string and t
 Example:
 
 ```yaml
-- name: Get User Profile - GET
+- title: Get User Profile - GET
   GET: /user/jon_doe
   asserts:
     date: $.resp.json.createdAt %Y-%m-%d %H:%M:%S %Z
@@ -423,7 +423,7 @@ To utilize environment variables in Testkit, you can access them using the follo
 Example:
 
 ```yaml
-- name: Register
+- title: Register
   POST: '$.env.APIURL/users'
   headers:
     Content-Type: application/json
