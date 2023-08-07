@@ -37,7 +37,7 @@ jobs:
     strategy:
       matrix:
         # build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
-        build: [macos, win-msvc, win-gnu, win32-msvc]
+        build: [win-msvc, win-gnu, win32-msvc]
         include:
           #   - build: linux
           #     os: ubuntu-latest
@@ -47,10 +47,10 @@ jobs:
           #     os: ubuntu-latest
           #     rust: nightly
           #     target: arm-unknown-linux-gnueabihf
-          - build: macos
-            os: macos-latest
-            rust: nightly
-            target: x86_64-apple-darwin
+          #   - build: macos
+          #     os: macos-latest
+          #     rust: nightly
+          #     target: x86_64-apple-darwin
           - build: win-msvc
             os: windows-latest
             rust: nightly
