@@ -88,7 +88,7 @@ jobs:
 
       - name: Build release binary
         run: |
-          cross build --verbose --release --target ${{ matrix.target }}
+          cargo build --verbose --release --target ${{ matrix.target }}
 
       - name: Show contents of the target directory
         if: matrix.build == 'win-msvc' || matrix.build == 'win-gnu' || matrix.build == 'win32-msvc'
