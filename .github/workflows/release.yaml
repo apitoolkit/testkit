@@ -73,6 +73,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y libglib2.0-dev
+          echo "export PKG_CONFIG_PATH=/usr/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
