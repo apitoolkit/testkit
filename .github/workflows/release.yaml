@@ -84,7 +84,8 @@ jobs:
           echo "cargo command is: ${{ env.CARGO }}"
           echo "target flag is: ${{ env.TARGET_FLAGS }}"
           echo "target dir is: ${{ env.TARGET_DIR }}"
-
+      - name: Install GLib development package
+        run: sudo apt-get update && sudo apt-get install -y libglib2.0-dev
       - name: Build release binary
         run: |
           ${{ env.CARGO }} build --verbose --release --target ${{ matrix.target }}
