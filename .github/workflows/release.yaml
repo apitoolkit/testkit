@@ -20,10 +20,10 @@ jobs:
         run: |
           echo "RG_VERSION=$GITHUB_REF_NAME" >> $GITHUB_ENV
           echo "version is: ${{ env.RG_VERSION }}"
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create ${{ env.RG_VERSION }}
+    #   - name: Create GitHub release
+    #     env:
+    #       GH_TOKEN: ${{ github.token }}
+    #     run: gh release create ${{ env.RG_VERSION }}
   build-release:
     name: build-release
     needs: ['create-release']
