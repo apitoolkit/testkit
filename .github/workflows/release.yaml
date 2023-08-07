@@ -101,7 +101,7 @@ jobs:
 
       - name: Strip release binary (linux, macos and macos-arm)
         if: matrix.build == 'linux' || matrix.os == 'macos'
-        run: strip "target/${{ matrix.target }}/release/rg"
+        run: strip "target/${{ matrix.target }}/release/testkit"
 
       - name: Strip release binary (arm)
         if: matrix.build == 'linux-arm'
@@ -110,20 +110,20 @@ jobs:
           "$PWD/target:/target:Z" \
           rustembedded/cross:arm-unknown-linux-gnueabihf \
           arm-linux-gnueabihf-strip \
-          /target/arm-unknown-linux-gnueabihf/release/rg
+          /target/arm-unknown-linux-gnueabihf/release/testkit
       - name: Build archive
         shell: bash
         run: |
-          staging="ripgrep-${{ needs.create-release.outputs.rg_version }}-${{ matrix.target }}"
+          staging="testkit-${{ needs.create-release.outputs.rg_version }}-${{ matrix.target }}"
           mkdir -p "$staging"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp "target/${{ matrix.target }}/release/rg.exe" "$staging/"
+            cp "target/${{ matrix.target }}/release/testkit.exe" "$staging/"
             7z a "$staging.zip" "$staging"
             certutil -hashfile "$staging.zip" SHA256 > "$staging.zip.sha256"
             echo "ASSET=$staging.zip" >> $GITHUB_ENV
             echo "ASSET_SUM=$staging.zip.sha256" >> $GITHUB_ENV
           else
-            cp "target/${{ matrix.target }}/release/rg" "$staging/"
+            cp "target/${{ matrix.target }}/release/testkit" "$staging/"
             tar czf "$staging.tar.gz" "$staging"
             shasum -a 256 "$staging.tar.gz" > "$staging.tar.gz.sha256"
             echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
