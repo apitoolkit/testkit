@@ -101,7 +101,7 @@ jobs:
 
       - name: Show contents of the target directory
         if: matrix.build == 'win-msvc' || matrix.build == 'win-gnu' || matrix.build == 'win32-msvc'
-        run: dir /s /b target
+        run: tree
 
       - name: Strip release binary (linux, macos and macos-arm)
         if: matrix.build == 'linux' || matrix.os == 'macos'
