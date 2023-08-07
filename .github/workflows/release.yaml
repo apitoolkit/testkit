@@ -70,8 +70,8 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          apt-get update
-          apt-get install libglib2.0-dev
+          sudo apt-get update
+          sudo apt-get install libglib2.0-dev
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
