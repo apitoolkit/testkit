@@ -37,12 +37,12 @@ jobs:
     strategy:
       matrix:
         # build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
-        build: [linux, macos]
+        build: [macos]
         include:
-          - build: linux
-            os: ubuntu-latest
-            rust: nightly
-            target: x86_64-unknown-linux-musl
+          #   - build: linux
+          #     os: ubuntu-latest
+          #     rust: nightly
+          #     target: x86_64-unknown-linux-musl
           #   - build: linux-arm
           #     os: ubuntu-latest
           #     rust: nightly
@@ -95,7 +95,9 @@ jobs:
           echo "target dir is: ${{ env.TARGET_DIR }}"
 
       - name: Build release binary
-        run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+        run: |
+          cargo clean
+          ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
 
       - name: Strip release binary (linux, macos and macos-arm)
         if: matrix.build == 'linux' || matrix.os == 'macos'
