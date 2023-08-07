@@ -36,21 +36,20 @@ jobs:
       PCRE2_SYS_STATIC: 1
     strategy:
       matrix:
-        # build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
-        build: [win-msvc, win-gnu, win32-msvc]
+        build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
         include:
-          #   - build: linux
-          #     os: ubuntu-latest
-          #     rust: nightly
-          #     target: x86_64-unknown-linux-musl
-          #   - build: linux-arm
-          #     os: ubuntu-latest
-          #     rust: nightly
-          #     target: arm-unknown-linux-gnueabihf
-          #   - build: macos
-          #     os: macos-latest
-          #     rust: nightly
-          #     target: x86_64-apple-darwin
+          - build: linux
+            os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-musl
+          - build: linux-arm
+            os: ubuntu-latest
+            rust: nightly
+            target: arm-unknown-linux-gnueabihf
+          - build: macos
+            os: macos-latest
+            rust: nightly
+            target: x86_64-apple-darwin
           - build: win-msvc
             os: windows-latest
             rust: nightly
@@ -88,7 +87,7 @@ jobs:
 
       - name: Build release binary
         run: |
-          cargo build --verbose --release --target ${{ matrix.target }}
+          ${{ env.CARGO }} build --verbose --release --target ${{ matrix.target }}
 
       - name: Show contents of the target directory
         if: matrix.build == 'win-msvc' || matrix.build == 'win-gnu' || matrix.build == 'win32-msvc'
