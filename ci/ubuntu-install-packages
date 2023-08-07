@@ -1,4 +1,7 @@
 #!/bin/sh
-
+if ! command -V sudo; then
+  apt-get update
+  apt-get install -y --no-install-recommends sudo
+fi
 sudo apt-get update
 sudo apt-get install libglib2.0-dev
