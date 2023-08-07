@@ -99,6 +99,10 @@ jobs:
           cargo clean
           ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
 
+      - name: Show contents of the target directory
+        if: matrix.build == 'win-msvc' || matrix.build == 'win-gnu' || matrix.build == 'win32-msvc'
+        run: dir /s /b target
+
       - name: Strip release binary (linux, macos and macos-arm)
         if: matrix.build == 'linux' || matrix.os == 'macos'
         run: strip "target/${{ matrix.target }}/release/testkit"
