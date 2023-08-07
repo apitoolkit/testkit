@@ -33,6 +33,13 @@ FYI, this table of contents reflects the current sections covered in the documen
 
 To install the `testkit` testing tool, follow the steps below:
 
+#### First Approach:
+
+Navigate to the releases page and proceed to install the testkit binary suitable for your operating system.
+[Check releases](https://github.com/apitoolkit/testkit/releases)
+
+#### Second Approach:
+
 1. Ensure you have Rust programming language and Cargo package manager installed on your system. You can download them from the official Rust website: [https://www.rust-lang.org/](https://www.rust-lang.org/).
 
 2. Clone the `testkit` repository from GitHub using the following command:
