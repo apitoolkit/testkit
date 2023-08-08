@@ -31,14 +31,34 @@ FYI, this table of contents reflects the current sections covered in the documen
 
 ## Installation
 
-To install the `testkit` testing tool, follow the steps below:
+To install the `testkit` testing tool, follow one of the options below:
 
-#### First Approach:
+#### Download binaries:
 
-Navigate to the releases page and proceed to install the testkit binary suitable for your operating system.
-[Check releases](https://github.com/apitoolkit/testkit/releases)
+Navigate to the releases page and proceed to install the testkit binary suitable for your operating system (linux, mac and windows).
+[Check releases](https://github.com/apitoolkit/testkit/releases/release-test)
 
-#### Second Approach:
+#### macOS
+
+To install Testkit on macOS using Homebrew, follow these steps:
+
+1. Tap the Testkit release repository:
+
+   ```bash
+   brew tap apitoolkit/testkit
+   ```
+
+   Tapping the repository adds it as a source for Homebrew formulae.
+
+2. Install Testkit:
+
+   ```bash
+   brew install testkit
+   ```
+
+   This command will download and install Testkit on your macOS system.
+
+#### Clone repository:
 
 1. Ensure you have Rust programming language and Cargo package manager installed on your system. You can download them from the official Rust website: [https://www.rust-lang.org/](https://www.rust-lang.org/).
 
