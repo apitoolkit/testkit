@@ -91,8 +91,9 @@ jobs:
           sudo apt update && sudo apt install libwebkit2gtk-4.0-dev build-essential curl wget libglib2.0-dev libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev libappindicator-dev libgdk3.0-cil libatk1.0-dev
       - name: Build release binary
         run: |
-          ls /usr/lib/x86_64-linux-gnu/pkgconfig
+          echo $PKG_CONFIG_PATH
           export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/lib/x86_64-linux-gnu/pkgconfig"
+          echo $PKG_CONFIG_PATH
           ${{ env.CARGO }} build --verbose --release --target ${{ matrix.target }}
 
       - name: Strip release binary (linux, macos and macos-arm)
