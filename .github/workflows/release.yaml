@@ -85,11 +85,13 @@ jobs:
           echo "cargo command is: ${{ env.CARGO }}"
           echo "target flag is: ${{ env.TARGET_FLAGS }}"
           echo "target dir is: ${{ env.TARGET_DIR }}"
+
       - name: Install GLib development package
         run: |
           sudo apt-get update
           sudo apt-get install -y libglib2.0-dev
-          export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH  # Update the path if necessary
+          echo "$(pkg-config --path glib-2.0)"
+          export PKG_CONFIG_PATH="$(pkg-config --variable pcfiledir glib-2.0 2>/dev/null || echo 'fallback_path'):$PKG_CONFIG_PATH"
 
       - name: Build release binary
         run: |
