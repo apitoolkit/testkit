@@ -88,14 +88,11 @@ jobs:
 
       - name: Install GLib development package
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libglib2.0-dev libgtk-3-dev
-          echo "$(pkg-config --variable pcfiledir glib-2.0)"
-          ls /usr/lib/x86_64-linux-gnu/pkgconfig
-          export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
-
+          sudo apt update && sudo apt install libwebkit2gtk-4.0-dev build-essential curl wget libglib2.0-dev libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev libappindicator-dev libgdk3.0-cil libatk1.0-dev
       - name: Build release binary
         run: |
+          ls /usr/lib/x86_64-linux-gnu/pkgconfig
+          # export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
           ${{ env.CARGO }} build --verbose --release --target ${{ matrix.target }}
 
       - name: Strip release binary (linux, macos and macos-arm)
