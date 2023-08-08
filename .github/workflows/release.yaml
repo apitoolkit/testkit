@@ -94,7 +94,7 @@ jobs:
           echo $PKG_CONFIG_PATH
           export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/lib/x86_64-linux-gnu/pkgconfig"
           echo $PKG_CONFIG_PATH
-          ${{ env.CARGO }} build --verbose --release --target ${{ matrix.target }}
+          cargo build --verbose --release --target ${{ matrix.target }}
 
       - name: Strip release binary (linux, macos and macos-arm)
         if: matrix.build == 'linux' || matrix.os == 'macos'
