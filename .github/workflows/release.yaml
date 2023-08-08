@@ -94,7 +94,7 @@ jobs:
           echo $PKG_CONFIG_PATH
       - name: Build release binary
         run: |
-          ${{ env.CARGO }} build --verbose --release --target ${{ matrix.target }}
+          cargo build --verbose --release --target ${{ matrix.target }}
 
       - name: Strip release binary (linux, macos and macos-arm)
         if: matrix.build == 'linux' || matrix.os == 'macos'
