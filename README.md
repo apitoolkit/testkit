@@ -82,12 +82,10 @@ To install Testkit on macOS using Homebrew, follow these steps:
 
 5. Once the build process is complete, you can find the `testkit` executable file in the `target/release` directory.
 
-## How to Run
-
-To run the `testkit` testing tool, use the following command:
+6. Run the `testkit` cli tool, use the following command:
 
 ```bash
-RUST_LOG=debug cargo run -- --file ./test.yaml
+testkit test --file ./test.tk.yaml
 ```
 
 Make sure to replace `./test.yaml` with the path to your YAML test file.
@@ -442,7 +440,7 @@ Setting environment variables directly is done via the command-line or the test 
 Example command-line usage:
 
 ```shell
-APIKEY=SECRETAPIKEY cargo run -- --file test.yaml
+APIKEY=SECRETAPIKEY testkit test --file test.tk.yaml
 ```
 
 To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details.

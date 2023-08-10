@@ -1,4 +1,4 @@
-  - name: post todo - POST
+  - title: post todo - POST
     POST: http://localhost:3000/todos
     headers:
       Content-Type: application/json
@@ -9,7 +9,7 @@
       ok: $.resp.status == $.env.STATUS
       number: $.resp.json.number
       
-  - name: fetches TODO items - GET
+  - title: fetches TODO items - GET
     GET: http://localhost:3000/todos
     asserts:
       ok: $.resp.status == 200
@@ -22,7 +22,7 @@
     exports:
       header: $.resp.json.tasks[0]
       
-  - name:  TODO ad items - POST
+  - title:  TODO ad items - POST
     POST: http://localhost:3000/todos
     headers:
         Content-Type: application/json
@@ -35,14 +35,14 @@
     exports:
       todoItem: $.resp.json.id
       
-  - name: deletes TODO items - DELETE
+  - title: deletes TODO items - DELETE
     DELETE: "http://localhost:3000/todos/$.stages[2].todoItem"
     asserts:
       string: $.resp.json.task
       number: $.resp.json.id
       ok: $.resp.json.id == $.stages[-1].todoItem
       
-  - name: Adds Todo item - POST
+  - title: Adds Todo item - POST
     POST: http://localhost:3000/todos/
     json:
       task: "run tests"
