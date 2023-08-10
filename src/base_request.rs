@@ -47,7 +47,8 @@ pub enum Assert {
     Exists(String),
     #[serde[rename = "date"]]
     IsDate(String),
-    // Add other assertion types as needed
+    #[serde[rename = "notEmpty"]]
+    NotEmpty(String), // Add other assertion types as needed
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -512,6 +513,9 @@ fn evaluate_value<'a, T: Clone + 'static>(
                         if value_type == "empty" {
                             return Ok((v.is_empty(), expr.clone()));
                         }
+                        if value_type == "notEmpty" {
+                            return Ok((!v.is_empty(), expr.clone()));
+                        }
                         Ok((value_type == "array", expr.clone()))
                     }
                     Value::String(v) => {
@@ -533,6 +537,9 @@ fn evaluate_value<'a, T: Clone + 'static>(
                         }
                         if value_type == "empty" {
                             return Ok((v.is_empty(), expr.clone()));
+                        }
+                        if value_type == "notEmpty" {
+                            return Ok((!v.is_empty(), expr.clone()));
                         }
                         Ok((value_type == "str", expr.clone()))
                     }
@@ -596,6 +603,10 @@ async fn check_assertions(
                 .map(|(e, eval_expr)| ("EXISTS ", e == true, expr, eval_expr)),
             Assert::IsDate(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "date")
                 .map(|(e, eval_expr)| ("DATE ", e == true, expr, eval_expr)),
+            Assert::NotEmpty(expr) => {
+                evaluate_value::<bool>(ctx.clone(), expr, &json_body, "notEmpty")
+                    .map(|(e, eval_expr)| ("NOT EMPTY ", e == true, expr, eval_expr))
+            }
         };
 
         match eval_result {
@@ -720,6 +731,8 @@ mod tests {
      ok: $.resp.status == 200
      array: $.resp.json.tasks
      ok: $.resp.json.tasks[0].task == "task one"
+     notEmpty: $.resp.json.tasks[0].task
+     notEmpty: $.resp.json.tasks
      number: $.resp.json.tasks[1].id
      empty: $.resp.json.empty_str
      empty: $.resp.json.empty_arr
