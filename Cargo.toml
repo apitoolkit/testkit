@@ -32,9 +32,9 @@ dioxus-desktop = { git = "https://github.com/DioxusLabs/dioxus/" }
 chrono = "0.4.26"
 dioxus-logger = "0.4.1"
 walkdir = "2.3.3"
+# dioxus-hot-reload = "0.4.0"
 # dioxus-web = { git = "https://github.com/DioxusLabs/dioxus/" }
 # dioxus-hot-reload = { git = "https://github.com/DioxusLabs/dioxus/" }
-# dioxus-hot-reload = "0.1.1"
 # dioxus = "0.3.2"
 # dioxus-desktop = "0.3.0"
 # dioxus-web = "0.3.2"

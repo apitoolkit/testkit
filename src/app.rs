@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use dioxus::prelude::*;
+use dioxus::{html::geometry::euclid::default, prelude::*};
 use dioxus_desktop::tao::keyboard::Key;
 use std::{collections::HashMap, mem::swap};
 
@@ -34,7 +34,7 @@ pub fn app(cx: Scope) -> Element {
         section { class: "bg-[#030303] xbg-stone-950 flex  text-gray-300 h-screen  divide-x divide-gray-700",
             aside { class:"shrink p-4 text-lg pt-8 space-y-3 text-center", 
                a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", "DE"}, 
-                a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", i {class: "fa fa-plus"}},
+               a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", i {class: "fa fa-plus"}},
             }
             section { class: "flex-1 grid grid-cols-12 h-full bg-stone-950 divide-x divide-gray-800",
                 aside { class: "col-span-2 py-16 px-3 h-full space-y-4", 
@@ -53,12 +53,22 @@ pub fn app(cx: Scope) -> Element {
                         }
                     }
                 }
-                div { class: "col-span-10 p-8",
+                div { class: "col-span-10 p-8 h-full overflow-y-scroll",
                     div { class: "text-right", p { "Press ? for help" } }
-                    div { class: "", RequestElement {} }
+                    div { class: "", TestBuilder(cx)}
                 }
             }
         }
+    })
+}
+
+fn TestBuilder(cx: Scope) -> Element {
+    let stages = use_state(cx, || vec!["hello".to_string(), "world".to_string()]);
+    cx.render(rsx! {
+            div {
+                stages.iter().map(|stage| RequestElement(cx)),
+                 button {class: "bg-blue-900 py-1.5 px-3 rounded-full", onclick: move |_| stages.with_mut(|s| s.push("hello".to_string())), i {class: "fa fa-plus"}}
+             }
     })
 }
 
@@ -103,8 +113,8 @@ fn RequestElement(cx: Scope) -> Element {
     };
 
     cx.render(rsx! {
-        div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4 space-y-2",
-            div { class: " flex items-center space-x-3 ",
+        div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
+            div { class: "flex space-x-3 w-full",
                 a { class: "inline-block cursor-pointer", onclick: |_| hide_sxn.with_mut(|hs| *hs = !*hs),
                     if *hide_sxn.get(){
                         rsx!{i { class: "w-4 fa-solid fa-chevron-right" } }
@@ -112,22 +122,23 @@ fn RequestElement(cx: Scope) -> Element {
                         rsx!{i { class: "w-4 fa-solid fa-chevron-down" } }
                     },
                 },
-
-                div { class: "flex gap-3 flex-1",
+                div { class: "w-full border border rounded border-gray-900",
+                div { class: "flex bg-gray-800 flex-1 py-2",
                     input {
                         list: "methods-list",
                         id: "methods",
                         name: "methods",
-                        placeholder: "GET",
-                        class: "bg-transparent border-[.5px] border-gray-100 p-3 w-20"
+                        placeholder: "METHOD",
+                        class: "bg-transparent border-r border-r-gray-900 px-3 outline-none focus:outline:none py-1 w-24 text-xs font-bold"
                     }
                     input {
                         r#type: "text",
-                        class: "bg-transparent border-[.5px] border-gray-100 p-3 flex-1"
+                        placeholder: "Enter request URL",
+                        class: "bg-transparent px-3 w-full outline-none focus:outline-none",
                     }
-                }
-            },
-            if !*hide_sxn.get(){
+                },
+
+                if !*hide_sxn.get(){
                 rsx!{
                 req_obj.with(|req_objj|{
                     if let Some(queryparams) = req_objj.queryparams.clone() {
@@ -145,13 +156,23 @@ fn RequestElement(cx: Scope) -> Element {
                     }else {rsx!( div {})}
 
                 }),
-                div { class: " relative pl-8 mt-5 pt-3",
+                div { class: "relative pt-3 w-full",
+                     nav {
+                       ul {
+                         class: "flex items-center text-gray-700 mx-2 px-2 gap-6 border-b-2 border-b-gray-900",
+                         li {class:"border-b border-b-transparent",button {"Params"}},
+                         li {class:"border-b border-b-transparent",button {"Headers"}},
+                         li {class:"border-b border-b-transparent",button {"Body"}},
+                         li {class:"border-b border-b-transparent",button {"Tests"}},
+                       }
+                     },
                     a {
                         class: " cursor-pointer p-2 inline-block",
                         onclick: move |_| toggle_sxn_option.with_mut(|x| *x = !*x),
                         i { class: "w-4 fa-solid fa-plus" },
                         span {" or CMD c for context menu"}
                     }
+
                     if *toggle_sxn_option.get() {
                         rsx!{div { class: "flex flex-col gap-3 flex-1 absolute left-0 bg-stone-900 p-3 border-[.5px] border-gray-100 shadow-md rounded",
                             if !req_obj.read().queryparams.is_some() {
@@ -170,6 +191,9 @@ fn RequestElement(cx: Scope) -> Element {
                     }
                 }
             }
+            }
+
+                }
             }
         }
     })
@@ -283,7 +307,7 @@ fn HMSxn<'a>(
 
 fn BodySxn(cx: Scope) -> Element {
     cx.render(rsx! {
-        div { class: "pl-4  space-x-3",
+        div { class: "pl-4 space-x-3",
             div { class: "flex items-center",
                 a { class: " cursor-pointer p-2", i { class: "fa-solid fa-chevron-down" } }
                 div {
