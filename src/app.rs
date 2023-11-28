@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
 
-use dioxus::{html::geometry::euclid::default, prelude::*};
+use dioxus::{
+    html::{geometry::euclid::default, SvgAttributes},
+    prelude::*,
+};
 use dioxus_desktop::tao::keyboard::Key;
 use std::{collections::HashMap, mem::swap};
 
@@ -64,16 +67,25 @@ pub fn app(cx: Scope) -> Element {
 
 fn TestBuilder(cx: Scope) -> Element {
     let stages = use_state(cx, || Vec::<RequestStep>::new());
+    let update_item = |index: usize, item: &RequestStep| {
+        let mut sts = stages.get().clone();
+        sts[index] = item.clone();
+        stages.set(sts)
+    };
     cx.render(rsx! {
             div {
-                stages.iter().map(|stage| RequestElement(cx, stage)),
-                 button {class: "bg-blue-900 py-1.5 px-3 rounded-full", onclick: move |_| stages.with_mut(|s| s.push(RequestStep { queryparams: (Some(vec![("".to_string(),"".to_string())])), headers: None, body: None, tests: None })), i {class: "fa fa-plus"}}
+                stages.iter().enumerate().map(|(i,stage)| RequestElement(cx, stage, update_item)),
+                 button {class: "bg-blue-900 py-1.5 px-3 rounded-full",
+                 onclick: move |_| stages.with_mut(|s| s.push(RequestStep::default())),
+                 i {class: "fa fa-plus"}}
              }
     })
 }
 
 #[derive(Default, Clone)]
 struct RequestStep {
+    method: String,
+    url: String,
     queryparams: Option<Vec<(String, String)>>,
     headers: Option<Vec<(String, String)>>,
     body: Option<ReqBody>,
@@ -102,7 +114,11 @@ enum Tabs {
     Tests,
 }
 
-fn RequestElement<'a>(cx: &'a Scoped<'a>, req: &'a RequestStep) -> Element<'a> {
+fn RequestElement<'a>(
+    cx: &'a Scoped<'a>,
+    req: &'a RequestStep,
+    updateFn: impl Fn(usize, &RequestStep),
+) -> Element<'a> {
     let hide_sxn = use_state(cx, || false);
     let req_obj = use_ref(cx, RequestStep::default);
     let tab_sxn = use_state(cx, || Tabs::Params);
@@ -128,6 +144,7 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: &'a RequestStep) -> Element<'a> {
                     input {
                         list: "methods-list",
                         id: "methods",
+                        value: "{req.method}",
                         name: "methods",
                         placeholder: "METHOD",
                         class: "bg-transparent border-r border-r-gray-900 px-3 outline-none focus:outline:none py-1 w-24 text-xs font-bold"
@@ -135,6 +152,7 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: &'a RequestStep) -> Element<'a> {
                     input {
                         r#type: "text",
                         placeholder: "Enter request URL",
+                        value: "{req.url}",
                         class: "bg-transparent px-3 w-full outline-none focus:outline-none",
                     }
                 },
@@ -170,10 +188,10 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: &'a RequestStep) -> Element<'a> {
 
                      match tab_sxn.get() {
                          Tabs::Params => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params)
+                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone())
                          },
                          Tabs::Headers => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params)
+                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone())
                          },
                          Tabs::Body => rsx!{
                              p {"Body"}
@@ -298,12 +316,23 @@ fn HMSxn<'a>(
     })
 }
 
-fn HeadersParamsSxn(cx: Scope, tab: Tabs) -> Element {
+fn HeadersParamsSxn(cx: Scope, tab: Tabs, vals: Option<Vec<(String, String)>>) -> Element {
+    let binding = vals.unwrap_or_default();
+    let items = binding.iter().map(|(k,v)| {
+        rsx!(
+             div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
+                  input{placeholder: "key", value: "{k}", class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"},
+                  input{placeholder: "value",value: "{v}", class: "bg-transparent outline-none w-full py-1 px-3"}
+                },
+        )
+    });
+
     cx.render(rsx! {
         div { class: "flex flex-col p-2 w-full m-2",
             div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
+            items,
             div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", input{placeholder: "key" ,class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"}, input{placeholder: "value", class: "bg-transparent outline-none w-full py-1 px-3"}},
-    }
+      }
     })
 }
 
