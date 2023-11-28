@@ -63,11 +63,11 @@ pub fn app(cx: Scope) -> Element {
 }
 
 fn TestBuilder(cx: Scope) -> Element {
-    let stages = use_state(cx, || vec!["hello".to_string(), "world".to_string()]);
+    let stages = use_state(cx, || Vec::<RequestStep>::new());
     cx.render(rsx! {
             div {
-                stages.iter().map(|stage| RequestElement(cx)),
-                 button {class: "bg-blue-900 py-1.5 px-3 rounded-full", onclick: move |_| stages.with_mut(|s| s.push("hello".to_string())), i {class: "fa fa-plus"}}
+                stages.iter().map(|stage| RequestElement(cx, stage)),
+                 button {class: "bg-blue-900 py-1.5 px-3 rounded-full", onclick: move |_| stages.with_mut(|s| s.push(RequestStep { queryparams: (Some(vec![("".to_string(),"".to_string())])), headers: None, body: None, tests: None })), i {class: "fa fa-plus"}}
              }
     })
 }
@@ -102,38 +102,27 @@ enum Tabs {
     Tests,
 }
 
-fn RequestElement(cx: Scope) -> Element {
-    let toggle_sxn_option = use_state(cx, || false);
+fn RequestElement<'a>(cx: &'a Scoped<'a>, req: &'a RequestStep) -> Element<'a> {
     let hide_sxn = use_state(cx, || false);
     let req_obj = use_ref(cx, RequestStep::default);
     let tab_sxn = use_state(cx, || Tabs::Params);
-
-    let add_section = |p: &str| {
-        match p {
-            "q" => req_obj.with_mut(|ro| {
-                ro.queryparams = ro.queryparams.clone().or(Some(Default::default()))
-            }),
-            "h" => {
-                req_obj.with_mut(|ro| ro.headers = ro.headers.clone().or(Some(Default::default())))
-            }
-            "b" => req_obj.with_mut(|ro| ro.body = ro.body.clone().or(Some(ReqBody::default()))),
-            _ => (),
-        };
-        toggle_sxn_option.set(false);
-    };
 
     let update_tab = |tab: Tabs| tab_sxn.set(tab);
 
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
             div { class: "flex space-x-3 w-full",
-                a { class: "inline-block cursor-pointer", onclick: |_| hide_sxn.with_mut(|hs| *hs = !*hs),
+                div {
+                class: "flex h-full flex-col gap-4",
+                a { class: "inline-block cursor-pointer text-gray-400", onclick: |_| hide_sxn.with_mut(|hs| *hs = !*hs),
                     if *hide_sxn.get(){
-                        rsx!{i { class: "w-4 fa-solid fa-chevron-right" } }
+                        rsx!{i { class: "w-3  fa-solid fa-chevron-right" } }
                     }else{
-                        rsx!{i { class: "w-4 fa-solid fa-chevron-down" } }
+                        rsx!{i { class: "w-3 fa-solid fa-chevron-down" } }
                     },
                 },
+                button {class: "cursor-pointer text-gray-600 rounded-full hover:text-red-500 flex items-center justify-center", i {class: "w-4 fa fa-solid fa-close"}}
+                }
                 div { class: "w-full border border rounded border-gray-900",
                 div { class: "flex bg-gray-800 flex-1 py-2",
                     input {
@@ -193,29 +182,6 @@ fn RequestElement(cx: Scope) -> Element {
                              p {"Tests"}
                          },
                      }
-                    // a {
-                    //     class: " cursor-pointer p-2 inline-block",
-                    //     onclick: move |_| toggle_sxn_option.with_mut(|x| *x = !*x),
-                    //     i { class: "w-4 fa-solid fa-plus" },
-                    //     span {" or CMD c for context menu"}
-                    // }
-
-                    // if *toggle_sxn_option.get() {
-                    //     rsx!{div { class: "flex flex-col gap-3 flex-1 absolute left-0 bg-stone-900 p-3 border-[.5px] border-gray-100 shadow-md rounded",
-                    //         if !req_obj.read().queryparams.is_some() {
-                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("q"), " Query Parameter"}}
-                    //         },
-                    //         if !req_obj.read().headers.is_some() {
-                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("h"), " Headers"}}
-                    //         },
-                    //         if !req_obj.read().body.is_some() {
-                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("b"), " Body"}}
-                    //         },
-                    //         if !req_obj.read().tests.is_some() {
-                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("t"), " Tests"}}
-                    //         },
-                    //     }}
-                    // }
                 }
             }
             }
