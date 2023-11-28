@@ -93,10 +93,20 @@ enum ReqBody {
     FormData(HashMap<String, String>),
 }
 
+#[derive(Default, Clone, PartialEq)]
+enum Tabs {
+    #[default]
+    Params,
+    Headers,
+    Body,
+    Tests,
+}
+
 fn RequestElement(cx: Scope) -> Element {
     let toggle_sxn_option = use_state(cx, || false);
     let hide_sxn = use_state(cx, || false);
     let req_obj = use_ref(cx, RequestStep::default);
+    let tab_sxn = use_state(cx, || Tabs::Params);
 
     let add_section = |p: &str| {
         match p {
@@ -111,6 +121,8 @@ fn RequestElement(cx: Scope) -> Element {
         };
         toggle_sxn_option.set(false);
     };
+
+    let update_tab = |tab: Tabs| tab_sxn.set(tab);
 
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
@@ -159,36 +171,51 @@ fn RequestElement(cx: Scope) -> Element {
                 div { class: "relative pt-3 w-full",
                      nav {
                        ul {
-                         class: "flex items-center text-gray-700 mx-2 px-2 gap-6 border-b-2 border-b-gray-900",
-                         li {class:"border-b border-b-transparent",button {"Params"}},
-                         li {class:"border-b border-b-transparent",button {"Headers"}},
-                         li {class:"border-b border-b-transparent",button {"Body"}},
-                         li {class:"border-b border-b-transparent",button {"Tests"}},
+                         class: "flex items-center text-gray-500 mx-2 px-2 gap-6 border-b-2 border-b-gray-900",
+                         li {class: if *tab_sxn.get() == Tabs::Params { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Params),"Params"}},
+                         li {class: if *tab_sxn.get() == Tabs::Headers { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Headers),"Headers"}},
+                         li {class: if *tab_sxn.get() == Tabs::Body { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Body),"Body"}},
+                         li {class: if *tab_sxn.get() == Tabs::Tests { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Tests),"Tests"}},
                        }
                      },
-                    a {
-                        class: " cursor-pointer p-2 inline-block",
-                        onclick: move |_| toggle_sxn_option.with_mut(|x| *x = !*x),
-                        i { class: "w-4 fa-solid fa-plus" },
-                        span {" or CMD c for context menu"}
-                    }
 
-                    if *toggle_sxn_option.get() {
-                        rsx!{div { class: "flex flex-col gap-3 flex-1 absolute left-0 bg-stone-900 p-3 border-[.5px] border-gray-100 shadow-md rounded",
-                            if !req_obj.read().queryparams.is_some() {
-                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("q"), " Query Parameter"}}
-                            },
-                            if !req_obj.read().headers.is_some() {
-                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("h"), " Headers"}}
-                            },
-                            if !req_obj.read().body.is_some() {
-                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("b"), " Body"}}
-                            },
-                            if !req_obj.read().tests.is_some() {
-                                rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("t"), " Tests"}}
-                            },
-                        }}
-                    }
+                     match tab_sxn.get() {
+                         Tabs::Params => rsx!{
+                             HeadersParamsSxn(cx, Tabs::Params)
+                         },
+                         Tabs::Headers => rsx!{
+                             HeadersParamsSxn(cx, Tabs::Params)
+                         },
+                         Tabs::Body => rsx!{
+                             p {"Body"}
+                         },
+                         Tabs::Tests => rsx!{
+                             p {"Tests"}
+                         },
+                     }
+                    // a {
+                    //     class: " cursor-pointer p-2 inline-block",
+                    //     onclick: move |_| toggle_sxn_option.with_mut(|x| *x = !*x),
+                    //     i { class: "w-4 fa-solid fa-plus" },
+                    //     span {" or CMD c for context menu"}
+                    // }
+
+                    // if *toggle_sxn_option.get() {
+                    //     rsx!{div { class: "flex flex-col gap-3 flex-1 absolute left-0 bg-stone-900 p-3 border-[.5px] border-gray-100 shadow-md rounded",
+                    //         if !req_obj.read().queryparams.is_some() {
+                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("q"), " Query Parameter"}}
+                    //         },
+                    //         if !req_obj.read().headers.is_some() {
+                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("h"), " Headers"}}
+                    //         },
+                    //         if !req_obj.read().body.is_some() {
+                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("b"), " Body"}}
+                    //         },
+                    //         if !req_obj.read().tests.is_some() {
+                    //             rsx!{a {class: "cursor-pointer", onclick: move |_|add_section("t"), " Tests"}}
+                    //         },
+                    //     }}
+                    // }
                 }
             }
             }
@@ -302,6 +329,15 @@ fn HMSxn<'a>(
             }
             }
         }
+    })
+}
+
+fn HeadersParamsSxn(cx: Scope, tab: Tabs) -> Element {
+    cx.render(rsx! {
+        div { class: "flex flex-col p-2 w-full m-2",
+            div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
+            div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", input{placeholder: "key" ,class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"}, input{placeholder: "value", class: "bg-transparent outline-none w-full py-1 px-3"}},
+    }
     })
 }
 
