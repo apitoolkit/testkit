@@ -202,7 +202,7 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Ele
                              HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone(), index)
                          },
                          Tabs::Headers => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone(), index)
+                             HeadersParamsSxn(cx, Tabs::Headers, req.headers.clone(), index)
                          },
                          Tabs::Body => rsx!{
                              p {"Body"}
