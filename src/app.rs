@@ -201,15 +201,15 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Ele
                          Tabs::Params => rsx!{
                              HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone(), index)
                          },
-                         Tabs::Headers => rsx!{
+                         _ => rsx!{
                              HeadersParamsSxn(cx, Tabs::Headers, req.headers.clone(), index)
                          },
-                         Tabs::Body => rsx!{
-                             p {"Body"}
-                         },
-                         Tabs::Tests => rsx!{
-                             p {"Tests"}
-                         },
+                        //  Tabs::Body => rsx!{
+                        //      p {"Body"}
+                        //  },
+                        //  Tabs::Tests => rsx!{
+                        //      p {"Tests"}
+                        //  },
                      }
                 }
             }
@@ -227,58 +227,41 @@ fn HeadersParamsSxn(
     vals: Option<Vec<(String, String)>>,
     index: usize,
 ) -> Element {
-    let binding = vals.clone().unwrap_or_default();
-    let nextIndex = binding.len();
+    let binding = vals
+        .clone()
+        .unwrap_or(vec![("".to_string(), "".to_string())]);
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
-    let update_val = move |i: usize, val: String, kind: String| {
-        let sts = stages.read().clone();
-        if i == nextIndex {
-            match tab {
-                Tabs::Params => match sts[index].queryparams.clone() {
-                    None => {
-                        if kind == "key" {
-                            stages.write()[index].queryparams = Some(vec![(val, "".to_string())]);
-                        } else {
-                            stages.write()[index].queryparams = Some(vec![("".to_string(), val)]);
-                        }
+    let update_val = move |i: usize, val: String, kind: String| match tab {
+        Tabs::Params => {
+            let qp = stages.read().clone();
+            match qp[index].clone().queryparams {
+                None => {
+                    if kind == "key" {
+                        stages.write()[index].queryparams = Some(vec![(val, "".to_string())])
+                    } else {
+                        stages.write()[index].queryparams = Some(vec![("".to_string(), val)])
                     }
-                    Some(mut v) => {
-                        if kind == "key" {
-                            v.push((val, "".to_string()));
-                        } else {
-                            v.push(("".to_string(), val));
-                        }
-                        stages.write()[index].queryparams = Some(v);
-                    }
-                },
-                _ => match sts[index].headers.clone() {
-                    None => {
-                        if kind == "key" {
-                            stages.write()[index].headers = Some(vec![(val, "".to_string())]);
-                        } else {
-                            stages.write()[index].headers = Some(vec![("".to_string(), val)]);
-                        }
-                    }
-                    Some(mut v) => {
-                        if kind == "key" {
-                            v.push((val, "".to_string()));
-                        } else {
-                            v.push(("".to_string(), val));
-                        }
-                        stages.write()[index].headers = Some(v);
-                    }
-                },
-            }
-        } else {
-            match tab {
-                Tabs::Params => {
+                }
+                Some(v) => {
                     if kind == "key" {
                         stages.write()[index].queryparams.as_mut().unwrap()[i].0 = val;
                     } else {
                         stages.write()[index].queryparams.as_mut().unwrap()[i].1 = val;
                     }
                 }
-                _ => {
+            }
+        }
+        _ => {
+            let qp = stages.read().clone();
+            match qp[index].clone().headers {
+                None => {
+                    if kind == "key" {
+                        stages.write()[index].headers = Some(vec![(val, "".to_string())])
+                    } else {
+                        stages.write()[index].headers = Some(vec![("".to_string(), val)])
+                    }
+                }
+                Some(v) => {
                     if kind == "key" {
                         stages.write()[index].headers.as_mut().unwrap()[i].0 = val;
                     } else {
@@ -311,11 +294,7 @@ fn HeadersParamsSxn(
     cx.render(rsx! {
         div { class: "flex flex-col p-2 w-full m-2",
             div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
-            items,
-            div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300",
-                input{placeholder: "key" ,  onchange: move |e| {update_val(nextIndex, e.value.clone(), "key".to_string())}, class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"}, 
-                input{placeholder: "value", onchange: move |e| {update_val(nextIndex, e.value.clone(),"value".to_string())}, class: "bg-transparent outline-none w-full py-1 px-3"}
-            },
+            items
       }
     })
 }
