@@ -65,16 +65,17 @@ pub fn app(cx: Scope) -> Element {
     })
 }
 
+fn update_item(stages: &UseState<Vec<RequestStep>>, index: usize, item: &RequestStep) {
+    let mut sts = stages.get().clone();
+    sts[index] = item.clone();
+    stages.set(sts)
+}
+
 fn TestBuilder(cx: Scope) -> Element {
     let stages = use_state(cx, || Vec::<RequestStep>::new());
-    let update_item = |index: usize, item: &RequestStep| {
-        let mut sts = stages.get().clone();
-        sts[index] = item.clone();
-        stages.set(sts)
-    };
     cx.render(rsx! {
             div {
-                stages.iter().enumerate().map(|(i,stage)| RequestElement(cx, stage, update_item)),
+                stages.iter().enumerate().map(|(i,stage)| RequestElement(cx, stages, stage, i, &update_item)),
                  button {class: "bg-blue-900 py-1.5 px-3 rounded-full",
                  onclick: move |_| stages.with_mut(|s| s.push(RequestStep::default())),
                  i {class: "fa fa-plus"}}
@@ -116,11 +117,12 @@ enum Tabs {
 
 fn RequestElement<'a>(
     cx: &'a Scoped<'a>,
+    stages: &'a UseState<Vec<RequestStep>>,
     req: &'a RequestStep,
-    updateFn: impl Fn(usize, &RequestStep),
+    index: usize,
+    updateFn: &'a impl Fn(&UseState<Vec<RequestStep>>, usize, &RequestStep),
 ) -> Element<'a> {
     let hide_sxn = use_state(cx, || false);
-    let req_obj = use_ref(cx, RequestStep::default);
     let tab_sxn = use_state(cx, || Tabs::Params);
 
     let update_tab = |tab: Tabs| tab_sxn.set(tab);
@@ -147,34 +149,28 @@ fn RequestElement<'a>(
                         value: "{req.method}",
                         name: "methods",
                         placeholder: "METHOD",
-                        class: "bg-transparent border-r border-r-gray-900 px-3 outline-none focus:outline:none py-1 w-24 text-xs font-bold"
-                    }
+                        class: "bg-transparent border-r border-r-gray-900 px-3 outline-none focus:outline:none py-1 w-24 text-xs font-bold",
+                        onchange: move |e| {
+                              let mut newReq = req.clone();
+                              newReq.method =  e.value.clone();
+                              updateFn(stages, index, &newReq.clone());
+                           },
+                    },
                     input {
                         r#type: "text",
                         placeholder: "Enter request URL",
                         value: "{req.url}",
                         class: "bg-transparent px-3 w-full outline-none focus:outline-none",
+                        onchange: move |e| {
+                              let mut newReq = req.clone();
+                              newReq.url =  e.value.clone();
+                              updateFn(stages, index, &newReq.clone());
+                           },
                     }
                 },
 
                 if !*hide_sxn.get(){
                 rsx!{
-                req_obj.with(|req_objj|{
-                    if let Some(queryparams) = req_objj.queryparams.clone() {
-                             rsx!( HMSxn {datalist:queryparams, req_o: req_obj, title:"Query Params", field:"q"})
-                    }else {rsx!( div {})}
-                }),
-                req_obj.with(|req_objj|{
-                    if let Some(headers) = req_objj.headers.clone() {
-                         rsx!( HMSxn {datalist:headers, req_o: req_obj, title:"Headers", field:"h"})
-                    } else {rsx!( div {})}
-                }),
-                req_obj.with(|req_objj|{
-                    if let Some(_body) = &req_objj.body{
-                        rsx!(BodySxn {})
-                    }else {rsx!( div {})}
-
-                }),
                 div { class: "relative pt-3 w-full",
                      nav {
                        ul {
@@ -188,10 +184,10 @@ fn RequestElement<'a>(
 
                      match tab_sxn.get() {
                          Tabs::Params => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone())
+                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone(), updateFn)
                          },
                          Tabs::Headers => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone())
+                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone(), updateFn)
                          },
                          Tabs::Body => rsx!{
                              p {"Body"}
@@ -316,9 +312,14 @@ fn HMSxn<'a>(
     })
 }
 
-fn HeadersParamsSxn(cx: Scope, tab: Tabs, vals: Option<Vec<(String, String)>>) -> Element {
+fn HeadersParamsSxn(
+    cx: Scope,
+    tab: Tabs,
+    vals: Option<Vec<(String, String)>>,
+    updateFn: impl Fn(&UseState<Vec<RequestStep>>, usize, &RequestStep),
+) -> Element {
     let binding = vals.unwrap_or_default();
-    let items = binding.iter().map(|(k,v)| {
+    let items = binding.iter().enumerate().map(|( i, (k,v))| {
         rsx!(
              div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
                   input{placeholder: "key", value: "{k}", class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"},
