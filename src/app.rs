@@ -242,12 +242,20 @@ fn HeadersParamsSxn(
                         stages.write()[index].queryparams = Some(vec![("".to_string(), val)])
                     }
                 }
-                Some(v) => {
+                Some(_v) => {
+                    let mut params = stages.read()[index].clone().queryparams.unwrap();
                     if kind == "key" {
-                        stages.write()[index].queryparams.as_mut().unwrap()[i].0 = val;
+                        params[i].0 = val;
                     } else {
-                        stages.write()[index].queryparams.as_mut().unwrap()[i].1 = val;
+                        params[i].1 = val;
                     }
+                    params = params
+                        .iter()
+                        .filter(|h| h.0 != "".to_string() || h.1 != "".to_string())
+                        .cloned()
+                        .collect();
+                    params.push(("".to_string(), "".to_string()));
+                    stages.write()[index].queryparams = Some(params)
                 }
             }
         }
@@ -261,12 +269,22 @@ fn HeadersParamsSxn(
                         stages.write()[index].headers = Some(vec![("".to_string(), val)])
                     }
                 }
-                Some(v) => {
+                Some(_v) => {
+                    let mut headers = stages.read()[index].clone().headers.unwrap();
+
                     if kind == "key" {
-                        stages.write()[index].headers.as_mut().unwrap()[i].0 = val;
+                        headers[i].0 = val;
                     } else {
-                        stages.write()[index].headers.as_mut().unwrap()[i].1 = val;
+                        headers[i].1 = val;
                     }
+
+                    headers = headers
+                        .iter()
+                        .filter(|h| h.0 != "".to_string() || h.1 != "".to_string())
+                        .cloned()
+                        .collect();
+                    headers.push(("".to_string(), "".to_string()));
+                    stages.write()[index].headers = Some(headers)
                 }
             }
         }
