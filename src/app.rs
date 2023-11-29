@@ -73,14 +73,26 @@ fn update_item(stages: &UseState<Vec<RequestStep>>, index: usize, item: &Request
 
 fn TestBuilder(cx: Scope) -> Element {
     let stages = use_state(cx, || Vec::<RequestStep>::new());
-    cx.render(rsx! {
-            div {
-                stages.iter().enumerate().map(|(i,stage)| RequestElement(cx, stages, stage, i, &update_item)),
-                 button {class: "bg-blue-900 py-1.5 px-3 rounded-full",
-                 onclick: move |_| stages.with_mut(|s| s.push(RequestStep::default())),
-                 i {class: "fa fa-plus"}}
-             }
-    })
+    use_shared_state_provider(cx, || stages.get().clone());
+    let stagesv = use_shared_state::<Vec<RequestStep>>(cx);
+    match stagesv {
+        None => cx.render(rsx! {div {"P"}}),
+        Some(stages) => {
+            let binding = stages.read().clone();
+            let v = binding
+                .iter()
+                .enumerate()
+                .map(|(i, stage)| RequestElement(cx, stage.clone(), i));
+            cx.render(rsx! {
+                    div {
+                         v,
+                         button {class: "bg-blue-900 py-1.5 px-3 rounded-full",
+                         onclick: move |_| stages.with_mut(|s| s.push(RequestStep::default())),
+                         i {class: "fa fa-plus"}}
+                     }
+            })
+        }
+    }
 }
 
 #[derive(Default, Clone)]
@@ -115,17 +127,20 @@ enum Tabs {
     Tests,
 }
 
-fn RequestElement<'a>(
-    cx: &'a Scoped<'a>,
-    stages: &'a UseState<Vec<RequestStep>>,
-    req: &'a RequestStep,
-    index: usize,
-    updateFn: &'a impl Fn(&UseState<Vec<RequestStep>>, usize, &RequestStep),
-) -> Element<'a> {
+fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Element<'a> {
     let hide_sxn = use_state(cx, || false);
     let tab_sxn = use_state(cx, || Tabs::Params);
 
     let update_tab = |tab: Tabs| tab_sxn.set(tab);
+    let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let remove_item = move || stages.write().remove(index);
+
+    let update_method = move |method: String| {
+        stages.write()[index].method = method;
+    };
+    let update_url = move |url: String| {
+        stages.write()[index].url = url;
+    };
 
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
@@ -139,7 +154,11 @@ fn RequestElement<'a>(
                         rsx!{i { class: "w-3 fa-solid fa-chevron-down" } }
                     },
                 },
-                button {class: "cursor-pointer text-gray-600 rounded-full hover:text-red-500 flex items-center justify-center", i {class: "w-4 fa fa-solid fa-close"}}
+                button {
+                    class: "cursor-pointer text-gray-600 rounded-full hover:text-red-500 flex items-center justify-center", 
+                    onclick: move |_| {remove_item();},
+                    i {class: "w-4 fa fa-solid fa-close"}
+                }
                 }
                 div { class: "w-full border border rounded border-gray-900",
                 div { class: "flex bg-gray-800 flex-1 py-2",
@@ -151,9 +170,7 @@ fn RequestElement<'a>(
                         placeholder: "METHOD",
                         class: "bg-transparent border-r border-r-gray-900 px-3 outline-none focus:outline:none py-1 w-24 text-xs font-bold",
                         onchange: move |e| {
-                              let mut newReq = req.clone();
-                              newReq.method =  e.value.clone();
-                              updateFn(stages, index, &newReq.clone());
+                             update_method(e.value.clone());
                            },
                     },
                     input {
@@ -162,9 +179,7 @@ fn RequestElement<'a>(
                         value: "{req.url}",
                         class: "bg-transparent px-3 w-full outline-none focus:outline-none",
                         onchange: move |e| {
-                              let mut newReq = req.clone();
-                              newReq.url =  e.value.clone();
-                              updateFn(stages, index, &newReq.clone());
+                              update_url(e.value.clone());
                            },
                     }
                 },
@@ -184,10 +199,10 @@ fn RequestElement<'a>(
 
                      match tab_sxn.get() {
                          Tabs::Params => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone(), updateFn)
+                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone())
                          },
                          Tabs::Headers => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone(), updateFn)
+                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone())
                          },
                          Tabs::Body => rsx!{
                              p {"Body"}
@@ -312,12 +327,7 @@ fn HMSxn<'a>(
     })
 }
 
-fn HeadersParamsSxn(
-    cx: Scope,
-    tab: Tabs,
-    vals: Option<Vec<(String, String)>>,
-    updateFn: impl Fn(&UseState<Vec<RequestStep>>, usize, &RequestStep),
-) -> Element {
+fn HeadersParamsSxn(cx: Scope, tab: Tabs, vals: Option<Vec<(String, String)>>) -> Element {
     let binding = vals.unwrap_or_default();
     let items = binding.iter().enumerate().map(|( i, (k,v))| {
         rsx!(
