@@ -118,7 +118,7 @@ enum ReqBody {
     FormData(HashMap<String, String>),
 }
 
-#[derive(Default, Clone, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq)]
 enum Tabs {
     #[default]
     Params,
@@ -199,10 +199,10 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Ele
 
                      match tab_sxn.get() {
                          Tabs::Params => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone())
+                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone(), index)
                          },
                          Tabs::Headers => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone())
+                             HeadersParamsSxn(cx, Tabs::Params, req.headers.clone(), index)
                          },
                          Tabs::Body => rsx!{
                              p {"Body"}
@@ -327,13 +327,89 @@ fn HMSxn<'a>(
     })
 }
 
-fn HeadersParamsSxn(cx: Scope, tab: Tabs, vals: Option<Vec<(String, String)>>) -> Element {
-    let binding = vals.unwrap_or_default();
+fn HeadersParamsSxn(
+    cx: Scope,
+    tab: Tabs,
+    vals: Option<Vec<(String, String)>>,
+    index: usize,
+) -> Element {
+    let binding = vals.clone().unwrap_or_default();
+    let nextIndex = binding.len();
+    let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let update_val = move |i: usize, val: String, kind: String| {
+        let sts = stages.read().clone();
+        if i == nextIndex {
+            match tab {
+                Tabs::Params => match sts[index].queryparams.clone() {
+                    None => {
+                        if kind == "key" {
+                            stages.write()[index].queryparams = Some(vec![(val, "".to_string())]);
+                        } else {
+                            stages.write()[index].queryparams = Some(vec![("".to_string(), val)]);
+                        }
+                    }
+                    Some(mut v) => {
+                        if kind == "key" {
+                            v.push((val, "".to_string()));
+                        } else {
+                            v.push(("".to_string(), val));
+                        }
+                        stages.write()[index].queryparams = Some(v);
+                    }
+                },
+                _ => match sts[index].headers.clone() {
+                    None => {
+                        if kind == "key" {
+                            stages.write()[index].headers = Some(vec![(val, "".to_string())]);
+                        } else {
+                            stages.write()[index].headers = Some(vec![("".to_string(), val)]);
+                        }
+                    }
+                    Some(mut v) => {
+                        if kind == "key" {
+                            v.push((val, "".to_string()));
+                        } else {
+                            v.push(("".to_string(), val));
+                        }
+                        stages.write()[index].headers = Some(v);
+                    }
+                },
+            }
+        } else {
+            match tab {
+                Tabs::Params => {
+                    if kind == "key" {
+                        stages.write()[index].queryparams.as_mut().unwrap()[i].0 = val;
+                    } else {
+                        stages.write()[index].queryparams.as_mut().unwrap()[i].1 = val;
+                    }
+                }
+                _ => {
+                    if kind == "key" {
+                        stages.write()[index].headers.as_mut().unwrap()[i].0 = val;
+                    } else {
+                        stages.write()[index].headers.as_mut().unwrap()[i].1 = val;
+                    }
+                }
+            }
+        }
+    };
+
     let items = binding.iter().enumerate().map(|( i, (k,v))| {
         rsx!(
              div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
-                  input{placeholder: "key", value: "{k}", class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"},
-                  input{placeholder: "value",value: "{v}", class: "bg-transparent outline-none w-full py-1 px-3"}
+                  input{
+                     placeholder: "key",
+                     onchange: move |e| {update_val(i, e.value.clone(), "key".to_string())},
+                     value: "{k}", 
+                     class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"
+                },
+                  input{
+                    placeholder: "value",
+                    value: "{v}", 
+                    onchange: move |e| {update_val(i, e.value.clone(), "value".to_string())},
+                    class: "bg-transparent outline-none w-full py-1 px-3"
+                }
                 },
         )
     });
@@ -342,7 +418,10 @@ fn HeadersParamsSxn(cx: Scope, tab: Tabs, vals: Option<Vec<(String, String)>>) -
         div { class: "flex flex-col p-2 w-full m-2",
             div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
             items,
-            div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", input{placeholder: "key" ,class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"}, input{placeholder: "value", class: "bg-transparent outline-none w-full py-1 px-3"}},
+            div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300",
+                input{placeholder: "key" ,  onchange: move |e| {update_val(nextIndex, e.value.clone(), "key".to_string())}, class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"}, 
+                input{placeholder: "value", onchange: move |e| {update_val(nextIndex, e.value.clone(),"value".to_string())}, class: "bg-transparent outline-none w-full py-1 px-3"}
+            },
       }
     })
 }
