@@ -1,11 +1,7 @@
 #![allow(non_snake_case)]
 
-use dioxus::{
-    html::{geometry::euclid::default, SvgAttributes},
-    prelude::*,
-};
-use dioxus_desktop::tao::keyboard::Key;
-use std::{collections::HashMap, mem::swap};
+use dioxus::{html::label, prelude::*};
+use std::collections::HashMap;
 
 pub fn app_init() {
     dioxus_desktop::launch_cfg(
@@ -15,6 +11,10 @@ pub fn app_init() {
             .with_background_color((0, 0, 0, 1)).with_custom_head(r#"
             <style>
                html{background-color:black}
+                   input::-webkit-datalist-option {
+      background-color: #f1f1f1;
+      padding: 8px;
+    }
             </style>
             <script src="https://cdn.tailwindcss.com"></script>
             <script src="https://kit.fontawesome.com/67b52e9a3b.js" crossorigin="anonymous"></script>
@@ -22,10 +22,30 @@ pub fn app_init() {
     );
 }
 
+#[derive(Clone)]
+struct TestGroup {
+    title: String,
+    file_path: Option<String>,
+}
+
 pub fn app(cx: Scope) -> Element {
     let _contenteditableRef = use_ref(cx, || "Please press - or ? for help");
     let ctxmenu = use_state(cx, || false);
+    let showModal = use_state(cx, || false);
+    let title = use_state(cx, || "".to_string());
     let _selectAction = |_action: &str| {};
+    let test_groups = use_state(cx, || {
+        vec![
+            TestGroup {
+                title: "Test Auth Flow".to_string(),
+                file_path: None,
+            },
+            TestGroup {
+                title: "Test New Post".to_string(),
+                file_path: None,
+            },
+        ]
+    });
 
     cx.render(rsx! {
         datalist { id: "methods-list",
@@ -35,26 +55,51 @@ pub fn app(cx: Scope) -> Element {
             option { value: "DELETE" }
         }
         section { class: "bg-[#030303] xbg-stone-950 flex  text-gray-300 h-screen  divide-x divide-gray-700",
+             if *showModal.get() {
+               rsx!{div {
+                class:"fixed inset-0 bg-gray-900 bg-opacity-75 z-10 flex items-center justify-center",
+                onclick: move |_| showModal.set(false),
+                div {
+                    onclick: |e| e.stop_propagation(),
+                    class: "w-96 bg-gray-800 rounded-lg shadow-lg p-10 flex flex-col gap-2",
+                    label {class:"text-gray-300 font-bold text-lg","Title"},
+                    input {
+                        onchange: move |e| title.set(e.value.clone()),
+                        class: "border border-gray-500 rounded px-2 py-1 bg-transparent outline-none w-full", 
+                        value:"{*title.get()}"}
+                    button {
+                        onclick: move |_| {
+                            let mut new_groups = test_groups.get().clone();
+                            new_groups.push(TestGroup { title: title.get().clone(), file_path: None });
+                            test_groups.set(new_groups);
+                            title.set("".to_string());
+                            showModal.set(false)
+                            },
+                        class: "bg-blue-500 text-white px-6 py-1 text-sm font-bold mt-4 w-max rounded-full hover:bg-blue-600","Done"}
+                }
+            }}
+             }
             aside { class:"shrink p-4 text-lg pt-8 space-y-3 text-center", 
                a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", "DE"}, 
                a { class:"block p-3 rounded-md drop-shadow  border border-gray-400 cursor-pointer", i {class: "fa fa-plus"}},
             }
             section { class: "flex-1 grid grid-cols-12 h-full bg-stone-950 divide-x divide-gray-800",
                 aside { class: "col-span-2 py-16 px-3 h-full space-y-4", 
-                    a{
+                    button{
+                        onclick: move |_| {showModal.set(true)},
                         class: "block space-x-2 px-4 py-2 bg-gray-800 rounded-3xl text-center cursor-pointer hover:bg-gray-700 mb-5",
                         i {class: "fa fa-plus"},
                         span {"New test group"}    
                     }
-
-                    a{
-                        class: "cursor-pointer block space-x-2 px-4 py-2 hover:bg-gray-800 rounded-xl flex justify-center items-center",
-                        div{
-                            class: "flex-1 flex-row",
-                        strong {class:"block",  "Test Auth Flow"}
-                        small {class:"block", "test_auth_flow.yml"}    
-                        }
-                    }
+                    test_groups.get().iter().map(|group|{
+                        let file = group.file_path.clone().unwrap_or("".to_string());
+                        rsx!(
+                         button{
+                        class: "cursor-pointer w-full block space-x-2 px-4 py-2 hover:bg-gray-800 rounded-xl flex items-center",
+                        strong {class:"block",  "{group.title}"}
+                        small {class:"block", "{file}"}    
+                    })
+                    }),
                 }
                 div { class: "col-span-10 p-8 h-full overflow-y-scroll",
                     div { class: "text-right", p { "Press ? for help" } }
@@ -63,12 +108,6 @@ pub fn app(cx: Scope) -> Element {
             }
         }
     })
-}
-
-fn update_item(stages: &UseState<Vec<RequestStep>>, index: usize, item: &RequestStep) {
-    let mut sts = stages.get().clone();
-    sts[index] = item.clone();
-    stages.set(sts)
 }
 
 fn TestBuilder(cx: Scope) -> Element {
@@ -105,12 +144,7 @@ struct RequestStep {
     queryparams: Option<Vec<(String, String)>>,
     headers: Option<Vec<(String, String)>>,
     body: Option<ReqBody>,
-    tests: Option<Tests>,
-}
-
-#[derive(Clone, PartialEq)]
-enum Tests {
-    Raw(String),
+    tests: Option<Vec<(String, String)>>,
 }
 
 #[derive(Default, Clone, PartialEq)]
@@ -224,7 +258,10 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                              p {"Body"}
                          },
                          Tabs::Tests => rsx!{
-                             p {"Tests"}
+                            match req.tests {
+                                None => rsx!{AssertsElement{index:index}},
+                                Some (vals) => rsx!{AssertsElement{vals: vals, index:index}}
+                            }
                          },
                      }
                 }
@@ -234,6 +271,88 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                 }
             }
         }
+    })
+}
+
+#[derive(Props, PartialEq)]
+pub struct AssertElementProps {
+    vals: Option<Vec<(String, String)>>,
+    index: usize,
+}
+
+fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
+    let binding = cx
+        .props
+        .vals
+        .clone()
+        .unwrap_or(vec![("".to_string(), "".to_string())]);
+    let index = cx.props.index;
+    let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let update_val = move |i: usize, val: String, kind: String| {
+        let sts = stages.read().clone();
+        match sts[index].clone().tests {
+            None => {
+                if kind == "key" {
+                    stages.write()[index].tests = Some(vec![(val, "".to_string())])
+                } else {
+                    stages.write()[index].tests = Some(vec![("".to_string(), val)])
+                }
+            }
+            Some(vals) => {
+                let mut tests = vals.clone();
+                if kind == "key" {
+                    tests[i].0 = val;
+                } else {
+                    tests[i].1 = val;
+                }
+                tests = tests
+                    .iter()
+                    .filter(|h| h.0 != "".to_string() || h.1 != "".to_string())
+                    .cloned()
+                    .collect();
+                tests.push(("".to_string(), "".to_string()));
+                stages.write()[index].tests = Some(tests)
+            }
+        }
+    };
+    let testItems = binding.iter().enumerate().map(|(i, (key, value))| {
+        rsx!(
+                div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
+                  input{
+                     list: "assert-list",
+                     id: "methods",
+                     placeholder: "key",
+                     onchange: move |e| {update_val(i, e.value.clone(), "key".to_string())},
+                     value: "{key}", 
+                     class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"
+                },
+                  input{
+                    placeholder: "value",
+                    value: "{value}", 
+                    onchange: move |e| {update_val(i, e.value.clone(), "value".to_string())},
+                    class: "bg-transparent outline-none w-full py-1 px-3"
+                }
+                },
+    )});
+
+    cx.render(rsx! {
+        div { class: "flex flex-col p-2 w-full m-2",
+             datalist {
+                 class: "w-full rounded-lg bg-gray-800 text-gray-300 text-md",
+                 id: "assert-list",
+                 option { value: "ok" }
+                 option { value: "array" }
+                 option { value: "empty" }
+                 option { value: "number" }
+                 option { value: "boolean" }
+                 option { value: "string" }
+                 option { value: "notEmpty" }
+                 option { value: "date" }
+                 option { value: "null" }
+             },
+            div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
+            testItems
+      }
     })
 }
 
