@@ -79,10 +79,13 @@ fn TestBuilder(cx: Scope) -> Element {
         None => cx.render(rsx! {div {"P"}}),
         Some(stages) => {
             let binding = stages.read().clone();
-            let v = binding
-                .iter()
-                .enumerate()
-                .map(|(i, stage)| RequestElement(cx, stage.clone(), i));
+            let v = binding.iter().enumerate().map(|(i, stage)| {
+                rsx! {RequestElement {
+                    req: stage.clone(),
+                    index: i,
+                    key: "{i}",
+                }}
+            });
             cx.render(rsx! {
                     div {
                          v,
@@ -95,7 +98,7 @@ fn TestBuilder(cx: Scope) -> Element {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 struct RequestStep {
     method: String,
     url: String,
@@ -105,12 +108,12 @@ struct RequestStep {
     tests: Option<Tests>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum Tests {
     Raw(String),
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 enum ReqBody {
     #[default]
     None,
@@ -127,9 +130,17 @@ enum Tabs {
     Tests,
 }
 
-fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Element<'a> {
+#[derive(Props, PartialEq)]
+pub struct RequestElementProps {
+    req: RequestStep,
+    index: usize,
+}
+
+pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
     let hide_sxn = use_state(cx, || false);
     let tab_sxn = use_state(cx, || Tabs::Params);
+    let index = cx.props.index;
+    let req = cx.props.req.clone();
 
     let update_tab = |tab: Tabs| tab_sxn.set(tab);
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
@@ -141,7 +152,6 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Ele
     let update_url = move |url: String| {
         stages.write()[index].url = url;
     };
-
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
             div { class: "flex space-x-3 w-full",
@@ -199,17 +209,23 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Ele
 
                      match tab_sxn.get() {
                          Tabs::Params => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Params, req.queryparams.clone(), index)
+                            match req.queryparams  {
+                                None =>  rsx!{HeadersParamsSxn{ tab: Tabs::Params, index:index}},
+                                Some(vals) => rsx!{HeadersParamsSxn{ tab: Tabs::Params, vals: vals, index:index}},
+                            }
                          },
-                         _ => rsx!{
-                             HeadersParamsSxn(cx, Tabs::Headers, req.headers.clone(), index)
+                         Tabs::Headers => rsx!{
+                            match req.headers {
+                                 None => rsx!{HeadersParamsSxn{ tab: Tabs::Headers, index:index}},
+                                 Some (vals) => rsx!{HeadersParamsSxn{ tab: Tabs::Headers, vals: vals, index:index}},
+                            }
                          },
-                        //  Tabs::Body => rsx!{
-                        //      p {"Body"}
-                        //  },
-                        //  Tabs::Tests => rsx!{
-                        //      p {"Tests"}
-                        //  },
+                         Tabs::Body => rsx!{
+                             p {"Body"}
+                         },
+                         Tabs::Tests => rsx!{
+                             p {"Tests"}
+                         },
                      }
                 }
             }
@@ -221,17 +237,22 @@ fn RequestElement<'a>(cx: &'a Scoped<'a>, req: RequestStep, index: usize) -> Ele
     })
 }
 
-fn HeadersParamsSxn(
-    cx: Scope,
+#[derive(Props, PartialEq)]
+pub struct HPElementProps {
     tab: Tabs,
     vals: Option<Vec<(String, String)>>,
     index: usize,
-) -> Element {
-    let binding = vals
+}
+
+fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
+    let binding = cx
+        .props
+        .vals
         .clone()
         .unwrap_or(vec![("".to_string(), "".to_string())]);
+    let index = cx.props.index;
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
-    let update_val = move |i: usize, val: String, kind: String| match tab {
+    let update_val = move |i: usize, val: String, kind: String| match cx.props.tab {
         Tabs::Params => {
             let qp = stages.read().clone();
             match qp[index].clone().queryparams {
