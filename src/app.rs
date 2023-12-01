@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use dioxus::{html::label, prelude::*};
-use std::collections::HashMap;
+use std::{collections::HashMap, string};
 
 pub fn app_init() {
     dioxus_desktop::launch_cfg(
@@ -153,7 +153,7 @@ enum ReqBody {
     None,
     Raw(String),
     Json(String),
-    FormData(HashMap<String, String>),
+    FormData(Vec<(String, String)>),
 }
 
 #[derive(Default, Clone, Copy, PartialEq)]
@@ -301,10 +301,44 @@ pub struct BodyElementProps {
 }
 
 fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
+    let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let index = cx.props.index;
+    let current = match stages.read()[index].body.clone() {
+        None => "raw",
+        Some(val) => match val {
+            ReqBody::Raw(_val) => "raw",
+            ReqBody::FormData(_val) => "form-data",
+            _ => "json",
+        },
+    };
+    let update_body = move |val: String| {
+        if val == "raw" {
+            stages.write()[index].body = Some(ReqBody::Raw(String::new()));
+        } else if val == "json" {
+            stages.write()[index].body = Some(ReqBody::Json(String::new()));
+        } else if val == "form-data" {
+            stages.write()[index].body =
+                Some(ReqBody::FormData(vec![("v".to_string(), "k".to_string())]));
+        }
+    };
     cx.render(rsx! {
-        div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
-         div {class: "", select{}}
-}})
+        div{
+         class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
+         div {
+         class: "p-4",
+         select {
+            onchange: move |e| { update_body(e.value.clone()) },
+            value: "{current}",
+            style: "color-scheme: dark",
+            class: "inline-block px-2 outline-none focus:outline-none bg-stone-900",
+            option {style:"color-scheme:dark", "raw"},
+            option {style:"color-scheme:dark", "json"},
+            option {style:"color-scheme:dark", "form-data"},
+         }
+        }
+        
+    }
+})
 }
 
 #[derive(Props, PartialEq)]
