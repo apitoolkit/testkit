@@ -152,6 +152,7 @@ enum ReqBody {
     #[default]
     None,
     Raw(String),
+    Json(String),
     FormData(HashMap<String, String>),
 }
 
@@ -255,7 +256,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                             }
                          },
                          Tabs::Body => rsx!{
-                             p {"Body"}
+                             RequestBodyElement{index:index}
                          },
                          Tabs::Tests => rsx!{
                             match req.tests {
@@ -272,6 +273,38 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
             }
         }
     })
+}
+
+// #[derive(Props, Clone)]
+// pub struct CustomSelectProps<'a> {
+//     options: Vec<String>,
+//     updateFn: &'a dyn Fn(String),
+// }
+
+// pub fn CustomSelect<'a>(cx: Scope<'a, CustomSelectProps>) -> Element<'a> {
+//     let update = cx.props.updateFn;
+//     let binding = cx.props.options.clone();
+
+//     let optionsElements = binding.iter().map(|val| {
+//         rsx! (
+//             button{onclick: move |_| update(val.to_string()), class:"px-4","{val}"}
+//         )
+//     });
+
+//     cx.render(rsx! {div{class:"bg-gray-800 rounded-log shadow-lg py-4" , optionsElements}})
+// }
+
+#[derive(Props, PartialEq)]
+pub struct BodyElementProps {
+    body: Option<ReqBody>,
+    index: usize,
+}
+
+fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
+    cx.render(rsx! {
+        div{class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
+         div {class: "", select{}}
+}})
 }
 
 #[derive(Props, PartialEq)]
