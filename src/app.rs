@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
 
-use dioxus::{html::label, prelude::*};
+use dioxus::{
+    html::{label, textarea},
+    prelude::*,
+};
 use std::{collections::HashMap, string};
 
 pub fn app_init() {
@@ -10,11 +13,10 @@ pub fn app_init() {
             .with_window(dioxus_desktop::WindowBuilder::new().with_maximized(true))
             .with_background_color((0, 0, 0, 1)).with_custom_head(r#"
             <style>
-               html{background-color:black}
-                   input::-webkit-datalist-option {
-      background-color: #f1f1f1;
-      padding: 8px;
-    }
+               html{
+                background-color:black;
+                color-scheme: dark
+            }
             </style>
             <script src="https://cdn.tailwindcss.com"></script>
             <script src="https://kit.fontawesome.com/67b52e9a3b.js" crossorigin="anonymous"></script>
@@ -49,6 +51,7 @@ pub fn app(cx: Scope) -> Element {
 
     cx.render(rsx! {
         datalist { id: "methods-list",
+            style: "color-scheme: dark",
             option { value: "GET" }
             option { value: "POST" }
             option { value: "PUT" }
@@ -147,10 +150,8 @@ struct RequestStep {
     tests: Option<Vec<(String, String)>>,
 }
 
-#[derive(Default, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 enum ReqBody {
-    #[default]
-    None,
     Raw(String),
     Json(String),
     FormData(Vec<(String, String)>),
@@ -205,7 +206,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                     i {class: "w-4 fa fa-solid fa-close"}
                 }
                 }
-                div { class: "w-full border border rounded border-gray-900",
+                div { class: "w-full border rounded border-gray-900",
                 div { class: "flex bg-gray-800 flex-1 py-2",
                     input {
                         list: "methods-list",
@@ -311,19 +312,44 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
             _ => "json",
         },
     };
+    let raw_val = use_state(cx, || "".to_string());
+    let json_val = use_state(cx, || "".to_string());
+
     let update_body = move |val: String| {
         if val == "raw" {
-            stages.write()[index].body = Some(ReqBody::Raw(String::new()));
+            stages.write()[index].body = Some(ReqBody::Raw(raw_val.get().clone()));
         } else if val == "json" {
-            stages.write()[index].body = Some(ReqBody::Json(String::new()));
+            stages.write()[index].body = Some(ReqBody::Json(json_val.get().clone()));
         } else if val == "form-data" {
             stages.write()[index].body =
                 Some(ReqBody::FormData(vec![("v".to_string(), "k".to_string())]));
         }
     };
+
+    let update_val = move |value: String| {
+        let st = stages.read().clone();
+        match st[index].body.clone() {
+            None => {
+                stages.write()[index].body = Some(ReqBody::Raw(value.clone()));
+                raw_val.set(value);
+            }
+            Some(v) => match v {
+                ReqBody::Raw(_v) => {
+                    stages.write()[index].body = Some(ReqBody::Raw(value.clone()));
+                    raw_val.set(value);
+                }
+                ReqBody::Json(_v) => {
+                    stages.write()[index].body = Some(ReqBody::Json(value.clone()));
+                    json_val.set(value);
+                }
+                ReqBody::FormData(v) => {}
+            },
+        }
+    };
+
     cx.render(rsx! {
         div{
-         class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
+         class: "flex flex-col gap-1 w-full text-sm text-gray-300", 
          div {
          class: "p-4",
          select {
@@ -336,7 +362,54 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
             option {style:"color-scheme:dark", "form-data"},
          }
         }
-        
+        match stages.read()[index].body.clone() {
+            None => {
+                rsx! {
+                    div{
+                      class: "px-4 pb-4",
+                      textarea{
+                          class: "w-full bg-transparent h-20 outline-none p-2 border resize-none border-gray-800 rounded", 
+                          value: "", 
+                          onchange: move |e| { update_val(e.value.clone()) },
+                          placeholder: "Enter request body here", name:"body"
+                      }
+                    }
+                }
+            },
+            Some(v) => {
+                match v  {
+                    ReqBody::Raw(val) =>  {
+                        rsx! {
+                            div{
+                              class: "px-4 pb-4",
+                              textarea{
+                                  class: "w-full bg-transparent outline-none p-2 h-20 border border-gray-800 resize-none rounded", 
+                                  value: "{val}", 
+                                  onchange: move |e| { update_val(e.value.clone()) },
+                                  placeholder: "Enter request body here", name:"body"
+                              }
+                            }
+                        }
+                    },
+                    ReqBody::Json(val) => rsx! {
+                        rsx! {
+                            div{
+                              class: "px-4 pb-4",
+                              textarea{
+                                  class: "w-full h-20 bg-transparent outline-none p-2 border border-gray-800 rounded", 
+                                  value: "{val}", 
+                                  onchange: move |e| { update_val(e.value.clone()) },
+                                  placeholder: "Enter JSON request body here", name:"body"
+                              }
+                            }
+                        }
+                    },
+                    ReqBody::FormData(val) => rsx! {
+                        rsx! {div{}}
+                    }
+                }
+            }
+        }
     }
 })
 }
@@ -406,6 +479,7 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
         div { class: "flex flex-col p-2 w-full m-2",
              datalist {
                  class: "w-full rounded-lg bg-gray-800 text-gray-300 text-md",
+                 style: "color-scheme: dark",
                  id: "assert-list",
                  option { value: "ok" }
                  option { value: "array" }
