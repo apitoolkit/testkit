@@ -430,6 +430,78 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
 }
 
 #[derive(Props, PartialEq)]
+pub struct AssertInpputProps {
+    index: usize,
+    key_val: String,
+    input_index: usize,
+}
+
+fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
+    let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let showList = use_state(cx, || false);
+    let options = use_state(cx, || {
+        vec![
+            "ok", "array", "empty", "number", "boolean", "string", "notEmpty", "date", "null",
+        ]
+    });
+    let index = cx.props.index;
+    let input_index = cx.props.input_index;
+    let key = cx.props.key_val.clone();
+
+    let update_val = move |i: usize, val: String| {
+        let sts = stages.read().clone();
+        match sts[index].clone().tests {
+            None => stages.write()[index].tests = Some(vec![(val, "".to_string())]),
+            Some(vals) => {
+                let mut tests = vals.clone();
+                tests[i].0 = val.clone();
+                tests = tests
+                    .iter()
+                    .filter(|h| h.0 != "".to_string() || h.1 != "".to_string())
+                    .cloned()
+                    .collect();
+                tests.push(("".to_string(), "".to_string()));
+                stages.write()[index].tests = Some(tests);
+                let mut newOptions = options.get().clone();
+                newOptions = newOptions
+                    .iter()
+                    .filter(|option| option.to_string().contains(&"dd".to_string()))
+                    .cloned()
+                    .collect();
+                options.set(newOptions);
+            }
+        }
+    };
+    let option_items = options
+    .get()
+    .into_iter()
+    .map(|v| {rsx!{button {class:"text-left px-4 py-2 hover:bg-gray-900", onclick: move |_| {update_val(input_index, v.to_string())} ,"{v}"}}});
+
+    cx.render(rsx! {
+                 div {
+                    class: "relative",
+                    input{
+                     id: "methods",
+                     placeholder: "key",
+                     onchange: move |e| {update_val(input_index, e.value.clone())},
+                     value: "{key}", 
+                     class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60",
+                     onfocus: move |_| {showList.set(true)},
+                     onblur: move |_| {showList.set(false)}
+                   },
+                   if *showList.get() {
+                     rsx!(
+                         div {
+                             class: "absolute w-full z-10 flex py-4 flex-col text-left gap-1 top-[100%] left-0 rounded-lg shadow-lg bg-gray-800",
+                             option_items
+                         }
+                     )
+                   }
+                 },
+    })
+}
+
+#[derive(Props, PartialEq)]
 pub struct AssertElementProps {
     vals: Option<Vec<(String, String)>>,
     index: usize,
@@ -443,6 +515,12 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
         .unwrap_or(vec![("".to_string(), "".to_string())]);
     let index = cx.props.index;
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let options = use_state(cx, || {
+        vec![
+            "ok", "array", "empty", "number", "boolean", "string", "notEmpty", "date", "null",
+        ]
+    });
+
     let update_val = move |i: usize, val: String, kind: String| {
         let sts = stages.read().clone();
         match sts[index].clone().tests {
@@ -456,9 +534,9 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
             Some(vals) => {
                 let mut tests = vals.clone();
                 if kind == "key" {
-                    tests[i].0 = val;
+                    tests[i].0 = val.clone();
                 } else {
-                    tests[i].1 = val;
+                    tests[i].1 = val.clone();
                 }
                 tests = tests
                     .iter()
@@ -466,21 +544,45 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
                     .cloned()
                     .collect();
                 tests.push(("".to_string(), "".to_string()));
-                stages.write()[index].tests = Some(tests)
+                stages.write()[index].tests = Some(tests);
+                let mut newOptions = options.get().clone();
+                newOptions = newOptions
+                    .iter()
+                    .filter(|option| option.to_string().contains(&"dd".to_string()))
+                    .cloned()
+                    .collect();
+                options.set(newOptions);
             }
         }
     };
+
     let testItems = binding.iter().enumerate().map(|(i, (key, value))| {
+
         rsx!(
                 div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
-                  input{
-                     list: "assert-list",
-                     id: "methods",
-                     placeholder: "key",
-                     onchange: move |e| {update_val(i, e.value.clone(), "key".to_string())},
-                     value: "{key}", 
-                     class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"
-                },
+                 AssertInput{index: index, key_val: key.clone(), input_index: i},
+                //  div {
+                //     class: "relative",
+                //     input{
+                //      id: "methods",
+                //      placeholder: "key",
+                //      onchange: move |e| {update_val(i, e.value.clone(), "key".to_string())},
+                //      value: "{key}", 
+                //      class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60",
+                //      onfocus: move |_| {showList.set(true)},
+                //      onblur: move |_| {showList.set(false)}
+                //    },
+                //    if *showList.get() {
+                //      rsx!(
+                //          div {
+                //              class: "absolute w-full z-10 flex py-4 flex-col text-left gap-1 top-[100%] left-0 rounded-lg shadow-lg bg-gray-800",
+                //              rsx!(
+                //                 options.get().into_iter().map(|v| {rsx!{button {class:"text-left px-4 py-2 hover:bg-gray-900", onclick: move |_| {update_val(i, v.to_string(), "key".to_string())} ,"{v}"}}})
+                //              )
+                //          }
+                //      )
+                //    }
+                //  },
                   input{
                     placeholder: "value",
                     value: "{value}", 
