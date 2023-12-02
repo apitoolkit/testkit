@@ -302,6 +302,7 @@ pub struct BodyElementProps {
 }
 
 fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
+    use_shared_state_provider(cx, || Vec::<(String, String)>::new());
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
     let index = cx.props.index;
     let current = match stages.read()[index].body.clone() {
@@ -314,6 +315,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
     };
     let raw_val = use_state(cx, || "".to_string());
     let json_val = use_state(cx, || "".to_string());
+    let form_data_vals = use_shared_state::<Vec<(String, String)>>(cx);
 
     let update_body = move |val: String| {
         if val == "raw" {
@@ -321,8 +323,21 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
         } else if val == "json" {
             stages.write()[index].body = Some(ReqBody::Json(json_val.get().clone()));
         } else if val == "form-data" {
-            stages.write()[index].body =
-                Some(ReqBody::FormData(vec![("v".to_string(), "k".to_string())]));
+            match form_data_vals {
+                None => {
+                    stages.write()[index].body =
+                        Some(ReqBody::FormData(vec![("".to_string(), "".to_string())]));
+                }
+                Some(v) => {
+                    let vals = v.read().clone();
+                    if vals.len() == 0 {
+                        stages.write()[index].body =
+                            Some(ReqBody::FormData(vec![("".to_string(), "".to_string())]));
+                    } else {
+                        stages.write()[index].body = Some(ReqBody::FormData(vals));
+                    }
+                }
+            }
         }
     };
 
@@ -342,7 +357,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
                     stages.write()[index].body = Some(ReqBody::Json(value.clone()));
                     json_val.set(value);
                 }
-                ReqBody::FormData(v) => {}
+                ReqBody::FormData(_v) => {}
             },
         }
     };
@@ -405,7 +420,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
                         }
                     },
                     ReqBody::FormData(val) => rsx! {
-                        rsx! {div{}}
+                        rsx! {HeadersParamsSxn{index: index, vals: val,tab: Tabs::Body}}
                     }
                 }
             }
@@ -512,6 +527,7 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
         .unwrap_or(vec![("".to_string(), "".to_string())]);
     let index = cx.props.index;
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+    let form_data_vals = use_shared_state::<Vec<(String, String)>>(cx);
     let update_val = move |i: usize, val: String, kind: String| match cx.props.tab {
         Tabs::Params => {
             let qp = stages.read().clone();
@@ -538,6 +554,36 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
                     params.push(("".to_string(), "".to_string()));
                     stages.write()[index].queryparams = Some(params)
                 }
+            }
+        }
+        Tabs::Body => {
+            let stg = stages.read().clone();
+            match stg[index].clone().body {
+                None => {}
+                Some(b) => match b {
+                    ReqBody::FormData(f) => {
+                        let mut fields = f.clone();
+                        if kind == "key" {
+                            fields[i].0 = val;
+                        } else {
+                            fields[i].1 = val;
+                        }
+                        fields = fields
+                            .iter()
+                            .filter(|h| h.0 != "".to_string() || h.1 != "".to_string())
+                            .cloned()
+                            .collect();
+                        fields.push(("".to_string(), "".to_string()));
+                        stages.write()[index].body = Some(ReqBody::FormData(fields.clone()));
+                        match form_data_vals {
+                            None => {}
+                            Some(v) => {
+                                *v.write() = fields;
+                            }
+                        }
+                    }
+                    _ => {}
+                },
             }
         }
         _ => {
