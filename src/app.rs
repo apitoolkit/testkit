@@ -491,7 +491,7 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
     )});
 
     cx.render(rsx! {
-        div { class: "flex flex-col p-2 w-full m-2",
+        div { class: "flex flex-col p-2 m-2",
              datalist {
                  class: "w-full rounded-lg bg-gray-800 text-gray-300 text-md",
                  style: "color-scheme: dark",
@@ -637,7 +637,7 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
     });
 
     cx.render(rsx! {
-        div { class: "flex flex-col p-2 w-full m-2",
+        div { class: "flex flex-col p-2  m-2",
             div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
             items
       }
