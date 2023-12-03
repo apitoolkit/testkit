@@ -447,6 +447,7 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
     let index = cx.props.index;
     let input_index = cx.props.input_index;
     let key = cx.props.key_val.clone();
+    let in_val = use_state(cx, || "".to_string());
 
     let update_val = move |i: usize, val: String| {
         let sts = stages.read().clone();
@@ -465,7 +466,7 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
                 let mut newOptions = options.get().clone();
                 newOptions = newOptions
                     .iter()
-                    .filter(|option| option.to_string().contains(&"dd".to_string()))
+                    .filter(|option| option.to_string().contains(val.as_str()))
                     .cloned()
                     .collect();
                 options.set(newOptions);
@@ -474,20 +475,20 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
     };
     let option_items = options
     .get()
-    .into_iter()
-    .map(|v| {rsx!{button {class:"text-left px-4 py-2 hover:bg-gray-900", onclick: move |_| {update_val(input_index, v.to_string())} ,"{v}"}}});
+    .iter()
+    .map(|v| {rsx!{button {class:"text-left px-4 py-2 hover:bg-gray-900", onclick: move |_| {update_val(input_index, v.to_string()); showList.set(false);} ,"{v}"}}});
 
     cx.render(rsx! {
                  div {
-                    class: "relative",
+                    class: "relative px-3 py-1 border-r border-r-gray-800 w-60 flex",
+                    onblur: move |_| {showList.set(false)},
                     input{
                      id: "methods",
                      placeholder: "key",
                      onchange: move |e| {update_val(input_index, e.value.clone())},
                      value: "{key}", 
-                     class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60",
+                     class: "bg-transparent outline-none w-full",
                      onfocus: move |_| {showList.set(true)},
-                     onblur: move |_| {showList.set(false)}
                    },
                    if *showList.get() {
                      rsx!(
@@ -593,7 +594,7 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
     )});
 
     cx.render(rsx! {
-        div { class: "flex flex-col p-2 w-full m-2",
+        div { class: "flex flex-col p-2 m-2",
              datalist {
                  class: "w-full rounded-lg bg-gray-800 text-gray-300 text-md",
                  style: "color-scheme: dark",
