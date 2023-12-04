@@ -177,6 +177,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
     let tab_sxn = use_state(cx, || Tabs::Params);
     let index = cx.props.index;
     let req = cx.props.req.clone();
+    let showList = use_state(cx, || false);
 
     let update_tab = |tab: Tabs| tab_sxn.set(tab);
     let stages = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
@@ -188,6 +189,12 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
     let update_url = move |url: String| {
         stages.write()[index].url = url;
     };
+    let options = use_state(cx, || vec!["GET", "POST", "PUT", "PATCH", "DELETE"]);
+    let option_items = options
+    .get()
+    .iter()
+    .map(|v| {rsx!{button {class:"text-left px-4 py-2 text-sm hover:bg-gray-900", onclick: move |_| {update_method(v.to_string()); showList.set(false);} ,"{v}"}}});
+
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
             div { class: "flex space-x-3 w-full",
@@ -207,18 +214,27 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                 }
                 }
                 div { class: "w-full border rounded border-gray-900",
-                div { class: "flex bg-gray-800 flex-1 py-2",
-                    input {
-                        list: "methods-list",
-                        id: "methods",
-                        value: "{req.method}",
-                        name: "methods",
-                        placeholder: "METHOD",
-                        class: "bg-transparent border-r border-r-gray-900 px-3 outline-none focus:outline:none py-1 w-24 text-xs font-bold",
-                        onchange: move |e| {
-                             update_method(e.value.clone());
-                           },
-                    },
+                div {
+                    class: "flex bg-gray-800 flex-1 py-2",
+                    div {
+                        class: "relative px-3 py-1 border-r border-r-gray-800 w-52 flex",
+                        onblur: move |_| {showList.set(false)},
+                        input{
+                         class: "bg-transparent border-r border-r-gray-900 px-3 w-full outline-none focus:outline:none py-1 text-sm font-bold",
+                         value: "{req.method}",
+                         placeholder: "METHOD",
+                         onchange: move |e| {update_method(e.value.clone())},
+                         onfocus: move |_| {showList.set(true)},
+                       },
+                       if *showList.get() {
+                         rsx!(
+                             div {
+                                 class: "absolute w-full z-10 flex py-4 flex-col text-left gap-1 top-[100%] left-0 rounded-lg shadow-lg bg-gray-800",
+                                 option_items
+                             }
+                         )
+                       }
+                     },
                     input {
                         r#type: "text",
                         placeholder: "Enter request URL",
@@ -291,7 +307,6 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
 //             button{onclick: move |_| update(val.to_string()), class:"px-4","{val}"}
 //         )
 //     });
-
 //     cx.render(rsx! {div{class:"bg-gray-800 rounded-log shadow-lg py-4" , optionsElements}})
 // }
 
