@@ -558,12 +558,12 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
     let index = cx.props.index;
     let input_index = cx.props.input_index;
     let key = cx.props.key_val.clone();
-    let in_val = use_state(cx, || "".to_string());
+    let invalid_key_class = use_state(cx, || "");
 
     let update_val = move |i: usize, val: String| {
         let sts = stages.read().clone();
         match sts[index].clone().tests {
-            None => stages.write()[index].tests = Some(vec![(val, "".to_string())]),
+            None => stages.write()[index].tests = Some(vec![(val.clone(), "".to_string())]),
             Some(vals) => {
                 let mut tests = vals.clone();
                 tests[i].0 = val.clone();
@@ -574,16 +574,22 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
                     .collect();
                 tests.push(("".to_string(), "".to_string()));
                 stages.write()[index].tests = Some(tests);
-                let mut newOptions = options.get().clone();
-                newOptions = newOptions
-                    .iter()
-                    .filter(|option| option.to_string().contains(val.as_str()))
-                    .cloned()
-                    .collect();
-                options.set(newOptions);
             }
         }
+
+        if options
+            .get()
+            .iter()
+            .cloned()
+            .find(|v| v.clone() == val.as_str())
+            .is_none()
+        {
+            invalid_key_class.set("text-red-500");
+        } else {
+            invalid_key_class.set("");
+        }
     };
+
     let option_items = options
     .get()
     .iter()
@@ -592,13 +598,12 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
     cx.render(rsx! {
                  div {
                     class: "relative px-3 py-1 border-r border-r-gray-800 w-60 flex",
-                    onblur: move |_| {showList.set(false)},
                     input{
                      id: "methods",
                      placeholder: "key",
                      onchange: move |e| {update_val(input_index, e.value.clone())},
                      value: "{key}", 
-                     class: "bg-transparent outline-none w-full",
+                     class: "bg-transparent outline-none w-full {invalid_key_class.get()}",
                      onfocus: move |_| {showList.set(true)},
                    },
                    if *showList.get() {
