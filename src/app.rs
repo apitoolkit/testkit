@@ -167,20 +167,32 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
 
     let headers = match &request_step.headers {
         Some(header_vec) => {
-            let header_map: HashMap<_, _> = header_vec.iter().cloned().collect();
+            let header_map: HashMap<_, _> = header_vec
+                .iter()
+                .filter(|h| h.0 != "" && h.1 != "")
+                .cloned()
+                .collect();
             Some(header_map)
         }
         None => None,
     };
 
     let tests = match &request_step.tests {
-        Some(test_vec) => test_vec.iter().cloned().collect(),
+        Some(test_vec) => test_vec
+            .iter()
+            .filter(|t| t.0 != "" && t.1 != "")
+            .cloned()
+            .collect(),
         None => HashMap::new(),
     };
 
     let queryparams = match &request_step.queryparams {
         Some(query_vec) => {
-            let query_map: HashMap<_, _> = query_vec.iter().cloned().collect();
+            let query_map: HashMap<_, _> = query_vec
+                .iter()
+                .filter(|p| p.0 != "" && p.1 != "")
+                .cloned()
+                .collect();
             Some(query_map)
         }
         None => None,
@@ -188,7 +200,11 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
 
     let exports = match &request_step.exports {
         Some(export_vec) => {
-            let exports_map: HashMap<_, _> = export_vec.iter().cloned().collect();
+            let exports_map: HashMap<_, _> = export_vec
+                .iter()
+                .filter(|e| e.0 != "" && e.1 != "")
+                .cloned()
+                .collect();
             Some(exports_map)
         }
         None => None,
