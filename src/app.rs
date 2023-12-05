@@ -4,6 +4,9 @@ use dioxus::{
     html::{label, textarea},
     prelude::*,
 };
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use serde_yaml;
 use std::{collections::HashMap, string};
 
 pub fn app_init() {
@@ -36,6 +39,8 @@ pub fn app(cx: Scope) -> Element {
     let showModal = use_state(cx, || false);
     let title = use_state(cx, || "".to_string());
     let _selectAction = |_action: &str| {};
+    let stages = use_state(cx, || Vec::<RequestStep>::new());
+    use_shared_state_provider(cx, || stages.get().clone());
     let test_groups = use_state(cx, || {
         vec![
             TestGroup {
@@ -48,6 +53,17 @@ pub fn app(cx: Scope) -> Element {
             },
         ]
     });
+    let sts = use_shared_state::<Vec<RequestStep>>(cx).unwrap();
+
+    let run_test = move || {
+        let stages = sts.read().clone();
+        let ys = stages
+            .iter()
+            .map(|r| convert_request_step_to_yaml(r))
+            .collect::<Vec<RequestStepYaml>>();
+        let yaml_string = serde_yaml::to_string(&ys).unwrap();
+        print!("{}", yaml_string);
+    };
 
     cx.render(rsx! {
         datalist { id: "methods-list",
@@ -105,7 +121,7 @@ pub fn app(cx: Scope) -> Element {
                     }),
                 }
                 div { class: "col-span-10 p-8 h-full overflow-y-scroll",
-                    div { class: "text-right", p { "Press ? for help" } }
+                    div { class: "text-right", button {onclick: move |e| {run_test()}, "Run"} }
                     div { class: "", TestBuilder(cx)}
                 }
             }
@@ -114,8 +130,6 @@ pub fn app(cx: Scope) -> Element {
 }
 
 fn TestBuilder(cx: Scope) -> Element {
-    let stages = use_state(cx, || Vec::<RequestStep>::new());
-    use_shared_state_provider(cx, || stages.get().clone());
     let stagesv = use_shared_state::<Vec<RequestStep>>(cx);
     match stagesv {
         None => cx.render(rsx! {div {"P"}}),
@@ -140,7 +154,58 @@ fn TestBuilder(cx: Scope) -> Element {
     }
 }
 
-#[derive(Default, Clone, PartialEq)]
+fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
+    let title = format!("{} {}", request_step.method, request_step.url);
+
+    let json = match &request_step.body {
+        Some(ReqBody::Json(json_str)) => serde_json::from_str(json_str).ok(),
+        _ => None,
+    };
+
+    let headers = match &request_step.headers {
+        Some(header_vec) => {
+            let header_map: HashMap<_, _> = header_vec.iter().cloned().collect();
+            Some(header_map)
+        }
+        None => None,
+    };
+
+    let tests = match &request_step.tests {
+        Some(test_vec) => test_vec.iter().cloned().collect(),
+        None => HashMap::new(),
+    };
+
+    let queryparams = match &request_step.queryparams {
+        Some(query_vec) => {
+            let query_map: HashMap<_, _> = query_vec.iter().cloned().collect();
+            Some(query_map)
+        }
+        None => None,
+    };
+
+    RequestStepYaml {
+        method: request_step.method.clone(),
+        url: request_step.url.clone(),
+        title,
+        headers,
+        json,
+        tests,
+        queryparams,
+    }
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+struct RequestStepYaml {
+    method: String,
+    url: String,
+    title: String,
+    headers: Option<HashMap<String, String>>,
+    json: Option<Value>,
+    tests: HashMap<String, String>,
+    queryparams: Option<HashMap<String, String>>,
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 struct RequestStep {
     method: String,
     url: String,
@@ -150,7 +215,7 @@ struct RequestStep {
     tests: Option<Vec<(String, String)>>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 enum ReqBody {
     Raw(String),
     Json(String),
@@ -883,7 +948,6 @@ fn BodySxn(cx: Scope) -> Element {
                         option {"xml"},
                         option {"json"},
                         option {"form-data"},
-
                     }
                 }
             }
