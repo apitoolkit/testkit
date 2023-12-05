@@ -197,12 +197,14 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
     };
 
     let tests = match &request_step.tests {
-        Some(test_vec) => test_vec
-            .iter()
-            .filter(|t| t.0 != "" && t.1 != "")
-            .cloned()
-            .collect(),
-        None => HashMap::new(),
+        Some(test_vec) => Some(
+            test_vec
+                .iter()
+                .filter(|t| t.0 != "" && t.1 != "")
+                .cloned()
+                .collect(),
+        ),
+        None => None,
     };
 
     let queryparams = match &request_step.queryparams {
@@ -230,8 +232,36 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
     };
 
     RequestStepYaml {
-        method: request_step.method.clone(),
-        url: request_step.url.clone(),
+        GET: if request_step.method == "GET" {
+            Some(request_step.url.clone())
+        } else {
+            None
+        },
+        POST: if request_step.method == "POST" {
+            Some(request_step.url.clone())
+        } else {
+            None
+        },
+        PATCH: if request_step.method == "PATCH" {
+            Some(request_step.url.clone())
+        } else {
+            None
+        },
+        PUT: if request_step.method == "PUT" {
+            Some(request_step.url.clone())
+        } else {
+            None
+        },
+        DELETE: if request_step.method == "DELTE" {
+            Some(request_step.url.clone())
+        } else {
+            None
+        },
+        OPTIONS: if request_step.method == "DELTE" {
+            Some(request_step.url.clone())
+        } else {
+            None
+        },
         title,
         headers,
         json: json.cloned(),
@@ -254,13 +284,28 @@ fn get_method_color(method: &String) -> String {
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 struct RequestStepYaml {
-    method: String,
-    url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    POST: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    GET: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    PUT: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    DELETE: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    PATCH: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    OPTIONS: Option<String>,
     title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     json: Option<String>,
-    asserts: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    asserts: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     queryparams: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     exports: Option<HashMap<String, String>>,
 }
 
