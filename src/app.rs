@@ -213,6 +213,7 @@ struct RequestStep {
     headers: Option<Vec<(String, String)>>,
     body: Option<ReqBody>,
     tests: Option<Vec<(String, String)>>,
+    exports: Option<Vec<(String, String)>>,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -229,6 +230,7 @@ enum Tabs {
     Headers,
     Body,
     Tests,
+    Exports,
 }
 
 #[derive(Props, PartialEq)]
@@ -321,6 +323,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                          li {class: if *tab_sxn.get() == Tabs::Headers { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Headers),"Headers"}},
                          li {class: if *tab_sxn.get() == Tabs::Body { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Body),"Body"}},
                          li {class: if *tab_sxn.get() == Tabs::Tests { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Tests),"Tests"}},
+                         li {class: if *tab_sxn.get() == Tabs::Exports { "border-b-2 border-b-blue-500" } else { "border-b-2 border-b-transparent" }, button {onclick: move |_| update_tab(Tabs::Exports),"Exports"}},
                        }
                      },
 
@@ -346,7 +349,13 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                                 Some (vals) => rsx!{AssertsElement{vals: vals, index:index}}
                             }
                          },
-                     }
+                         Tabs::Exports => rsx!{
+                            match req.exports {
+                                None =>  rsx!{HeadersParamsSxn{ tab: Tabs::Exports, index:index}},
+                                Some(vals) => rsx!{HeadersParamsSxn{ tab: Tabs::Exports, vals: vals, index:index}},
+                            }
+                         }
+                     },
                 }
             }
             }
@@ -767,6 +776,35 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
                     }
                     _ => {}
                 },
+            }
+        }
+        Tabs::Exports => {
+            let exp = stages.read().clone();
+            match exp[index].clone().exports {
+                None => {
+                    if kind == "key" {
+                        stages.write()[index].exports = Some(vec![(val, "".to_string())])
+                    } else {
+                        stages.write()[index].exports = Some(vec![("".to_string(), val)])
+                    }
+                }
+                Some(v) => {
+                    let mut exports = v;
+
+                    if kind == "key" {
+                        exports[i].0 = val;
+                    } else {
+                        exports[i].1 = val;
+                    }
+
+                    exports = exports
+                        .iter()
+                        .filter(|h| h.0 != "".to_string() || h.1 != "".to_string())
+                        .cloned()
+                        .collect();
+                    exports.push(("".to_string(), "".to_string()));
+                    stages.write()[index].exports = Some(exports)
+                }
             }
         }
         _ => {
