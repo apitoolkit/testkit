@@ -183,6 +183,14 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
         None => None,
     };
 
+    let exports = match &request_step.exports {
+        Some(export_vec) => {
+            let exports_map: HashMap<_, _> = export_vec.iter().cloned().collect();
+            Some(exports_map)
+        }
+        None => None,
+    };
+
     RequestStepYaml {
         method: request_step.method.clone(),
         url: request_step.url.clone(),
@@ -191,6 +199,7 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
         json,
         tests,
         queryparams,
+        exports,
     }
 }
 
@@ -203,6 +212,7 @@ struct RequestStepYaml {
     json: Option<Value>,
     tests: HashMap<String, String>,
     queryparams: Option<HashMap<String, String>>,
+    exports: Option<HashMap<String, String>>,
 }
 
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
