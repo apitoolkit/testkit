@@ -158,7 +158,10 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
     let title = format!("{} {}", request_step.method, request_step.url);
 
     let json = match &request_step.body {
-        Some(ReqBody::Json(json_str)) => serde_json::from_str(json_str).ok(),
+        Some(ReqBody::Json(json_str)) => {
+            let j: Option<Value> = serde_json::from_str(json_str).ok();
+            if j.is_some() { Some(json_str) } else { None }
+        }
         _ => None,
     };
 
@@ -196,8 +199,8 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
         url: request_step.url.clone(),
         title,
         headers,
-        json,
-        tests,
+        json: json.cloned(),
+        asserts: tests,
         queryparams,
         exports,
     }
@@ -220,8 +223,8 @@ struct RequestStepYaml {
     url: String,
     title: String,
     headers: Option<HashMap<String, String>>,
-    json: Option<Value>,
-    tests: HashMap<String, String>,
+    json: Option<String>,
+    asserts: HashMap<String, String>,
     queryparams: Option<HashMap<String, String>>,
     exports: Option<HashMap<String, String>>,
 }
