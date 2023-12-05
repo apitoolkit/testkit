@@ -280,14 +280,14 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                 }
                 div { class: "w-full border rounded border-gray-900",
                 div {
-                    class: "flex bg-gray-800 flex-1 py-2",
+                    class: "flex bg-gray-800 flex-1 py-1",
                     div {
-                        class: "relative px-3 py-1 border-r border-r-gray-800 w-52 flex",
+                        class: "relative px-3 border-r border-r-gray-800 w-52 flex",
                         onblur: move |_| {showList.set(false)},
                         input{
                          class: "bg-transparent border-r border-r-gray-900 px-3 w-full outline-none focus:outline:none py-1 text-sm font-bold",
                          value: "{req.method}",
-                         placeholder: "METHOD",
+                         placeholder: "method",
                          onchange: move |e| {update_method(e.value.clone())},
                          onfocus: move |_| {showList.set(true)},
                        },
@@ -302,7 +302,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                      },
                     input {
                         r#type: "text",
-                        placeholder: "Enter request URL",
+                        placeholder: "request url",
                         value: "{req.url}",
                         class: "bg-transparent px-3 w-full outline-none focus:outline-none",
                         onchange: move |e| {
