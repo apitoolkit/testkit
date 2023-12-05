@@ -9,6 +9,8 @@ use serde_json::Value;
 use serde_yaml;
 use std::{collections::HashMap, string};
 
+use crate::base_request::{self, TestContext};
+
 pub fn app_init() {
     dioxus_desktop::launch_cfg(
         app,
@@ -31,6 +33,22 @@ pub fn app_init() {
 struct TestGroup {
     title: String,
     file_path: Option<String>,
+}
+
+async fn run_yaml(content: String) {
+    let ctx = TestContext {
+        file: "in app".to_string(),
+        file_source: content.clone(),
+        ..Default::default()
+    };
+    let rs = base_request::run(ctx, content).await;
+
+    match rs {
+        Err(e) => {
+            print!("{}", e)
+        }
+        Ok(_v) => {}
+    }
 }
 
 pub fn app(cx: Scope) -> Element {
@@ -63,6 +81,7 @@ pub fn app(cx: Scope) -> Element {
             .collect::<Vec<RequestStepYaml>>();
         let yaml_string = serde_yaml::to_string(&ys).unwrap();
         print!("{}", yaml_string);
+        run_yaml(yaml_string)
     };
 
     cx.render(rsx! {
