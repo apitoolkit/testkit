@@ -661,28 +661,6 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
         rsx!(
                 div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
                  AssertInput{index: index, key_val: key.clone(), input_index: i},
-                //  div {
-                //     class: "relative",
-                //     input{
-                //      id: "methods",
-                //      placeholder: "key",
-                //      onchange: move |e| {update_val(i, e.value.clone(), "key".to_string())},
-                //      value: "{key}", 
-                //      class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60",
-                //      onfocus: move |_| {showList.set(true)},
-                //      onblur: move |_| {showList.set(false)}
-                //    },
-                //    if *showList.get() {
-                //      rsx!(
-                //          div {
-                //              class: "absolute w-full z-10 flex py-4 flex-col text-left gap-1 top-[100%] left-0 rounded-lg shadow-lg bg-gray-800",
-                //              rsx!(
-                //                 options.get().into_iter().map(|v| {rsx!{button {class:"text-left px-4 py-2 hover:bg-gray-900", onclick: move |_| {update_val(i, v.to_string(), "key".to_string())} ,"{v}"}}})
-                //              )
-                //          }
-                //      )
-                //    }
-                //  },
                   input{
                     placeholder: "value",
                     value: "{value}", 
