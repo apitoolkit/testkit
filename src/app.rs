@@ -719,8 +719,8 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
                         stages.write()[index].queryparams = Some(vec![("".to_string(), val)])
                     }
                 }
-                Some(_v) => {
-                    let mut params = stages.read()[index].clone().queryparams.unwrap();
+                Some(v) => {
+                    let mut params = v;
                     if kind == "key" {
                         params[i].0 = val;
                     } else {
@@ -805,8 +805,8 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
                         stages.write()[index].headers = Some(vec![("".to_string(), val)])
                     }
                 }
-                Some(_v) => {
-                    let mut headers = stages.read()[index].clone().headers.unwrap();
+                Some(v) => {
+                    let mut headers = v;
 
                     if kind == "key" {
                         headers[i].0 = val;
