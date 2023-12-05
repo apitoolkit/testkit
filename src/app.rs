@@ -203,6 +203,17 @@ fn convert_request_step_to_yaml(request_step: &RequestStep) -> RequestStepYaml {
     }
 }
 
+fn get_method_color(method: &String) -> String {
+    match method.to_lowercase().as_str() {
+        "get" => "text-green-500".to_string(),
+        "post" => "text-blue-500".to_string(),
+        "put" => "text-yellow-500".to_string(),
+        "delete" => "text-red-500".to_string(),
+        "patch" => "text-purple-500".to_string(),
+        _ => "text-gray-500".to_string(),
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 struct RequestStepYaml {
     method: String,
@@ -272,6 +283,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
     .iter()
     .map(|v| {rsx!{button {class:"text-left px-4 py-2 text-sm hover:bg-gray-900", onclick: move |_| {update_method(v.to_string()); showList.set(false);} ,"{v}"}}});
 
+    let method_color = get_method_color(&req.method);
     cx.render(rsx! {
         div { class: "pl-4 border-l-[.5px] border-gray-600 pt-2 pb-4",
             div { class: "flex space-x-3 w-full",
@@ -297,7 +309,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                         class: "relative px-3 border-r border-r-gray-800 w-52 flex",
                         onblur: move |_| {showList.set(false)},
                         input{
-                         class: "bg-transparent border-r border-r-gray-900 px-3 w-full outline-none focus:outline:none py-1 text-sm font-bold",
+                         class: "bg-transparent border-r border-r-gray-900 px-3 w-full outline-none focus:outline:none py-1 text-sm font-bold {method_color}",
                          value: "{req.method}",
                          placeholder: "method",
                          onchange: move |e| {update_method(e.value.clone())},
@@ -672,20 +684,6 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
 
     cx.render(rsx! {
         div { class: "flex flex-col p-2 m-2",
-             datalist {
-                 class: "w-full rounded-lg bg-gray-800 text-gray-300 text-md",
-                 style: "color-scheme: dark",
-                 id: "assert-list",
-                 option { value: "ok" }
-                 option { value: "array" }
-                 option { value: "empty" }
-                 option { value: "number" }
-                 option { value: "boolean" }
-                 option { value: "string" }
-                 option { value: "notEmpty" }
-                 option { value: "date" }
-                 option { value: "null" }
-             },
             div{class: "flex w-full border border-gray-800 rounded-t text-sm font-bold text-gray-500", div{class: "px-3 py-1 border-r border-r-gray-800 w-60", "Key"}, div{class: "w-full py-1 px-3","Value"}},
             testItems
       }
