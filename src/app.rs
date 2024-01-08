@@ -102,7 +102,7 @@ pub fn app(cx: Scope) -> Element {
                     class: "w-96 bg-gray-800 rounded-lg shadow-lg p-10 flex flex-col gap-2",
                     label {class:"text-gray-300 font-bold text-lg","Title"},
                     input {
-                        onchange: move |e| title.set(e.value.clone()),
+                        onchange: move |e| title.set(e.value().clone()),
                         class: "border border-gray-500 rounded px-2 py-1 bg-transparent outline-none w-full", 
                         value:"{*title.get()}"}
                     button {
@@ -395,7 +395,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                          class: "bg-transparent border-r border-r-gray-900 px-3 w-full outline-none focus:outline:none py-1 text-sm font-bold {method_color}",
                          value: "{req.method}",
                          placeholder: "method",
-                         onchange: move |e| {update_method(e.value.clone())},
+                         onchange: move |e| {update_method(e.value().clone())},
                          onfocus: move |_| {showList.set(true)},
                        },
                        if *showList.get() {
@@ -413,7 +413,7 @@ pub fn RequestElement<'a>(cx: Scope<'a, RequestElementProps>) -> Element<'a> {
                         value: "{req.url}",
                         class: "bg-transparent px-3 w-full outline-none focus:outline-none",
                         onchange: move |e| {
-                              update_url(e.value.clone());
+                              update_url(e.value().clone());
                            },
                     }
                 },
@@ -562,7 +562,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
          div {
          class: "p-4",
          select {
-            onchange: move |e| { update_body(e.value.clone()) },
+            onchange: move |e| { update_body(e.value().clone()) },
             value: "{current}",
             style: "color-scheme: dark",
             class: "inline-block px-2 outline-none focus:outline-none bg-stone-900",
@@ -579,7 +579,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
                       textarea{
                           class: "w-full bg-transparent h-20 outline-none p-2 border resize-none border-gray-800 rounded", 
                           value: "", 
-                          onchange: move |e| { update_val(e.value.clone()) },
+                          onchange: move |e| { update_val(e.value().clone()) },
                           placeholder: "Enter request body here", name:"body"
                       }
                     }
@@ -594,7 +594,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
                               textarea{
                                   class: "w-full bg-transparent outline-none p-2 h-20 border border-gray-800 resize-none rounded", 
                                   value: "{val}", 
-                                  onchange: move |e| { update_val(e.value.clone()) },
+                                  onchange: move |e| { update_val(e.value().clone()) },
                                   placeholder: "Enter request body here", name:"body"
                               }
                             }
@@ -607,7 +607,7 @@ fn RequestBodyElement<'a>(cx: Scope<'a, BodyElementProps>) -> Element {
                               textarea{
                                   class: "w-full h-20 bg-transparent outline-none p-2 border border-gray-800 rounded", 
                                   value: "{val}", 
-                                  onchange: move |e| { update_val(e.value.clone()) },
+                                  onchange: move |e| { update_val(e.value().clone()) },
                                   placeholder: "Enter JSON request body here", name:"body"
                               }
                             }
@@ -684,7 +684,7 @@ fn AssertInput<'a>(cx: Scope<'a, AssertInpputProps>) -> Element<'a> {
                     input{
                      id: "methods",
                      placeholder: "key",
-                     onchange: move |e| {update_val(input_index, e.value.clone())},
+                     onchange: move |e| {update_val(input_index, e.value().clone())},
                      value: "{key}", 
                      class: "bg-transparent outline-none w-full {invalid_key_class.get()}",
                      onfocus: move |_| {showList.set(true)},
@@ -764,7 +764,7 @@ fn AssertsElement<'a>(cx: Scope<'a, AssertElementProps>) -> Element<'a> {
                   input{
                     placeholder: "value",
                     value: "{value}", 
-                    onchange: move |e| {update_val(i, e.value.clone(), "value".to_string())},
+                    onchange: move |e| {update_val(i, e.value().clone(), "value".to_string())},
                     class: "bg-transparent outline-none w-full py-1 px-3"
                 }
                 },
@@ -917,14 +917,14 @@ fn HeadersParamsSxn<'a>(cx: Scope<'a, HPElementProps>) -> Element {
              div{ class: "flex w-full border border-gray-800 border-t-none rounded-b text-sm text-gray-300", 
                   input{
                      placeholder: "key",
-                     onchange: move |e| {update_val(i, e.value.clone(), "key".to_string())},
+                     onchange: move |e| {update_val(i, e.value().clone(), "key".to_string())},
                      value: "{k}", 
                      class: "bg-transparent outline-none px-3 py-1 border-r border-r-gray-800 w-60"
                 },
                   input{
                     placeholder: "value",
                     value: "{v}", 
-                    onchange: move |e| {update_val(i, e.value.clone(), "value".to_string())},
+                    onchange: move |e| {update_val(i, e.value().clone(), "value".to_string())},
                     class: "bg-transparent outline-none w-full py-1 px-3"
                 }
                 },
@@ -979,7 +979,7 @@ fn HMSxn<'a>(
                             placeholder: "key",
                             oninput:move |e| {
                                 let mut p = datalist.clone();
-                                p[i] = (e.value.clone(), v.to_string());
+                                p[i] = (e.value().clone(), v.to_string());
                                 overwrite_reqo((p).to_vec());
                             },
                             value: "{k}",
@@ -992,7 +992,7 @@ fn HMSxn<'a>(
                             placeholder: "value",
                             oninput:move |e| {
                                 let mut p = datalist.clone();
-                                p[i] = (k.to_string(), e.value.clone());
+                                p[i] = (k.to_string(), e.value().clone());
                                 overwrite_reqo((p).to_vec());
                             },
                             value: "{v}",
@@ -1007,7 +1007,7 @@ fn HMSxn<'a>(
                         placeholder: "key",
                         value: "{new_key.get()}",
                         oninput:move |e| {
-                            new_key.set(e.value.clone())
+                            new_key.set(e.value().clone())
                         },
                         class: "bg-transparent border-b-[.5px] border-gray-100 p-1 w-64"
                     }
@@ -1018,7 +1018,7 @@ fn HMSxn<'a>(
                         placeholder: "value",
                         value: "{new_value.get()}",
                         oninput:move |e| {
-                                new_value.set(e.value.clone())
+                                new_value.set(e.value().clone())
                         },
                         onkeyup: move |e| {
                             if e.key().to_string() == "Enter" {
