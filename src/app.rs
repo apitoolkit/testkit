@@ -1,13 +1,12 @@
 #![allow(non_snake_case)]
 
 use dioxus::{
-    html::{label, textarea},
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_yaml;
-use std::{collections::HashMap, string};
+use std::{collections::HashMap};
 
 use crate::base_request::{self, TestContext};
 
@@ -53,7 +52,7 @@ async fn run_yaml(content: String) {
 
 pub fn app(cx: Scope) -> Element {
     let _contenteditableRef = use_ref(cx, || "Please press - or ? for help");
-    let ctxmenu = use_state(cx, || false);
+    let _ctxmenu = use_state(cx, || false);
     let showModal = use_state(cx, || false);
     let title = use_state(cx, || "".to_string());
     let _selectAction = |_action: &str| {};
@@ -140,7 +139,7 @@ pub fn app(cx: Scope) -> Element {
                     }),
                 }
                 div { class: "col-span-10 p-8 h-full overflow-y-scroll",
-                    div { class: "text-right", button {onclick: move |e| {run_test()}, "Run"} }
+                    div { class: "text-right", button {onclick: move |_e| {run_test()}, "Run"} }
                     div { class: "", TestBuilder(cx)}
                 }
             }
