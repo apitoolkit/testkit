@@ -1,12 +1,10 @@
 #![allow(non_snake_case)]
 
-use dioxus::{
-    prelude::*,
-};
+use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_yaml;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use crate::base_request::{self, TestContext};
 
