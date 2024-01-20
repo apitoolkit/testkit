@@ -129,20 +129,29 @@ pub struct TestContext {
     pub file_source: String,
 }
 
-pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Error> {
+pub async fn run(
+    ctx: TestContext,
+    exec_string: String,
+    should_log: bool,
+) -> Result<Vec<RequestResult>, anyhow::Error> {
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
-    let result = base_request(ctx.clone(), &test_items).await;
+    let result = base_request(ctx.clone(), &test_items, should_log).await;
     match result {
         Ok(res) => {
-            log::debug!("Test passed: {:?}", res);
+            if (should_log) {
+                log::debug!("Test passed: {:?}", res);
+            }
+            Ok(res)
         }
         Err(err) => {
-            log::error!(target:"testkit","{}", err)
+            if (should_log) {
+                log::error!(target:"testkit","{}", err);
+            }
+            Err(err)
         }
     }
-    Ok(())
 }
 
 // base_request would process a test plan, logging status updates as they happen.
@@ -150,6 +159,7 @@ pub async fn run(ctx: TestContext, exec_string: String) -> Result<(), anyhow::Er
 pub async fn base_request(
     ctx: TestContext,
     test_items: &Vec<TestItem>,
+    should_log: bool,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .connection_verbose(true)
@@ -162,12 +172,14 @@ pub async fn base_request(
         ctx.plan = test_item.title.clone();
         ctx.stage = test_item.title.clone();
         ctx.stage_index = i as u32;
-        log::info!(target:"testkit",
-            "{:?} ⬅ {}/{}",
-            test_item.request.http_method,
-            ctx.plan.clone().unwrap_or("_plan".into()),
-            ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
-        );
+        if (should_log) {
+            log::info!(target:"testkit",
+                "{:?} ⬅ {}/{}",
+                test_item.request.http_method,
+                ctx.plan.clone().unwrap_or("_plan".into()),
+                ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
+            );
+        }
         let mut request_builder = match &test_item.request.http_method {
             HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
             HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
@@ -182,7 +194,9 @@ pub async fn base_request(
                         Some(v) => value = value.replace(&export, &v.to_string()),
                         None => {
                             let error_message = format!("Export not found: {}", export);
-                            log::error!(target:"testkit","{}", error_message)
+                            if (should_log) {
+                                log::error!(target:"testkit","{}", error_message)
+                            }
                         }
                     }
                 }
@@ -190,9 +204,13 @@ pub async fn base_request(
                     match get_env_variable(&env_var) {
                         Ok(val) => value = value.replace(&env_var, &val),
                         Err(err) => {
-                            let error_message =
-                                format!("Error getting environment variable {}: {}", env_var, err);
-                            log::error!(target:"testkit","{}", error_message)
+                            if (should_log) {
+                                let error_message = format!(
+                                    "Error getting environment variable {}: {}",
+                                    env_var, err
+                                );
+                                log::error!(target:"testkit","{}", error_message)
+                            }
                         }
                     }
                 }
@@ -207,8 +225,10 @@ pub async fn base_request(
                 match get_export_variable(&export, ctx.stage_index, &exports_map) {
                     Some(v) => j_string = j_string.replace(&export, &v.to_string()),
                     None => {
-                        let error_message = format!("Export not found: {}", export);
-                        log::error!(target:"testkit","{}", error_message)
+                        if (should_log) {
+                            let error_message = format!("Export not found: {}", export);
+                            log::error!(target:"testkit","{}", error_message)
+                        }
                     }
                 }
             }
@@ -217,9 +237,11 @@ pub async fn base_request(
                 match get_env_variable(&env_var) {
                     Ok(val) => j_string = j_string.replace(&env_var, &val),
                     Err(err) => {
-                        let error_message =
-                            format!("Error getting environment variable {}: {}", env_var, err);
-                        log::error!(target:"testkit","{}", error_message)
+                        if (should_log) {
+                            let error_message =
+                                format!("Error getting environment variable {}: {}", env_var, err);
+                            log::error!(target:"testkit","{}", error_message)
+                        }
                     }
                 }
             }
@@ -246,14 +268,22 @@ pub async fn base_request(
 
         let assert_context: Value = serde_json::json!(&assert_object);
         if test_item.dump.unwrap_or(false) {
-            log::info!(
-                target:"testkit",
-                "💡 DUMP jsonpath request response context:\n {}",
-                colored_json::to_colored_json_auto(&assert_context)?
-            )
+            if (should_log) {
+                log::info!(
+                    target:"testkit",
+                    "💡 DUMP jsonpath request response context:\n {}",
+                    colored_json::to_colored_json_auto(&assert_context)?
+                )
+            }
         }
-        let assert_results =
-            check_assertions(ctx, &test_item.asserts, assert_context, &exports_map).await?;
+        let assert_results = check_assertions(
+            ctx,
+            &test_item.asserts,
+            assert_context,
+            &exports_map,
+            should_log,
+        )
+        .await?;
         // if let Some(outputs) = &stage.outputs {
         //     update_outputs(outputs, &response_json);
         // }
@@ -576,6 +606,7 @@ async fn check_assertions(
     asserts: &[Assert],
     json_body: Value,
     outputs: &HashMap<String, Value>,
+    should_log: bool,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
     let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
@@ -609,27 +640,29 @@ async fn check_assertions(
             }
         };
 
-        match eval_result {
-            Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
-            Ok((prefix, result, expr, _eval_expr)) => {
-                if result {
-                    log::info!(target:"testkit",
+        if (should_log) {
+            match eval_result {
+                Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
+                Ok((prefix, result, expr, _eval_expr)) => {
+                    if result {
+                        log::info!(target:"testkit",
                             "✅ {: <10}  ⮕   {} ", prefix, expr)
-                } else {
-                    log::error!(target:"testkit","❌ {: <10}  ⮕   {} ", prefix, expr);
-                    log::error!(target:"testkit",
-                        "{} ",
-                        report_error(
-                            (AssertionError {
-                                advice: Some(
-                                    "check that you're using correct jsonpaths".to_string()
-                                ),
-                                src: NamedSource::new("bad_file.rs", expr.to_string()),
-                                bad_bit: (0, 4).into(),
-                            })
-                            .into()
+                    } else {
+                        log::error!(target:"testkit","❌ {: <10}  ⮕   {} ", prefix, expr);
+                        log::error!(target:"testkit",
+                            "{} ",
+                            report_error(
+                                (AssertionError {
+                                    advice: Some(
+                                        "check that you're using correct jsonpaths".to_string()
+                                    ),
+                                    src: NamedSource::new("bad_file.rs", expr.to_string()),
+                                    bad_bit: (0, 4).into(),
+                                })
+                                .into()
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
@@ -763,7 +796,7 @@ mod tests {
             stage: Some("stage_name".into()),
             stage_index: 0,
         };
-        let resp = run(ctx, yaml_str.into()).await;
+        let resp = run(ctx, yaml_str.into(), true).await;
         log::debug!("{:?}", resp);
         assert!(resp.is_ok());
         m3.assert_hits(1);

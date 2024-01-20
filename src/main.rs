@@ -1,5 +1,4 @@
 #![feature(extend_one)]
-
 mod base_cli;
 mod base_request;
 use base_cli::Commands;
@@ -47,7 +46,7 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
                 file_source: content.clone(),
                 ..Default::default()
             };
-            base_request::run(ctx, content).await
+            base_request::run(ctx, content, false).await
         }
         None => {
             let files = find_tk_yaml_files(Path::new("."));
@@ -58,11 +57,25 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
                     file_source: content.clone(),
                     ..Default::default()
                 };
-                let _ = base_request::run(ctx, content).await;
+                let _ = base_request::run(ctx, content, false).await;
             }
             Ok(())
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn haskell_binding(content: String) -> Result<(), Error> {
+    let ctx = TestContext {
+        file: "haskell_binding".into(),
+        file_source: content.clone(),
+        ..Default::default()
+    };
+    let result = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(async { base_request::run(ctx, content, false).await });
+
+    return result;
 }
 
 fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
