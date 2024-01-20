@@ -133,20 +133,20 @@ pub async fn run(
     ctx: TestContext,
     exec_string: String,
     should_log: bool,
-) -> Result<Vec<RequestResult>, anyhow::Error> {
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
     let result = base_request(ctx.clone(), &test_items, should_log).await;
     match result {
         Ok(res) => {
-            if (should_log) {
+            if should_log {
                 log::debug!("Test passed: {:?}", res);
             }
             Ok(res)
         }
         Err(err) => {
-            if (should_log) {
+            if should_log {
                 log::error!(target:"testkit","{}", err);
             }
             Err(err)
@@ -155,7 +155,7 @@ pub async fn run(
 }
 
 // base_request would process a test plan, logging status updates as they happen.
-// Logging in place allows tracking of the results earlier
+// Logging in place allows tracking of the results earliers
 pub async fn base_request(
     ctx: TestContext,
     test_items: &Vec<TestItem>,
@@ -172,7 +172,7 @@ pub async fn base_request(
         ctx.plan = test_item.title.clone();
         ctx.stage = test_item.title.clone();
         ctx.stage_index = i as u32;
-        if (should_log) {
+        if should_log {
             log::info!(target:"testkit",
                 "{:?} ⬅ {}/{}",
                 test_item.request.http_method,
@@ -194,7 +194,7 @@ pub async fn base_request(
                         Some(v) => value = value.replace(&export, &v.to_string()),
                         None => {
                             let error_message = format!("Export not found: {}", export);
-                            if (should_log) {
+                            if should_log {
                                 log::error!(target:"testkit","{}", error_message)
                             }
                         }
@@ -204,7 +204,7 @@ pub async fn base_request(
                     match get_env_variable(&env_var) {
                         Ok(val) => value = value.replace(&env_var, &val),
                         Err(err) => {
-                            if (should_log) {
+                            if should_log {
                                 let error_message = format!(
                                     "Error getting environment variable {}: {}",
                                     env_var, err
@@ -225,7 +225,7 @@ pub async fn base_request(
                 match get_export_variable(&export, ctx.stage_index, &exports_map) {
                     Some(v) => j_string = j_string.replace(&export, &v.to_string()),
                     None => {
-                        if (should_log) {
+                        if should_log {
                             let error_message = format!("Export not found: {}", export);
                             log::error!(target:"testkit","{}", error_message)
                         }
@@ -237,7 +237,7 @@ pub async fn base_request(
                 match get_env_variable(&env_var) {
                     Ok(val) => j_string = j_string.replace(&env_var, &val),
                     Err(err) => {
-                        if (should_log) {
+                        if should_log {
                             let error_message =
                                 format!("Error getting environment variable {}: {}", env_var, err);
                             log::error!(target:"testkit","{}", error_message)
@@ -268,7 +268,7 @@ pub async fn base_request(
 
         let assert_context: Value = serde_json::json!(&assert_object);
         if test_item.dump.unwrap_or(false) {
-            if (should_log) {
+            if should_log {
                 log::info!(
                     target:"testkit",
                     "💡 DUMP jsonpath request response context:\n {}",
@@ -640,7 +640,7 @@ async fn check_assertions(
             }
         };
 
-        if (should_log) {
+        if should_log {
             match eval_result {
                 Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
                 Ok((prefix, result, expr, _eval_expr)) => {

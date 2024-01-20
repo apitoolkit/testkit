@@ -1,8 +1,9 @@
 #![feature(extend_one)]
 mod base_cli;
 mod base_request;
+use anyhow::Ok;
 use base_cli::Commands;
-use base_request::TestContext;
+use base_request::{RequestResult, TestContext};
 use clap::Parser;
 use dotenv::dotenv;
 use log::LevelFilter;
@@ -11,9 +12,10 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
+use thiserror::Error;
+
 use walkdir::WalkDir;
 
-mod app;
 extern crate log;
 
 #[tokio::main]
@@ -30,9 +32,7 @@ async fn main() {
         .init();
 
     match cli_instance.command {
-        None | Some(Commands::App {}) => {
-            app::app_init();
-        }
+        None | Some(Commands::App {}) => {}
         Some(Commands::Test { file }) => cli(file).await.unwrap(),
     }
 }
@@ -46,7 +46,8 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
                 file_source: content.clone(),
                 ..Default::default()
             };
-            base_request::run(ctx, content, false).await
+            let _ = base_request::run(ctx, content, false).await;
+            Ok(())
         }
         None => {
             let files = find_tk_yaml_files(Path::new("."));
@@ -65,7 +66,9 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
 }
 
 #[no_mangle]
-pub extern "C" fn haskell_binding(content: String) -> Result<(), Error> {
+pub extern "C" fn haskell_binding(
+    content: String,
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let ctx = TestContext {
         file: "haskell_binding".into(),
         file_source: content.clone(),
