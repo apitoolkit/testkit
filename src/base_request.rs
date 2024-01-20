@@ -75,6 +75,7 @@ pub enum HttpMethod {
 }
 
 #[derive(Debug)]
+#[repr(C)]
 pub struct RequestResult {
     pub stage_name: Option<String>,
     pub stage_index: u32,

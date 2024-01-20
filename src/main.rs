@@ -31,13 +31,8 @@ async fn main() {
         .init();
 
     match cli_instance.command {
-        None | Some(Commands::App {}) => {
-            print!("here");
-        }
-        Some(Commands::Test { file }) => {
-            print!("sssss");
-            cli(file).await.unwrap()
-        }
+        None | Some(Commands::App {}) => {}
+        Some(Commands::Test { file }) => cli(file).await.unwrap(),
     }
 }
 
