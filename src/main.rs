@@ -12,7 +12,6 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use thiserror::Error;
 
 use walkdir::WalkDir;
 
@@ -32,8 +31,13 @@ async fn main() {
         .init();
 
     match cli_instance.command {
-        None | Some(Commands::App {}) => {}
-        Some(Commands::Test { file }) => cli(file).await.unwrap(),
+        None | Some(Commands::App {}) => {
+            print!("here");
+        }
+        Some(Commands::Test { file }) => {
+            print!("sssss");
+            cli(file).await.unwrap()
+        }
     }
 }
 
@@ -46,7 +50,7 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
                 file_source: content.clone(),
                 ..Default::default()
             };
-            let _ = base_request::run(ctx, content, false).await;
+            let _ = base_request::run(ctx, content, true).await;
             Ok(())
         }
         None => {
@@ -58,7 +62,7 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
                     file_source: content.clone(),
                     ..Default::default()
                 };
-                let _ = base_request::run(ctx, content, false).await;
+                let _ = base_request::run(ctx, content, true).await;
             }
             Ok(())
         }
