@@ -64,22 +64,6 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn haskell_binding(
-    content: String,
-) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
-    let ctx = TestContext {
-        file: "haskell_binding".into(),
-        file_source: content.clone(),
-        ..Default::default()
-    };
-    let result = tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(async { base_request::run(ctx, content, false).await });
-
-    return result;
-}
-
 fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
     let mut result = Vec::new();
     for entry in WalkDir::new(dir).into_iter().filter_map(|e| e.ok()) {
