@@ -1,13 +1,13 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use jsonpath_lib::select;
-use log;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue};
 use rhai::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_with::{serde_as, EnumMap};
+use serde_with::{serde_as, DisplayFromStr};
+use serde_yaml::with;
 use std::{collections::HashMap, env, env::VarError};
 use thiserror::Error;
 
@@ -18,7 +18,9 @@ pub struct TestItem {
     dump: Option<bool>,
     #[serde(flatten)]
     request: RequestConfig,
-    #[serde_as(as = "EnumMap")]
+    #[serde(default)]
+    // #[serde_as(as = "Vec<serde_with::Map<_,_>>")]
+    #[serde(with = "serde_yaml::with::singleton_map_recursive")]
     asserts: Vec<Assert>,
     exports: Option<HashMap<String, String>>,
 }
@@ -28,6 +30,12 @@ pub struct TestItem {
 // pub struct TestStage {}
 
 #[derive(Debug, Serialize, Deserialize)]
+pub enum Assert1x {
+    IsOk(String),
+    NotEmpty(String),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Assert {
     #[serde(rename = "ok")]
     IsOk(String),
@@ -51,7 +59,7 @@ pub enum Assert {
     NotEmpty(String), // Add other assertion types as needed
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RequestConfig {
     #[serde(flatten)]
     pub http_method: HttpMethod,
@@ -74,20 +82,27 @@ pub enum HttpMethod {
     PUT(String), // Add other HTTP methods as needed
 }
 
-#[derive(Debug)]
-#[repr(C)]
-pub struct RequestResult {
-    pub stage_name: Option<String>,
-    pub stage_index: u32,
-    pub assert_results: Vec<Result<bool, AssertionError>>,
+impl Default for HttpMethod {
+    fn default() -> Self {
+        HttpMethod::GET("<UNSET>".into())
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ResponseAssertion {
+#[derive(Debug, Default)]
+pub struct RequestResult {
+    pub step_name: Option<String>,
+    pub step_index: u32,
+    pub assert_results: Vec<Result<bool, AssertionError>>,
+    pub request: RequestAndResponse,
+    pub step_log: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RequestAndResponse {
     req: RequestConfig,
     resp: ResponseObject,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ResponseObject {
     status: u16,
     headers: Value,
@@ -123,8 +138,8 @@ fn report_error(diag: Report) -> String {
 #[derive(Default, Clone)]
 pub struct TestContext {
     pub plan: Option<String>,
-    pub stage: Option<String>,
-    pub stage_index: u32,
+    pub step: Option<String>,
+    pub step_index: u32,
     pub path: String,
     pub file: String,
     pub file_source: String,
@@ -136,6 +151,31 @@ pub async fn run(
     should_log: bool,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
+    log::debug!(target:"testkit","test_items: {:#?}", test_items);
+
+    let result = base_request(ctx.clone(), &test_items, should_log).await;
+    match result {
+        Ok(res) => {
+            if should_log {
+                log::debug!("Test passed: {:?}", res);
+            }
+            Ok(res)
+        }
+        Err(err) => {
+            if should_log {
+                log::error!(target:"testkit","{}", err);
+            }
+            Err(err)
+        }
+    }
+}
+
+pub async fn run_json(
+    ctx: TestContext,
+    exec_string: String,
+    should_log: bool,
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
+    let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
     let result = base_request(ctx.clone(), &test_items, should_log).await;
@@ -170,16 +210,24 @@ pub async fn base_request(
 
     for (i, test_item) in test_items.iter().enumerate() {
         let mut ctx = ctx.clone();
-        ctx.plan = test_item.title.clone();
-        ctx.stage = test_item.title.clone();
-        ctx.stage_index = i as u32;
+        let mut step_result = RequestResult {
+            step_name: test_item.title.clone(),
+            step_index: i as u32,
+            ..Default::default()
+        };
+        ctx.step = test_item.title.clone();
+        ctx.step_index = i as u32;
+        let request_line = format!(
+            "{:?} ⬅ {}/{}",
+            test_item.request.http_method,
+            ctx.plan.clone().unwrap_or("_plan".into()),
+            ctx.step.clone().unwrap_or(ctx.step_index.to_string())
+        );
+        step_result.step_log.push_str(&request_line);
+        step_result.step_log.push_str("\n");
         if should_log {
-            log::info!(target:"testkit",
-                "{:?} ⬅ {}/{}",
-                test_item.request.http_method,
-                ctx.plan.clone().unwrap_or("_plan".into()),
-                ctx.stage.clone().unwrap_or(ctx.stage_index.to_string())
-            );
+            log::info!(target:"testkit", "");
+            log::info!(target:"testkit", "{}", request_line.to_string());
         }
         let mut request_builder = match &test_item.request.http_method {
             HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
@@ -191,10 +239,12 @@ pub async fn base_request(
             for (name, value) in headers {
                 let mut value = value.clone();
                 for export in get_exports_paths(&value) {
-                    match get_export_variable(&export, ctx.stage_index, &exports_map) {
+                    match get_export_variable(&export, ctx.step_index, &exports_map) {
                         Some(v) => value = value.replace(&export, &v.to_string()),
                         None => {
                             let error_message = format!("Export not found: {}", export);
+                            step_result.step_log.push_str(&error_message);
+                            step_result.step_log.push_str("\n");
                             if should_log {
                                 log::error!(target:"testkit","{}", error_message)
                             }
@@ -205,11 +255,11 @@ pub async fn base_request(
                     match get_env_variable(&env_var) {
                         Ok(val) => value = value.replace(&env_var, &val),
                         Err(err) => {
+                            let error_message =
+                                format!("Error getting environment variable {}: {}", env_var, err);
+                            step_result.step_log.push_str(&error_message);
+                            step_result.step_log.push_str("\n");
                             if should_log {
-                                let error_message = format!(
-                                    "Error getting environment variable {}: {}",
-                                    env_var, err
-                                );
                                 log::error!(target:"testkit","{}", error_message)
                             }
                         }
@@ -223,11 +273,13 @@ pub async fn base_request(
         if let Some(json) = &test_item.request.json {
             let mut j_string = json.to_string();
             for export in get_exports_paths(&j_string) {
-                match get_export_variable(&export, ctx.stage_index, &exports_map) {
+                match get_export_variable(&export, ctx.step_index, &exports_map) {
                     Some(v) => j_string = j_string.replace(&export, &v.to_string()),
                     None => {
+                        let error_message = format!("Export not found: {}", export);
+                        step_result.step_log.push_str(&error_message);
+                        step_result.step_log.push_str("\n");
                         if should_log {
-                            let error_message = format!("Export not found: {}", export);
                             log::error!(target:"testkit","{}", error_message)
                         }
                     }
@@ -238,9 +290,11 @@ pub async fn base_request(
                 match get_env_variable(&env_var) {
                     Ok(val) => j_string = j_string.replace(&env_var, &val),
                     Err(err) => {
+                        let error_message =
+                            format!("Error getting environment variable {}: {}", env_var, err);
+                        step_result.step_log.push_str(&error_message);
+                        step_result.step_log.push_str("\n");
                         if should_log {
-                            let error_message =
-                                format!("Error getting environment variable {}: {}", env_var, err);
                             log::error!(target:"testkit","{}", error_message)
                         }
                     }
@@ -257,7 +311,7 @@ pub async fn base_request(
         let raw_body = response.text().await?;
         let json_body: Value = serde_json::from_str(&raw_body)?;
 
-        let assert_object = ResponseAssertion {
+        let assert_object = RequestAndResponse {
             req: test_item.request.clone(),
             resp: ResponseObject {
                 status: status_code,
@@ -266,15 +320,18 @@ pub async fn base_request(
                 raw: raw_body,
             },
         };
+        step_result.request = assert_object.clone();
 
         let assert_context: Value = serde_json::json!(&assert_object);
         if test_item.dump.unwrap_or(false) {
+            let dump_message = format!(
+                "💡 DUMP jsonpath request response context:\n {}",
+                colored_json::to_colored_json_auto(&assert_context)?
+            );
+            step_result.step_log.push_str(&dump_message);
+            step_result.step_log.push_str("\n");
             if should_log {
-                log::info!(
-                    target:"testkit",
-                    "💡 DUMP jsonpath request response context:\n {}",
-                    colored_json::to_colored_json_auto(&assert_context)?
-                )
+                log::info!(target:"testkit","{}", dump_message)
             }
         }
         let assert_results = check_assertions(
@@ -283,9 +340,10 @@ pub async fn base_request(
             assert_context,
             &exports_map,
             should_log,
+            &mut step_result.step_log,
         )
         .await?;
-        // if let Some(outputs) = &stage.outputs {
+        // if let Some(outputs) = &step.outputs {
         //     update_outputs(outputs, &response_json);
         // }
         if let Some(exports) = &test_item.exports {
@@ -296,11 +354,8 @@ pub async fn base_request(
                 }
             }
         }
-        results.push(RequestResult {
-            stage_name: test_item.title.clone(),
-            stage_index: i as u32,
-            assert_results,
-        });
+        step_result.assert_results = assert_results;
+        results.push(step_result);
     }
     Ok(results)
 }
@@ -324,16 +379,16 @@ fn find_all_jsonpaths(input: &String) -> Vec<&str> {
         .collect()
 }
 
-fn get_var_stage(input: &str, current_stage: u32) -> Option<u32> {
+fn get_var_step(input: &str, current_step: u32) -> Option<u32> {
     let start_pos = input.find('[')?;
     let end_pos = input[start_pos + 1..].find(']')? + start_pos + 1;
     let n_str = &input[start_pos + 1..end_pos];
 
     if let Ok(n) = n_str.parse::<i32>() {
         if n < 0 {
-            let target_stage = (current_stage as i32) + n;
-            if target_stage >= 0 {
-                return Some(target_stage.try_into().unwrap());
+            let target_step = (current_step as i32) + n;
+            if target_step >= 0 {
+                return Some(target_step.try_into().unwrap());
             }
             None
         } else {
@@ -352,7 +407,7 @@ fn format_url(
 ) -> String {
     let mut url = original_url.clone();
     for export in get_exports_paths(&url) {
-        match get_export_variable(&export, ctx.stage_index, &exports_map) {
+        match get_export_variable(&export, ctx.step_index, &exports_map) {
             Some(v) => url = url.replace(&export, &v.to_string()),
             None => {
                 let error_message = format!("Export not found: {}", export);
@@ -377,28 +432,28 @@ fn format_url(
 fn find_all_output_vars(
     input: &str,
     outputs: &HashMap<String, Value>,
-    stage_index: u32,
+    step_index: u32,
 ) -> HashMap<String, Option<Value>> {
     let mut val_map = HashMap::new();
 
     let vars: Vec<String> = input
         .split_whitespace()
-        .filter(|x| x.starts_with("$.stages"))
+        .filter(|x| x.starts_with("$.steps"))
         .map(|x| x.to_string())
         .collect();
 
     for var in vars {
-        let target_stage = get_var_stage(&var, stage_index).unwrap_or_default();
+        let target_step = get_var_step(&var, step_index).unwrap_or_default();
         let elements: Vec<&str> = var.split('.').collect();
         let target_key = elements.last().unwrap_or(&"");
-        let output_key = format!("{}_{}", target_stage, target_key);
+        let output_key = format!("{}_{}", target_step, target_key);
         val_map.insert(var, outputs.get(&output_key).cloned());
     }
     val_map
 }
 
 fn get_exports_paths(val: &String) -> Vec<String> {
-    let regex_pattern = r#"\$\.stages\[(-?\d+)\]\.([a-zA-Z0-9]+)"#;
+    let regex_pattern = r#"\$\.steps\[(-?\d+)\]\.([a-zA-Z0-9]+)"#;
     let regex = Regex::new(regex_pattern).unwrap();
     let exports: Vec<String> = regex
         .find_iter(&val)
@@ -424,13 +479,13 @@ fn get_env_variable(env_key_path: &String) -> Result<String, VarError> {
 
 fn get_export_variable<'a>(
     export_path: &String,
-    current_stage: u32,
+    current_step: u32,
     exports_map: &'a HashMap<String, Value>,
 ) -> Option<&'a Value> {
-    let target_stage = get_var_stage(&export_path, current_stage).unwrap_or_default();
+    let target_step = get_var_step(&export_path, current_step).unwrap_or_default();
     let elements: Vec<&str> = export_path.split('.').collect();
     let target_key = elements.last().unwrap_or(&"");
-    let export_key = format!("{}_{}", target_stage, target_key);
+    let export_key = format!("{}_{}", target_step, target_key);
     exports_map.get(&export_key)
 }
 // 1. First we extract a list of jsonpaths
@@ -446,7 +501,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     outputs: &HashMap<String, Value>,
 ) -> Result<(T, String), AssertionError> {
     let paths = find_all_jsonpaths(&original_expr);
-    let output_vars = find_all_output_vars(&original_expr, outputs, ctx.stage_index);
+    let output_vars = find_all_output_vars(&original_expr, outputs, ctx.step_index);
     let mut expr = original_expr.clone();
 
     for (var_path, var_value) in output_vars.iter() {
@@ -485,7 +540,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     // TODO: reproduce and improve this error
                     return Err(AssertionError {
                         advice: Some(
-                            "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
+                            "The given json path could not be located in the context. Add the 'dump: true' to the test step, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
                         ),
                         src: NamedSource::new(ctx.file, original_expr.clone()),
                         bad_bit: (i, i+path.len()).into(),
@@ -583,7 +638,7 @@ fn evaluate_value<'a, T: Clone + 'static>(
                 // TODO: reproduce and improve this error
                 return Err(AssertionError {
                         advice: Some(
-                            "The given json path could not be located in the context. Add the 'dump: true' to the test stage, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
+                            "The given json path could not be located in the context. Add the 'dump: true' to the test step, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
                         ),
                         src: NamedSource::new(ctx.file, expr.clone()),
                         bad_bit: (0,  expr.len()).into(),
@@ -608,6 +663,7 @@ async fn check_assertions(
     json_body: Value,
     outputs: &HashMap<String, Value>,
     should_log: bool,
+    step_log: &mut String,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
     let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
@@ -641,29 +697,41 @@ async fn check_assertions(
             }
         };
 
-        if should_log {
-            match eval_result {
-                Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
-                Ok((prefix, result, expr, _eval_expr)) => {
-                    if result {
-                        log::info!(target:"testkit",
-                            "✅ {: <10}  ⮕   {} ", prefix, expr)
-                    } else {
-                        log::error!(target:"testkit","❌ {: <10}  ⮕   {} ", prefix, expr);
-                        log::error!(target:"testkit",
-                            "{} ",
-                            report_error(
-                                (AssertionError {
-                                    advice: Some(
-                                        "check that you're using correct jsonpaths".to_string()
-                                    ),
-                                    src: NamedSource::new("bad_file.rs", expr.to_string()),
-                                    bad_bit: (0, 4).into(),
-                                })
-                                .into()
-                            )
-                        )
+        match eval_result {
+            Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
+            Ok((prefix, result, expr, _eval_expr)) => {
+                if result {
+                    let log_val = format!("✅ {: <10}  ⮕   {} ", prefix, expr);
+                    step_log.push_str(&log_val);
+                    step_log.push_str("\n");
+                    if should_log {
+                        log::info!(target:"testkit","{}", log_val);
                     }
+                } else {
+                    let log_val = format!("❌ {: <10}  ⮕   {} ", prefix, expr);
+                    step_log.push_str(&log_val);
+                    step_log.push_str("\n");
+                    log::error!(target:"testkit","{}", log_val);
+
+                    let log_val2 = format!(
+                        "{}",
+                        report_error(
+                            (AssertionError {
+                                advice: Some(
+                                    "check that you're using correct jsonpaths".to_string(),
+                                ),
+                                src: NamedSource::new("bad_file.rs", expr.to_string()),
+                                bad_bit: (0, 4).into(),
+                            })
+                            .into(),
+                        ),
+                    );
+                    step_log.push_str(&log_val2);
+                    step_log.push_str("\n");
+                    log::error!(target:"testkit",
+                        "{} ", log_val2
+
+                    )
                 }
             }
         }
@@ -677,6 +745,16 @@ fn parse_expression<T: Clone + 'static>(expr: &str) -> Result<T, Box<dyn std::er
     let engine = Engine::new();
     let result = engine.eval_expression::<T>(expr)?;
     Ok(result)
+}
+
+fn yaml_to_json(yaml_str: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Parse the YAML string
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(yaml_str)?;
+
+    // Serialize it to a JSON string
+    let json_str = serde_json::to_string(&yaml_value)?;
+
+    Ok(json_str)
 }
 
 #[cfg(test)]
@@ -744,44 +822,44 @@ mod tests {
         let yaml_str = format!(
             r#"
 ---
- - title: stage1
+ - title: step1
    POST: {}
    headers:
      Content-Type: application/json
    json:
      task: hit the gym
    asserts:
-     ok: $.resp.json.task == "hit the gym"
-     ok: $.resp.status == 201
-     number: $.resp.json.id
-     string: $.resp.json.task
-     boolean: $.resp.json.completed
+     - ok: $.resp.json.task == "hit the gym"
+     - ok: $.resp.status == 201
+     - number: $.resp.json.id
+     - string: $.resp.json.task
+     - boolean: $.resp.json.completed
    exports:
      todoResp: $.resp.json.resp_string 
  - GET: {}
    json:
      req_string: $.outputs.todoResp
    asserts:
-     ok: $.resp.status == 200
-     array: $.resp.json.tasks
-     ok: $.resp.json.tasks[0].task == "task one"
-     notEmpty: $.resp.json.tasks[0].task
-     notEmpty: $.resp.json.tasks
-     number: $.resp.json.tasks[1].id
-     empty: $.resp.json.empty_str
-     empty: $.resp.json.empty_arr
-     null: $.resp.json.null_val
+     - ok: $.resp.status == 200
+     - array: $.resp.json.tasks
+     - ok: $.resp.json.tasks[0].task == "task one"
+     - notEmpty: $.resp.json.tasks[0].task
+     - notEmpty: $.resp.json.tasks
+     - number: $.resp.json.tasks[1].id
+     - empty: $.resp.json.empty_str
+     - empty: $.resp.json.empty_arr
+     #- nil: $.resp.json.null_val
    exports:
      todoId: $.resp.json.tasks[0].id
  - PUT: {}
    asserts:
-     ok: $.resp.json.completed
-     ok: $.resp.json.id == $.stages[1].outputs.todoId
+     - ok: $.resp.json.completed
+     - ok: $.resp.json.id == $.steps[1].outputs.todoId
  - DELETE: {}
    asserts:
-     ok: $.resp.json.id == $.stages[-2].outputs.todoId
-     boolean: $.resp.json.completed
-     ok: $.resp.json.task == "task one"
+     - ok: $.resp.json.id == $.steps[-2].outputs.todoId
+     - boolean: $.resp.json.completed
+     - ok: $.resp.json.task == "task one"
 "#,
             server.url("/todos"),
             server.url("/todo_get"),
@@ -794,11 +872,10 @@ mod tests {
             file_source: "file source".into(),
             file: "file.tk.yaml".into(),
             path: ".".into(),
-            stage: Some("stage_name".into()),
-            stage_index: 0,
+            step: Some("step_name".into()),
+            step_index: 0,
         };
-        let resp = run(ctx, yaml_str.into(), true).await;
-        log::debug!("{:?}", resp);
+        let resp = run(ctx.clone(), yaml_str.clone(), true).await;
         assert!(resp.is_ok());
         m3.assert_hits(1);
         m2.assert_hits(1);
@@ -812,10 +889,19 @@ mod tests {
         //     for c in captured_logs {
         //         println!("xx {:?}", c.body);
         //     }
-
         //     assert_eq!(captured_logs.len(), 1);
         //     // assert_eq!(captured_logs[0].body, "Something went wrong with 10");
         //     // assert_eq!(captured_logs[0].level, Level::Warn);
         // });
+
+        // We test if the kitchen sink also works for json
+        let json_str = yaml_to_json(&yaml_str).unwrap();
+        let resp = run_json(ctx, json_str.into(), true).await;
+        assert!(resp.is_ok());
+        m3.assert_hits(2);
+        m2.assert_hits(2);
+        m4.assert_hits(2);
+        m.assert_hits(2);
+        log::info!("{:#?}", resp);
     }
 }

@@ -2,8 +2,8 @@ use base_request::{RequestResult, TestContext};
 use libc::c_char;
 use std::ffi::{CStr, CString};
 
-mod base_cli;
-mod base_request;
+pub mod base_cli;
+pub mod base_request;
 
 #[no_mangle]
 pub extern "C" fn haskell_binding(

@@ -1,6 +1,6 @@
 #![feature(extend_one)]
-mod base_cli;
-mod base_request;
+pub mod base_cli;
+pub mod base_request;
 use anyhow::Ok;
 use base_cli::Commands;
 use base_request::{RequestResult, TestContext};
