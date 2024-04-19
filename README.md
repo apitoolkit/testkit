@@ -135,25 +135,25 @@ describe('TODO api testing', () => {
     - title: fetches TODO items - GET
       GET: /todos/
       asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
-        ok: $.resp.status == 200  # Rely on an expressions libray for parsing expressions
-        array: $.resp.json
+        - ok: $.resp.status == 200  # Rely on an expressions libray for parsing expressions
+        - array: $.resp.json
       exports: # values which should be accesible to future steps.
         todoItem: $.resp.json[0]._id
 
     - title: deletes TODO items - DELETE
       DELETE: /todos/$.stages[0].todoItem # relative syntax exists: $.stages[-1].todoItem, -1 means one stage before me
       asserts:
-        empty: $.resp.json.todos
-        string: $.resp.json
+        - empty: $.resp.json.todos
+        - string: $.resp.json
 
     - title: Adds Todo item - POST
       POST: /todos/
       json:
         task: "run tests"
       asserts:
-        ok: $.resp.status == 200
-        ok: $.resp.json.task == "run tests"
-        ok: $.resp.json.completed == false
+        - ok: $.resp.status == 200
+        - ok: $.resp.json.task == "run tests"
+        - ok: $.resp.json.completed == false
 ```
 
 ## Test Definition Syntax
@@ -165,25 +165,25 @@ describe('TODO api testing', () => {
     - title: fetches TODO items - GET
       GET: /todos/
       asserts:
-        ok: $.resp.status == 200
-        array: $.resp.json
+        - ok: $.resp.status == 200
+        - array: $.resp.json
       exports:
         todoItem: $.resp.json[0]._id
 
     - title: deletes TODO items - DELETE
       DELETE: /todos/$.stages[0].todoItem
       asserts:
-        empty: $.resp.json.todos
-        string: $.resp.json
+        - empty: $.resp.json.todos
+        - string: $.resp.json
 
     - title: Adds Todo item - POST
       POST: /todos/
       json:
           task: "run tests"
       asserts:
-        ok: $.resp.status == 200
-        ok: $.resp.json.task == "run tests"
-        ok: $.resp.json.completed
+        - ok: $.resp.status == 200
+        - ok: $.resp.json.task == "run tests"
+        - ok: $.resp.json.completed
 ```
 
 The YAML file consists of a list of test scenarios. Each scenario represents an API request and contains the following fields:
@@ -279,9 +279,9 @@ Here's an example to demonstrate the usage of the `asserts` field:
 - title: Fetches Todo items - GET
   GET: /todos/
   asserts:
-    ok: $.resp.status == 200
-    array: $.resp.json
-    ok: $.resp.json[0].task == "run tests"
+    - ok: $.resp.status == 200
+    - array: $.resp.json
+    - ok: $.resp.json[0].task == "run tests"
 ```
 
 The `.json` tells `testkit` to convert the response into JSON format.
@@ -366,8 +366,8 @@ Example:
 - title: deletes TODO items - DELETE
   DELETE: /todos/$.stages[-1].todoItem #-1 means one stage before me
   asserts:
-    string: $.resp.json.task
-    ok: $.resp.json.id == $.stages[-1].todoItem
+    - string: $.resp.json.task
+    - ok: $.resp.json.id == $.stages[-1].todoItem
 ```
 
 By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
@@ -381,7 +381,7 @@ Example:
 - title: Get User Profile - GET
   GET: /user/jon_doe
   asserts:
-    date: $.resp.json.createdAt %Y-%m-%d %H:%M:%S %Z
+    - date: $.resp.json.createdAt %Y-%m-%d %H:%M:%S %Z
 ```
 
 As you can we first provide a json path to the date followed by the date's format.
@@ -455,12 +455,12 @@ Example:
     X-Requested-With: XMLHttpRequest
   json: '{"user":{"email":"$.env.EMAIL", "password":"$.env.PASSWORD", "username":"$.env.USERNAME"}}'
   asserts:
-    exists: $.resp.json.user
-    exists: $.resp.json.user.email
-    exists: $.resp.json.user.username
-    exists: $.resp.json.user.bio
-    exists: $.resp.json.user.image
-    exists: $.resp.json.user.token
+    - exists: $.resp.json.user
+    - exists: $.resp.json.user.email
+    - exists: $.resp.json.user.username
+    - exists: $.resp.json.user.bio
+    - exists: $.resp.json.user.image
+    - exists: $.resp.json.user.token
 ```
 
 In this example, Testkit performs a POST request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
