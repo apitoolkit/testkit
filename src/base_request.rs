@@ -19,23 +19,12 @@ pub struct TestItem {
     #[serde(flatten)]
     request: RequestConfig,
     #[serde(default)]
-    // #[serde_as(as = "Vec<serde_with::Map<_,_>>")]
     #[serde(with = "serde_yaml::with::singleton_map_recursive")]
-    asserts: Vec<Assert>,
+    asserts: Option<Vec<Assert>>,
     exports: Option<HashMap<String, String>>,
 }
 
-// #[serde_as]
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct TestStage {}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Assert1x {
-    IsOk(String),
-    NotEmpty(String),
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Assert {
     #[serde(rename = "ok")]
     IsOk(String),
@@ -88,7 +77,7 @@ impl Default for HttpMethod {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
 pub struct RequestResult {
     pub step_name: Option<String>,
     pub step_index: u32,
@@ -110,7 +99,7 @@ pub struct ResponseObject {
     raw: String,
 }
 
-#[derive(Error, Debug, Diagnostic)]
+#[derive(Error, Serialize, Debug, Diagnostic)]
 #[error("request assertion failed!")]
 #[diagnostic(
     // code(asertion),
@@ -121,8 +110,10 @@ pub struct AssertionError {
     #[help]
     advice: Option<String>,
     #[source_code]
+    #[serde(skip_serializing)]
     src: NamedSource,
     #[label("This jsonpath here")]
+    #[serde(skip_serializing)]
     bad_bit: SourceSpan,
 }
 
@@ -336,7 +327,7 @@ pub async fn base_request(
         }
         let assert_results = check_assertions(
             ctx,
-            &test_item.asserts,
+            &(test_item.asserts.clone().unwrap_or(vec![])),
             assert_context,
             &exports_map,
             should_log,
@@ -770,6 +761,28 @@ mod tests {
         pub id: u32,
     }
     #[tokio::test]
+    async fn test_json_parse() {
+        env_logger::init();
+        let val = r#"[
+        {"GET":"https://6098f32599011f001713fc6e.mockapi.io/mail",
+        "asserts":null,"exports":null,
+        "headers":null,"json":null,"params":null,
+        "raw":null,"title":"Simple Test 1"
+        }]"#;
+        let ctx = TestContext {
+            plan: Some("plan".into()),
+            file_source: "file source".into(),
+            file: "file.tk.yaml".into(),
+            path: ".".into(),
+            step: Some("step_name".into()),
+            step_index: 0,
+        };
+        let resp = run_json(ctx.clone(), val.into(), true).await;
+        println!("resp {:?}", resp);
+        assert!(resp.is_ok());
+    }
+
+    #[tokio::test]
     async fn test_yaml_kitchen_sink() {
         env_logger::init();
         // testing_logger::setup();
@@ -896,7 +909,7 @@ mod tests {
 
         // We test if the kitchen sink also works for json
         let json_str = yaml_to_json(&yaml_str).unwrap();
-        let resp = run_json(ctx, json_str.into(), true).await;
+        let resp = run_json(ctx.clone(), json_str.into(), true).await;
         assert!(resp.is_ok());
         m3.assert_hits(2);
         m2.assert_hits(2);
