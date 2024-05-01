@@ -111,7 +111,7 @@ pub struct AssertionError {
     advice: Option<String>,
     #[source_code]
     #[serde(skip_serializing)]
-    src: NamedSource,
+    src: NamedSource<String>,
     #[label("This jsonpath here")]
     #[serde(skip_serializing)]
     bad_bit: SourceSpan,
