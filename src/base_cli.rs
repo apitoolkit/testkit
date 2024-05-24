@@ -1,40 +1,26 @@
-use clap::{Arg, Command};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub struct BaseCli {
-    pub file: PathBuf,
+#[derive(Parser)]
+#[command(name = "testkit")]
+#[command(author = "APIToolkit. <hello@apitoolkit.io>")]
+#[command(version = "1.0")]
+#[command(about = "Manually and Automated testing starting with APIs", long_about = None)]
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+
+    /// Sets the log level to be used. Eg trace, debug, warn, info, error
+    #[arg(short, long, default_value = "info")]
     pub log_level: String,
 }
 
-impl BaseCli {
-    pub fn parse() -> BaseCli {
-        let matches = Command::new("Api Test")
-            .version("0.1.0")
-            .about("Api load testing CLI")
-            .arg(
-                Arg::new("file")
-                    .short('f')
-                    .long("file")
-                    .value_name("FILE")
-                    .help("Sets the YAML test configuration file")
-                    .required(true),
-            )
-            .arg(
-                Arg::new("log")
-                    .short('l')
-                    .long("log")
-                    .value_name("LOG LEVEL")
-                    .help("Sets the log level to be used. Eg trace, debug, warn, info, error"),
-            )
-            .get_matches();
-
-        let file = matches.get_one::<String>("file").unwrap().to_owned();
-        let file = PathBuf::from(file);
-
-        let log_level = matches
-            .get_one::<String>("log")
-            .unwrap_or(&"info".to_string())
-            .to_owned();
-        BaseCli { file, log_level }
-    }
+#[derive(Subcommand)]
+pub enum Commands {
+    Test {
+        /// Sets the YAML test configuration file
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
+    App {},
 }

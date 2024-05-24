@@ -10,7 +10,7 @@ let todos = [];
 
 // Get all todos
 app.get('/todos', (req, res) => {
-  res.json(todos);
+  res.json({ "tasks": ["task one", 4, "task two", "task three"], "empty_str": "", "empty_arr": [], resp_null: null });
 });
 
 // Get a specific todo by ID
@@ -30,7 +30,6 @@ app.post('/todos', (req, res) => {
   const newTodo = req.body;
   newTodo.id = todos.length + 1;
   todos.push(newTodo);
-
   res.status(201).json(newTodo);
 });
 
@@ -50,9 +49,9 @@ app.put('/todos/:id', (req, res) => {
 
 // Delete a todo
 app.delete('/todos/:id', (req, res) => {
+  console.log(req.params.id)
   const id = parseInt(req.params.id);
   const index = todos.findIndex(todo => todo.id === id);
-
   if (index !== -1) {
     const deletedTodo = todos.splice(index, 1);
     res.json(deletedTodo[0]);
