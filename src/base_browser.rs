@@ -1,6 +1,6 @@
 use fantoccini::{Client, Locator};
 use serde::{Deserialize, Serialize};
-use std::{time::Duration, fs};
+use std::{fs, time::Duration};
 use tokio;
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -31,10 +31,14 @@ pub struct TestCase {
     steps: Vec<TestStep>,
 }
 
-pub async fn run_browser_tests(test_cases: &Vec<TestCase>) -> Result<(), fantoccini::error::CmdError> {
+pub async fn run_browser_tests(
+    test_cases: &Vec<TestCase>,
+) -> Result<(), fantoccini::error::CmdError> {
     println!("Running browser tests...");
 
-    let mut client = Client::new("http://localhost:4444").await.expect("Failed to connect to WebDriver");
+    let mut client = Client::new("http://localhost:4444")
+        .await
+        .expect("Failed to connect to WebDriver");
 
     for test_case in test_cases {
         println!("Executing test case: {}", test_case.name);
@@ -72,7 +76,10 @@ pub async fn run_browser_tests(test_cases: &Vec<TestCase>) -> Result<(), fantocc
                     if let Some(selector) = &assertion.string {
                         let element = client.find(Locator::Css(selector)).await?;
                         let text = element.text().await?;
-                        assert!(text.parse::<String>().is_ok(), "Expected string but found something else");
+                        assert!(
+                            text.parse::<String>().is_ok(),
+                            "Expected string but found something else"
+                        );
                     }
 
                     if let Some(equal) = &assertion.equal {
@@ -82,7 +89,11 @@ pub async fn run_browser_tests(test_cases: &Vec<TestCase>) -> Result<(), fantocc
                             let expected_value = parts[1].trim().trim_matches('"');
                             let element = client.find(Locator::Css(selector)).await?;
                             let text = element.text().await?;
-                            assert_eq!(text, expected_value, "Expected '{}' but found '{}'", expected_value, text);
+                            assert_eq!(
+                                text, expected_value,
+                                "Expected '{}' but found '{}'",
+                                expected_value, text
+                            );
                         }
                     }
                 }
