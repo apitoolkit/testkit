@@ -26,9 +26,9 @@ pub enum Commands {
         #[arg(short = 'b', long)]
         browser: bool,
 
+        
         #[arg(short, long)]
         file: Option<PathBuf>,
-
     },
     App {},
 }
