@@ -5,6 +5,7 @@ use base_cli::Commands;
 use base_request::{RequestResult, TestContext};
 use clap::Parser;
 use dotenv::dotenv;
+// use fantoccini::{Client, Locator};
 use log::LevelFilter;
 use std::{
     fs,
@@ -29,18 +30,18 @@ async fn main() {
         .filter_module("jsonpath_lib", LevelFilter::Info)
         .init();
 
-        match cli_instance.command {
-            None | Some(Commands::App {}) => {}
-            Some(Commands::Test { file, api, browser }) => {
-                if api {
-                    cli_api(file).await.unwrap();
-                }
-                if browser {
-                    print!("broswer test")
-                    // cli_browser(file).await.unwrap();
-                }
+    match cli_instance.command {
+        None | Some(Commands::App {}) => {}
+        Some(Commands::Test { file, api, browser }) => {
+            if api {
+                cli_api(file).await.unwrap();
+            }
+            if browser {
+                print!("broswer test")
+                // cli_browser(file).await.unwrap();
             }
         }
+    }
 }
 
 async fn cli_api(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
@@ -70,6 +71,10 @@ async fn cli_api(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
         }
     }
 }
+
+// async fn cli_browser(file_op: Option<PathBuf>) -> Result<(), fantoccini::error::CmdError> {
+// Ok(())
+// }
 
 fn find_tk_yaml_files(dir: &Path) -> Vec<PathBuf> {
     let mut result = Vec::new();
