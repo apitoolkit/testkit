@@ -21,6 +21,13 @@ pub enum Commands {
         /// Sets the YAML test configuration file
         #[arg(short, long)]
         file: Option<PathBuf>,
+        
+        #[arg(short = 'i', long)]
+        api: bool,
+
+        /// Run browser tests
+        #[arg(short = 'b', long)]
+        browser: bool,
     },
     App {},
 }

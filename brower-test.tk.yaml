@@ -1,0 +1,14 @@
+- title: "Search Test"
+  steps:
+    - visit: "http://google.com"
+    - find: ".search-bar"
+        - type: "query"
+    - find: ".search-button"
+          - click: true
+    - wait: 200
+    - find: ".result-item"
+    - assert:
+          - array: .result-count
+          - empty: .result-count
+          - string: .result-count
+          - equal:  .result-count == "Hello, world"

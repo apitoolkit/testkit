@@ -1,4 +1,3 @@
-#![feature(extend_one)]
 pub mod base_cli;
 pub mod base_request;
 use anyhow::Ok;
@@ -30,13 +29,21 @@ async fn main() {
         .filter_module("jsonpath_lib", LevelFilter::Info)
         .init();
 
-    match cli_instance.command {
-        None | Some(Commands::App {}) => {}
-        Some(Commands::Test { file }) => cli(file).await.unwrap(),
-    }
+        match cli_instance.command {
+            None | Some(Commands::App {}) => {}
+            Some(Commands::Test { file, api, browser }) => {
+                if api {
+                    cli_api(file).await.unwrap();
+                }
+                if browser {
+                    print!("broswer test")
+                    // cli_browser(file).await.unwrap();
+                }
+            }
+        }
 }
 
-async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
+async fn cli_api(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
     match file_op {
         Some(file) => {
             let content = fs::read_to_string(file.clone())?;
