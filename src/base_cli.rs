@@ -18,15 +18,14 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     Test {
-        /// Sets the YAML test configuration file
+        /// Run browser tests
         #[arg(short = 'i', long)]
         api: bool,
 
-        /// Run browser tests
         #[arg(short = 'b', long)]
         browser: bool,
 
-        
+        /// Sets the YAML test configuration file
         #[arg(short, long)]
         file: Option<PathBuf>,
     },
