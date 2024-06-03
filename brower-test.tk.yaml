@@ -1,14 +1,15 @@
-- title: "Search Test"
+- name: "Search Test"
+  description: "Test the search functionality"
   steps:
     - visit: "http://google.com"
-    - find: ".search-bar"
-        - type: "query"
-    - find: ".search-button"
-          - click: true
-    - wait: 200
-    - find: ".result-item"
+    - find: "[name='q']"
+      type_text: "test query"
+    - find: "[name='btnK']"
+      click: true
+    - wait: 2000
+    - find: "#search"
     - assert:
-          - array: .result-count
-          - empty: .result-count
-          - string: .result-count
-          - equal:  .result-count == "Hello, world"
+        - array: ".g"
+        - empty: ".non-existent-class"
+        - string: "h3"
+        - equal: "input[name='q'] == 'test query'"
