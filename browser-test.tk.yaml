@@ -1,0 +1,27 @@
+- metadata:
+    name: Login To Talstack
+    description: test login
+    headless: false
+    browser: firefox
+  groups:
+    - group: Login to Talstack
+      steps:
+        - visit: 'app.talstack.com'
+        - find: .social-button_SocialButton__C6hcE
+          click: true
+        - wait: 2000
+        - find_xpath: '//*[@id="identifierId"]'
+          type_text: random@tjs.com
+        - wait: 2000
+        - find_xpath: '//*[@id="identifierNext"]'
+          click: true
+        - wait: 2000
+        - find_xpath: '//*[@id="password"]/div[1]/div/div[1]/input'
+          type_text: "loleremm"
+        - find_xpath: '//*[@id="passwordNext"]'
+          click: true
+        - wait: 10000
+    - group: Register a user
+      steps:
+        - visit: 'app.talstack.com/'
+

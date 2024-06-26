@@ -1,6 +1,6 @@
 use base_request::{RequestResult, TestContext};
 use libc::c_char;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 
 pub mod base_cli;
 pub mod base_request;
