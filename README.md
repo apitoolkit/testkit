@@ -25,6 +25,8 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
 - [Date Assertions](#date-assertions)
 - [Using Environment Variables](#using-environment-variables)
+  - [Using a `.env` File](#using-a-env-file)
+  - [Setting the Environment Variables Directly](#setting-the-environment-variables-directly)
 - [Contributing and Help](#contributing-and-help)
 - [License](#license)
 
@@ -341,9 +343,7 @@ Here's an example that demonstrates the usage of the `exports` field:
 
 In the above example, the `exports` field captures the value of the `_id` property from the first element of the API response array. It assigns this value to the `todoItem` export. By capturing the `_id` value in the `todoItem` exports, you can access it in subsequent stages of the test scenario. This allows you to use the extracted data for further API requests, assertions, or any other necessary operations.
 
-The `exports` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests.
-
-Using the `exports` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
+The `exports` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests. Using the `exports` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
 
 </details>
 
@@ -424,7 +424,7 @@ To make date assertions in `testkit` you'll need to provide the date string and 
     - date: $.resp.json.createdAt %Y-%m-%d %H:%M:%S %Z
 ```
 
-Here, we first provide a JSONPath to the date followed by the date's format.
+In the example above, we first provide a JSONPath to the date followed by the date's format.
 
 <details>
 <summary><b>More on the date format</b></summary>
@@ -471,7 +471,9 @@ In this table, the "Date String" column represents the example date string, and 
 
 ## Using Environment Variables
 
-Testkit supports environment variables in two ways: **using a `.env` file** or **directly setting environment variables**. These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
+Testkit supports environment variables in two ways. These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
+
+### Using a `.env` File
 
 Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution. Here's an example `.env` file:
 
@@ -483,15 +485,17 @@ USERNAME=myusername
 APIKEY=mysecretapikey
 ```
 
-Setting environment variables directly is done via the command-line or the test environment. Here's an example of the command-line usage:
+### Setting the Environment Variables Directly
+
+Setting environment variables directly is done via the command line or the test environment. Here's an example of the CLI usage:
 
 ```sh
 APIKEY=SECRETAPIKEY testkit test --file test.tk.yaml
 ```
 
-To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details.
+### Utilizing Environment Variables
 
-Here's an example:
+To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details. Here's an example:
 
 ```yaml
 - title: Register
@@ -509,7 +513,7 @@ Here's an example:
     - exists: $.resp.json.user.token
 ```
 
-In this example, `testkit` performs a POST request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
+In this example, `testkit` performs a `POST` request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
 
 ## Contributing and Help
 
