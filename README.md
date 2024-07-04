@@ -1,8 +1,5 @@
 <div align="center">
 
-![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-white.svg?raw=true#gh-dark-mode-only)
-![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-black.svg?raw=true#gh-light-mode-only)
-
 # Testkit
 
 [![APItoolkit OSS](https://img.shields.io/badge/APItoolkit-OSS-0068ff?logo=rust)](https://github.com/topics/apitoolkit) [![](https://img.shields.io/github/v/release/apitoolkit/testkit)](https://github.com/apitoolkit/testkit/releases) [![](https://img.shields.io/github/downloads/apitoolkit/testkit/total)](https://github.com/apitoolkit/testkit/archive/refs/heads/main.zip) [![Join Discord Server](https://img.shields.io/badge/Chat-Discord-7289da)](https://discord.gg/dEB6EjQnKB)
