@@ -103,9 +103,9 @@ Kindly follow the steps below to build the project locally:
 
 6. Run the `testkit` CLI tool, using the command below:
 
-```bash
-testkit test --file ./test.tk.yaml
-```
+   ```bash
+   testkit test --file ./test.tk.yaml
+   ```
 
 7. For further testing, ensure to replace the `./test.tk.yaml` with the path to your YAML test file.
 
@@ -226,7 +226,7 @@ In the example above, the YAML test file defines three test items fetching TODO 
 | `asserts` (optional)    | Optional. Defines assertions to be performed on the response for validation.  |
 | `exports` (optional)    | Optional. Specifies values to capture from the response for future stages.  |
 
-Kindly click each toggle below to learn more about each fields.
+Kindly click each toggle below to learn more about each field.
 
 <details>
 <summary><b><code>request</code> field</b></summary>
