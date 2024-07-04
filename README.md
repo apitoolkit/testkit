@@ -1,103 +1,130 @@
-# Testkit Testing Tool Documentation
+<div align="center">
 
-## Introduction
+![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-white.svg?raw=true#gh-dark-mode-only)
+![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-black.svg?raw=true#gh-light-mode-only)
 
-Testkit is a testing tool designed for API manual testing and test automation tasks. It provides a simplified yaml syntax for defining and executing API test scenarios.
-<img width="1107" alt="image" src="https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c">
+# Testkit
 
-### Why a testing DSL?
+[![APItoolkit OSS](https://img.shields.io/badge/APItoolkit-OSS-0068ff?logo=rust)](https://github.com/topics/apitoolkit) [![](https://img.shields.io/github/v/release/apitoolkit/testkit)](https://github.com/apitoolkit/testkit/releases) [![](https://img.shields.io/github/downloads/apitoolkit/testkit/total)](https://github.com/apitoolkit/testkit/archive/refs/heads/main.zip) [![Join Discord Server](https://img.shields.io/badge/Chat-Discord-7289da)](https://discord.gg/dEB6EjQnKB)
 
-- Teams should not be forced to write javascript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system
-- We should be able to create interactive builders that generate this underlying DSL. So you shouldn't even need to write this DSL by hand in the future
-- We should be able to use the same script for both individual tests and load testing.
-- We should still be able to persist these tests in our version control and collaborate on them with our peers
-- Inspired by [Local-First software](https://www.inkandswitch.com/local-first/) principles
+Testkit is a testing tool designed for API manual testing and test automation tasks built by the [APItoolkit](https://apitoolkit.io?utm_source=apitoolkit_testkit) team and amazing community [contributors](https://github.com/apitoolkit/testkit/graphs/contributors). Testkit provides a simplified YAML syntax for defining and executing API test scenarios.
+
+![Testkit demo](https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c)
+
+</div>
+
+---
 
 ## Table of Contents
 
+- [Why a Testing DSL?](#why-a-testing-dsl)
 - [Installation](#installation)
-- [How to Run](#how-to-run)
-- [Test Definition Syntax](#test-definition-syntax)
 - [Comparison with Other Testing Libraries](#comparison-with-other-testing-libraries)
-- [What is JSONPath](#what-is-jsonpath)
-- [The `request` Field](#request-field)
-- [The `asserts` Field](#asserts-field)
-- [The `exports` Field](#exports)
+- [Test Definition Syntax](#test-definition-syntax)
+- [What is JSONPath?](#what-is-jsonpath)
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
-- [Date assertions](#date-assertions)
-- [Using environment variables](#using-environment-variables)
+- [Date Assertions](#date-assertions)
+- [Using Environment Variables](#using-environment-variables)
+- [Contributing and Help](#contributing-and-help)
+- [License](#license)
 
-FYI, this table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
+---
+
+## Why a Testing DSL?
+
+- Teams should not be forced to write Javascript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system.
+- We should be able to create interactive builders that generate this underlying DSL (Domain Specific Language). So you shouldn't even need to write this DSL by hand in the future.
+- We should be able to use the same script for both individual tests and load testing.
+- We should still be able to persist these tests in our version control and collaborate on them with our peers.
+- Inspired by [Local-First software](https://inkandswitch.com/local-first?utm_source=apitoolkit_testkit) principles.
 
 ## Installation
 
-To install the `testkit` testing tool, follow one of the options below:
+To install `testkit`, kindly follow one of the options below (click on the toggle):
 
-#### Download binaries:
+<details>
+<summary><b>Download Binaries</b></summary>
+<br />
+   
+Navigate to the [releases page](https://github.com/apitoolkit/testkit/releases), download the latest version of the `testkit` binary suitable for your operating system (Windows, macOS, or Linux), and proceed to install.
 
-Navigate to the releases page and proceed to install the testkit binary suitable for your operating system (linux, mac and windows).
-[Check releases](https://github.com/apitoolkit/testkit/releases/release-test)
+| Binary File    | Description         |
+|----------------|---------------------|
+| `testkit-release-test-i686-pc-windows-msvc.zip`       | 32-bit Windows (MSVC)   |
+| `testkit-release-test-x86_64-pc-windows-msvc.zip`     | 64-bit Windows (MSVC)   |
+| `testkit-release-test-x86_64-pc-windows-gnu.zip`      | 64-bit Windows (GNU)    |
+| `testkit-release-test-x86_64-apple-darwin.tar.gz`     | 64-bit macOS (Darwin) |
+| `testkit-release-test-x86_64-unknown-linux-gnu.tar.gz`| 64-bit Linux (GNU)    |
 
-#### macOS
 
-To install Testkit on macOS using Homebrew, follow these steps:
+After downloading, extract the zip file and proceed to install the extracted file. Alternatively, if you're using macOS, you can use Homebrew to install, like so:
 
-1. Tap the Testkit release repository:
+1. Tap the `testkit` release repository to add it as a source for Homebrew formulae using the command below:
 
    ```bash
    brew tap apitoolkit/testkit
    ```
 
-   Tapping the repository adds it as a source for Homebrew formulae.
-
-2. Install Testkit:
+2. Install `testkit` using the command below:
 
    ```bash
    brew install testkit
    ```
 
-   This command will download and install Testkit on your macOS system.
+</details>
 
-#### Clone repository:
+<details>
+<summary><b>Clone Repository</b></summary>
+<br />
 
-1. Ensure you have Rust programming language and Cargo package manager installed on your system. You can download them from the official Rust website: [https://www.rust-lang.org/](https://www.rust-lang.org/).
+Kindly follow the steps below to build the project locally:
 
-2. Clone the `testkit` repository from GitHub using the following command:
+1. Ensure you have [Rust](https://rust-lang.org) programming language and [Cargo package manager ](https://doc.rust-lang.org/cargo/getting-started/installation.html)installed on your computer.
 
-   ```
+2. Clone the `testkit` repository from GitHub using the command below:
+
+   ```bash
    git clone https://github.com/testkit/testkit
    ```
 
-3. Change into the cloned directory:
+3. Open the cloned directory using the command below:
 
-   ```
+   ```bash
    cd testkit
    ```
 
-4. Build the project using Cargo:
+4. Build the project using the Cargo command below:
 
-   ```
+   ```bash
    cargo build --release
    ```
 
-5. Once the build process is complete, you can find the `testkit` executable file in the `target/release` directory.
+5. Once the build process is complete, you will find the `testkit` executable file in the `target/release` directory.
 
-6. Run the `testkit` cli tool, use the following command:
+6. Run the `testkit` CLI tool, using the command below:
 
-```bash
-testkit test --file ./test.tk.yaml
-```
+   ```bash
+   testkit test --file ./test.tk.yaml
+   ```
 
-Make sure to replace `./test.yaml` with the path to your YAML test file.
+7. For further testing, ensure to replace the `./test.tk.yaml` with the path to your YAML test file.
+
+</details>
+
+<br />
+
+> [!NOTE]
+>
+> Once `testkit` is installed succesfully, run the `testkit --help` command for all CLI commands and options.
 
 ## Comparison with Other Testing Libraries
 
-Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight the elegance, cleanliness, and simplicity of `testkit`. To illustrate this, we will rewrite a Cypress test using `testkit`.
+Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight it's elegance, cleanliness, and simplicity. By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. To illustrate this, we will rewrite a Cypress test as seen below:
 
-By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. It offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios. Let's explore the rewritten test using `testkit`.
+### Cypress ⤵️
 
 ```js
-describe('TODO api testing', () => {
+describe('TODO API testing', () => {
   let todoItem;
   it('fetches Todo items - GET', () => {
     cy.request('/todos/').as('todoRequest');
@@ -108,7 +135,7 @@ describe('TODO api testing', () => {
     });
   });
 
-  it('deletes Todo items - DELETE', () => {
+  it('Deletes Todo items - DELETE', () => {
     cy.request('DELETE', `/todos/${todoItem}`).as('todoRequest');
     cy.get('@todoRequest').then((todos) => {
       expect(todos.status).to.eq(200);
@@ -118,7 +145,7 @@ describe('TODO api testing', () => {
 
   it('Adds Todo item - POST', () => {
     cy.request('POST', '/todos/', { task: 'run tests' }).as('todoRequest');
-    // adds new Todo item by defining Todo name
+    // Adds new Todo item by defining Todo name
     cy.get('@todoRequest').then((todos) => {
       expect(todos.status).to.eq(200);
       cy.wrap(todos.body).should('deep.include', {
@@ -130,18 +157,20 @@ describe('TODO api testing', () => {
 });
 ```
 
+### Testkit ⤵️
+
 ```yaml
 ---
     - title: fetches TODO items - GET
       GET: /todos/
-      asserts: # Asserts accepts a list of expressions, usually via json_paths to identify the items being refered to.
-        - ok: $.resp.status == 200  # Rely on an expressions libray for parsing expressions
+      asserts: # Asserts accepts a list of expressions, usually via JSONPaths to identify the items being referred to.
+        - ok: $.resp.status == 200  # Rely on an expressions library for parsing expressions
         - array: $.resp.json
-      exports: # values which should be accesible to future steps.
+      exports: # Values which should be accessible to future steps.
         todoItem: $.resp.json[0]._id
 
     - title: deletes TODO items - DELETE
-      DELETE: /todos/$.stages[0].todoItem # relative syntax exists: $.stages[-1].todoItem, -1 means one stage before me
+      DELETE: /todos/$.stages[0].todoItem # Relative syntax exists: $.stages[-1].todoItem, -1 means one stage before me
       asserts:
         - empty: $.resp.json.todos
         - string: $.resp.json
@@ -156,9 +185,11 @@ describe('TODO api testing', () => {
         - ok: $.resp.json.completed == false
 ```
 
+Testkit offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios.
+
 ## Test Definition Syntax
 
-`testkit` uses a YAML-based syntax for defining test scenarios. Each scenario consists of multiple stages, where each stage represents a specific API request and its associated assertions. Below is an example of the YAML syntax for defining API tests:
+Testkit uses a YAML-based syntax for defining test scenarios. Each scenario consists of multiple stages, where each stage represents a specific API request and its associated assertions. Below is an example of the YAML syntax for defining API tests:
 
 ```yaml
 ---
@@ -186,42 +217,24 @@ describe('TODO api testing', () => {
         - ok: $.resp.json.completed
 ```
 
-The YAML file consists of a list of test scenarios. Each scenario represents an API request and contains the following fields:
+In the example above, the YAML test file defines three test items fetching TODO items using a GET request, deleting a specific TODO item using a DELETE request, and adding a new TODO item using a POST request. The YAML file consists of a list of test scenarios. Each scenario represents an API request and contains the following fields:
 
-- `name` (required): A descriptive name for the stage.
-- `request` (required): Defines the API request to be made. It can include HTTP methods (`GET`, `POST`, `PUT`, `DELETE`, etc.) and the corresponding request URL or endpoint.
-- `asserts` (optional): Defines the assertions to be performed on the response. It specifies conditions that must be satisfied for the test to pass.
-- `exports` (optional): Specifies the values to be captured from the response and made available to future stages.
+| Field         | Description    |
+|---------------|----------------|
+| `name` (required)       | A descriptive name for the stage.      |
+| `request` (required)    | Defines the API request to be made, including HTTP methods and the URL.      |
+| `asserts` (optional)    | Optional. Defines assertions to be performed on the response for validation.  |
+| `exports` (optional)    | Optional. Specifies values to capture from the response for future stages.  |
 
-In the example above, the YAML test file defines three test items fetching TODO items using a GET request, deleting a specific TODO item using a DELETE request, and adding a new TODO item using a POST request.
-The `name` field is self explanatory and so we'll take more about the rest of the fields in detail but before that let's talk about JSONPath.
+Kindly click each toggle below to learn more about each field.
 
-### What is JSONPath
-
-JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and exports.
-
-To illustrate how JSONPath works, consider the following examples:
-
-- `$.user.name`: This expression retrieves the name of a user from the top-level object in the JSON document.
-- `$.todos[0].task`: Here, the expression accesses the task property of the first element in an array of todos.
-- `$.todos[*].task.description`: This expression retrieves the description property of all tasks within the todos array.
-
-The syntax of JSONPath expressions includes several key components:
-
-- Bracket notation (`[]`): Used to access elements within an array by providing the index within square brackets.
-- Wildcard (`*`): Matches any element at the current level, allowing you to retrieve all elements of a particular level.
-- Recursive descent (`..`): Enables searching for elements at any depth within the JSON structure, including nested objects and arrays.
-- Filters (`[?]`): Allows applying conditions or filters to select specific elements based on certain criteria.
-
-By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing exports during the testing process. learn more about jsonpaths [here](https://lzone.de/cheat-sheet/JSONPath)
-
-### request field
+<details>
+<summary><b><code>request</code> field</b></summary>
+<br />
 
 The `request` field in `testkit` defines the API request to be made and consists of three properties:
 
-- `method`: This property specifies the HTTP method for the request, such as `GET`, `POST`, `PUT`, or `DELETE`. The value of the `method` property is the request URL path.
-
-  Example:
+1. `method` (required): This property specifies the HTTP method for the request, such as `GET`, `POST`, `PUT`, or `DELETE`. The value of the `method` property is the request URL path. Example:
 
   ```yaml
   # POST request
@@ -233,9 +246,7 @@ The `request` field in `testkit` defines the API request to be made and consists
     GET: /todos/
   ```
 
-- `headers` (optional): This property allows you to include HTTP headers in the request. Headers can be used to pass additional information to the server, such as authentication tokens or content type.
-
-  Example:
+2. `headers` (optional): This property allows you to include HTTP headers in the request. Headers can be used to pass additional information to the server, such as authentication tokens or content types. Example:
 
   ```yaml
   - title: Fetches Todo items - GET with headers
@@ -248,9 +259,7 @@ The `request` field in `testkit` defines the API request to be made and consists
         - POST
   ```
 
-- `json` The `request` field in `testkit` also supports an optional property called `json`. This property allows you to include request body data in JSON format when necessary.
-  By specifying the `json` property within the `request` field, you can provide structured data that needs to be sent along with the API request.
-  Here's an example illustrating the usage of the `json` property:
+3. `json` (optional): This property allows you to include request body data in JSON format when necessary. By specifying the `json` property within the `request` field, you can provide structured data that needs to be sent along with the API request. Example:
 
   ```yaml
   - title: Create User - POST
@@ -261,17 +270,17 @@ The `request` field in `testkit` defines the API request to be made and consists
       email: john.doe@example.com
   ```
 
-  In the above example, a POST request is made to create a new user. The `json` property contains the user data in JSON format, including properties such as `name`, `age`, and `email`.
-
-  Including the `json` property in the `request` field enables you to pass structured data to the API endpoint, facilitating actions such as creating or updating resources on the server.
+In the above example, a POST request is made to create a new user. The `json` property contains the user data in JSON format, including properties such as `name`, `age`, and `email`. Including the `json` property in the `request` field enables you to pass structured data to the API endpoint, facilitating actions such as creating or updating resources on the server.
 
 These properties in the `request` field provide flexibility and control over the API requests made during testing. You can specify the HTTP method and include headers as needed to interact with the API endpoints effectively.
 
-## asserts field
+</details>
 
-The `asserts` field in `testkit` plays a crucial role in defining assertions or validations to be performed on the API response. It allows you to specify conditions that must be met for the test to pass successfully.
+<details>
+<summary><b><code>asserts</code> field</b></summary>
+<br />
 
-The `asserts` field accepts a collection of key-value pairs, where the keys represent the type of assertion and the values define the corresponding expressions or conditions to be evaluated.
+The `asserts` field in `testkit` plays a crucial role in defining assertions or validations to be performed on the API response. It allows you to specify conditions that must be met for the test to pass successfully. The field accepts a collection of key-value pairs, where the keys represent the type of assertion (think of it as a variable) and the values define the corresponding expressions or conditions to be evaluated. You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
 
 Here's an example to demonstrate the usage of the `asserts` field:
 
@@ -283,34 +292,39 @@ Here's an example to demonstrate the usage of the `asserts` field:
     - array: $.resp.json
     - ok: $.resp.json[0].task == "run tests"
 ```
+<br />
 
-The `.json` tells `testkit` to convert the response into JSON format.
-This allows you to access properties of the response JSON using JSONPath expressions.
+> NB: The `.json` in `$.resp.json` tells `testkit` to convert the response into JSON format. This allows you to access properties of the response JSON using JSONPath expressions.
 
 In the above example, we have defined three assertions:
 
 1. `ok`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
 
-2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.json` is evaluated, and if the result is an array, the assertion passes.
+2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.json[0].task == "run tests"` is evaluated, and if the result is an array, the assertion is considered successful.
 
-You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
+3. `ok`: This assertion checks if the first Todo item retrieved from the API response has a task name equal to "run tests". The expression `$.resp.json` is evaluated, and if it returns `true`, the assertion is considered successful.
 
-By utilizing the `asserts` field effectively, you can ensure that the API response meets the expected criteria, providing confidence in the correctness and reliability of your API.
-All possible assertions you could use in the `asserts` field of `testkit` are as follows:
+By utilizing the `asserts` field effectively, you can ensure that the API response meets the expected criteria, providing confidence in the correctness and reliability of your API. All possible assertions you could use are as follows:
 
-- `ok`: Checks if the provided expression evaluates to `true`.
-- `empty`: Checks if a value is empty (e.g., an empty array, string, or null).
-- `array`: Checks if a value is an array.
-- `string`: Checks if a value is a string.
-- `number`: Checks if a value is a number.
-- `boolean`: Checks if a value is a boolean.
-- `null`: Checks if a value is null.
-- `exists`: Check if a value exists
-- `date`: Checks if a value is a valid date string
+| Assertion | Description     |
+|-----------|-----------------|
+| `ok`     | Checks if the provided expression evaluates to `true`. |
+| `empty`  | Checks if a value is empty (e.g., an empty array, string, or null). |
+| `array`  | Checks if a value is an array.                  |
+| `string` | Checks if a value is a string.                  |
+| `number` | Checks if a value is a number.                  |
+| `boolean`| Checks if a value is a boolean.                 |
+| `null`   | Checks if a value is null.                      |
+| `exists` | Checks if a value exists.                       |
+| `date`   | Checks if a value is a valid date string.       |
 
 These assertions provide a wide range of options to validate different aspects of the API response, allowing you to ensure the correctness and integrity of the data and behavior. You can select the appropriate assertion based on the specific validation requirements of your API test scenario.
 
-## exports
+</details>
+
+<details>
+<summary><b><code>exports</code> field</b></summary>
+<br />
 
 The `exports` field in `testkit` allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
 
@@ -325,19 +339,42 @@ Here's an example that demonstrates the usage of the `exports` field:
     todoItem: $.resp.json[0]._id
 ```
 
-In the above example, the `exports` field captures the value of the `_id` property from the first element of the API response array. It assigns this value to the `todoItem` export.
+In the above example, the `exports` field captures the value of the `_id` property from the first element of the API response array. It assigns this value to the `todoItem` export. By capturing the `_id` value in the `todoItem` exports, you can access it in subsequent stages of the test scenario. This allows you to use the extracted data for further API requests, assertions, or any other necessary operations.
 
-By capturing the `_id` value in the `todoItem` exports, you can access it in subsequent stages of the test scenario. This allows you to use the extracted data for further API requests, assertions, or any other necessary operations.
+The `exports` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests. Using the `exports` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
 
-The `exports` field enables you to create a bridge between different stages within the test scenario, providing a way to pass relevant data between them. This can be particularly useful when you need to refer to specific values or dynamically generate inputs for subsequent API requests.
+</details>
 
-Using the `exports` field, you can enhance the flexibility and modularity of your API tests, making them more robust and adaptable to different scenarios.
+## What is JSONPath?
+
+JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and exports. To illustrate how JSONPath works, consider the following examples:
+
+- `$.user.name`: This expression retrieves the name of a user from the top-level object in the JSON document.
+- `$.todos[0].task`: This expression accesses the task property of the first element in an array of todos.
+- `$.todos[*].task.description`: This expression retrieves the description property of all tasks within the todos array.
+
+The syntax of JSONPath expressions includes several key components:
+
+| Component   | Description     |
+|-------------|-----------------|
+| Bracket notation  | Access elements within an array by providing the index within square brackets (`[]`). |
+| Wildcard          | Match any element at the current level, allowing retrieval of all elements of that level (`*`). |
+| Recursive descent | Enable searching for elements at any depth within the JSON structure, including nested objects and arrays (`..`). |
+| Filters           | Apply conditions or filters to select specific elements based on certain criteria (`[?]`). |
+
+By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit` facilitating the extraction of data for performing assertions and capturing exports during the testing process.
+
+<br />
+
+> [!NOTE]
+>
+> To learn more about JSONPaths, please take a look at the [official docs](https://github.com/json-path/JsonPath/blob/master/README.md).
 
 ## Referencing Values and Dynamic Inputs for Subsequent API Requests
 
 The `exports` field in `testkit` not only allows you to capture values from the API response but also provides a powerful mechanism for referencing those values and dynamically generating inputs for subsequent API requests.
 
-By capturing relevant data using the `exports` field, you can store it as an export and easily refer to it in later stages of your test scenario. This capability becomes particularly useful when you need to access specific values extracted from the response and utilize them in subsequent API requests.
+By capturing relevant data using the `exports` field, you can store it as an export and easily refer to it in the later stages of your test scenario. This capability becomes particularly useful when you need to access specific values extracted from the response and utilize them in subsequent API requests.
 
 For example, let's say you retrieve an ID from an API response in one stage using the `exports` field:
 
@@ -372,10 +409,9 @@ Example:
 
 By referencing specific values captured in previous stages, you can establish dependencies between different API requests and ensure seamless data flow throughout your test scenario. This flexibility allows you to build more comprehensive and realistic tests, simulating complex user interactions or workflows.
 
-## Date assertions
+## Date Assertions
 
-To make date assertions in Testkit you'll need to provided the date string and the date format
-Example:
+To make date assertions in `testkit` you'll need to provide the date string and the date format, like so:
 
 ```yaml
 - title: Get User Profile - GET
@@ -384,29 +420,37 @@ Example:
     - date: $.resp.json.createdAt %Y-%m-%d %H:%M:%S %Z
 ```
 
-As you can we first provide a json path to the date followed by the date's format.
+In the example above, we first provide a JSONPath to the date followed by the date's format.
 
-### More on date format
+<details>
+<summary><b>More on the date format</b></summary>
+<br />
 
 Testkit uses the chrono crate's formatting tokens to represent different components of a date. Here are some commonly used formatting tokens:
 
-- `%Y`: Year with century as a decimal number (e.g., 2023).
-- `%m`: Month as a zero-padded decimal number (e.g., 07 for July).
-- `%b` or `%h`: Abbreviated month name (e.g., Jul).
-- `%B`: Full month name (e.g., July).
-- `%d`: Day of the month as a zero-padded decimal number (e.g., 03).
-- `%A`: Full weekday name (e.g., Monday).
-- `%a`: Abbreviated weekday name (e.g., Mon).
-- `%H`: Hour (00-23).
-- `%I`: Hour (01-12).
-- `%M`: Minute (00-59).
-- `%S`: Second (00-59).
-- `%p`: AM/PM designation for 12-hour clock (e.g., AM or PM).
-- `%Z`: Timezone offset or name.
+| Token | Meaning                                     | Example            |
+|------|----------------------------------------------|--------------------|
+| `%Y` | Year with century as a decimal number.       | 2023               |
+| `%m` | Month as a zero-padded decimal number.       | 07                 |
+| `%b` or `%h` | Abbreviated month name.              | Jul                |
+| `%B` | Full month name.                             | July               |
+| `%d` | Day of the month as a zero-padded decimal number. | 03            |
+| `%A` | Full weekday name.                           | Monday             |
+| `%a` | Abbreviated weekday name.                    | Mon                |
+| `%H` | Hour (00-23).                                | 14                 |
+| `%I` | Hour (01-12).                                | 03                 |
+| `%M` | Minute (00-59).                              | 59                 |
+| `%S` | Second (00-59).                              | 45                 |
+| `%p` | AM/PM designation for 12-hour clock.         | PM                 |
+| `%Z` | Timezone offset or name.                     | UTC                |
 
-#### Examples dates and their formats
+</details>
 
-Here's some example dates and their correct formats:
+<details>
+<summary><b>Example dates and their formats</b></summary>
+<br />
+
+Here are some example dates and their correct formats:
 
 | Date String                     | Format                     |
 | ------------------------------- | -------------------------- |
@@ -419,15 +463,17 @@ Here's some example dates and their correct formats:
 
 In this table, the "Date String" column represents the example date string, and the "Format" column contains the corresponding format string to parse the given date string.
 
-## Using environment variables
+</details>
 
-Testkit supports environment variables in two ways: using a `.env` file or directly setting environment variables. These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
+## Using Environment Variables
 
-Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution.
+Testkit supports environment variables in two ways (`.env` file and CLI configuration). These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly.
 
-Example `.env` file:
+### Configuring the Environment Variables
 
-```shell
+Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. `testkit` automatically loads these variables from the `.env` file during test execution, like so:
+
+```sh
 APIURL=https://api.example.com
 EMAIL=user@example.com
 PASSWORD=mysecretpassword
@@ -435,17 +481,15 @@ USERNAME=myusername
 APIKEY=mysecretapikey
 ```
 
-Setting environment variables directly is done via the command-line or the test environment.
+Setting environment variables directly is done via the command line or the test environment, like so:
 
-Example command-line usage:
-
-```shell
+```sh
 APIKEY=SECRETAPIKEY testkit test --file test.tk.yaml
 ```
 
-To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details.
+### Utilizing the Environment Variables
 
-Example:
+To utilize environment variables in `testkit`, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details. Here's an example:
 
 ```yaml
 - title: Register
@@ -463,4 +507,23 @@ Example:
     - exists: $.resp.json.user.token
 ```
 
-In this example, Testkit performs a POST request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
+In this example, `testkit` performs a `POST` request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
+
+## Contributing and Help
+
+To contribute to the development of this project or request help from the community and our team, kindly do any of the following:
+- Read our [Contributors Guide](https://github.com/apitoolkit/.github/blob/main/CONTRIBUTING.md).
+- Join our community [Discord Server](https://discord.gg/dEB6EjQnKB).
+- Create a [new issue](https://github.com/apitoolkit/testkit/issues/new/choose) in this repository.
+
+## License
+
+This repository is published under the [MIT](LICENSE) license.
+
+---
+
+<div align="center">
+    
+<a href="https://apitoolkit.io?utm_source=apitoolkit_testkit" target="_blank" rel="noopener noreferrer"><img src="https://github.com/apitoolkit/.github/blob/main/images/icon.png?raw=true" width="40" /></a>
+
+</div>
