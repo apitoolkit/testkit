@@ -9,7 +9,7 @@
 
 Testkit is a testing tool designed for API manual testing and test automation tasks built by the [APItoolkit](https://apitoolkit.io?utm_source=apitoolkit_testkit) team and amazing community [contributors](https://github.com/apitoolkit/testkit/graphs/contributors). Testkit provides a simplified YAML syntax for defining and executing API test scenarios.
 
-![](https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c)
+![Testkit demo](https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c)
 
 </div>
 
@@ -119,11 +119,10 @@ testkit test --file ./test.tk.yaml
 
 ## Comparison with Other Testing Libraries
 
-Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight the elegance, cleanliness, and simplicity of `testkit`. To illustrate this, we will rewrite a Cypress test using `testkit`.
+Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight the elegance, cleanliness, and simplicity of `testkit`. By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. It offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios. To illustrate this, we will rewrite a Cypress test using `testkit` as seen below:
 
-By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. It offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios.
+### Cypress ⤵️
 
-Cypress ⤵️:
 ```js
 describe('TODO API testing', () => {
   let todoItem;
@@ -158,7 +157,8 @@ describe('TODO API testing', () => {
 });
 ```
 
-Testkit ⤵️:
+### Testkit ⤵️
+
 ```yaml
 ---
     - title: fetches TODO items - GET
@@ -223,7 +223,7 @@ In the example above, the YAML test file defines three test items fetching TODO 
 - `exports` (optional): Specifies the values to be captured from the response and made available to future stages.
 
 <details>
-<summary><h3><code>request</code> field</h3></summary>
+<summary><b><code>request</code> field</b></summary>
 
 The `request` field in `testkit` defines the API request to be made and consists of three properties:
 
@@ -270,7 +270,7 @@ These properties in the `request` field provide flexibility and control over the
 </details>
 
 <details>
-<summary><h3><code>asserts</code> field</h3></summary>
+<summary><b><code>asserts</code> field</b></summary>
 
 The `asserts` field in `testkit` plays a crucial role in defining assertions or validations to be performed on the API response. It allows you to specify conditions that must be met for the test to pass successfully. The field accepts a collection of key-value pairs, where the keys represent the type of assertion (think of it as a variable) and the values define the corresponding expressions or conditions to be evaluated. You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
 
@@ -316,7 +316,7 @@ These assertions provide a wide range of options to validate different aspects o
 </details>
 
 <details>
-<summary><h3><code>request</code> field</h3></summary>
+<summary><b><code>exports</code> field</b></summary>
 
 The `exports` field in `testkit` allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
 
@@ -351,10 +351,12 @@ To illustrate how JSONPath works, consider the following examples:
 
 The syntax of JSONPath expressions includes several key components:
 
-- **Bracket notation** (`[]`): Used to access elements within an array by providing the index within square brackets.
-- **Wildcard** (`*`): Matches any element at the current level, allowing you to retrieve all elements of a particular level.
-- **Recursive descent** (`..`): Enables searching for elements at any depth within the JSON structure, including nested objects and arrays.
-- **Filters** (`[?]`): Allows applying conditions or filters to select specific elements based on certain criteria.
+| Component   | Description     |
+|-------------|-----------------|
+| Bracket notation  | Used to access elements within an array by providing the index within square brackets (`[]`). |
+| Wildcard          | Matches any element at the current level, allowing retrieval of all elements of that level (`*`). |
+| Recursive descent | Enables searching for elements at any depth within the JSON structure, including nested objects and arrays (`..`). |
+| Filters           | Allows applying conditions or filters to select specific elements based on certain criteria (`[?]`). |
 
 By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing exports during the testing process.
 
@@ -415,7 +417,7 @@ To make date assertions in `testkit` you'll need to provide the date string and 
 Here, we first provide a JSONPath to the date followed by the date's format.
 
 <details>
-<summary><h3>More on the date format</h3></summary>
+<summary><b>More on the date format</b></summary>
 
 Testkit uses the chrono crate's formatting tokens to represent different components of a date. Here are some commonly used formatting tokens:
 
@@ -436,7 +438,7 @@ Testkit uses the chrono crate's formatting tokens to represent different compone
 </details>
 
 <details>
-<summary><h3>Example dates and their formats</h3></summary>
+<summary><b>Example dates and their formats</b></summary>
 
 Here's some example dates and their correct formats:
 
@@ -455,12 +457,7 @@ In this table, the "Date String" column represents the example date string, and 
 
 ## Using Environment Variables
 
-Testkit supports environment variables in two ways:
-
-1. Using a `.env` file.
-2. Directly setting environment variables.
-
-These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
+Testkit supports environment variables in two ways: **using a `.env` file** or **directly setting environment variables**. These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
 
 Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution. Here's an example `.env` file:
 
@@ -480,7 +477,7 @@ APIKEY=SECRETAPIKEY testkit test --file test.tk.yaml
 
 To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details.
 
-Example:
+Here's an example:
 
 ```yaml
 - title: Register
