@@ -234,7 +234,7 @@ Kindly click each toggle below to learn more about each field.
 
 The `request` field in `testkit` defines the API request to be made and consists of three properties:
 
-1. `method`: This property specifies the HTTP method for the request, such as `GET`, `POST`, `PUT`, or `DELETE`. The value of the `method` property is the request URL path. Example:
+1. `method` (required): This property specifies the HTTP method for the request, such as `GET`, `POST`, `PUT`, or `DELETE`. The value of the `method` property is the request URL path. Example:
 
   ```yaml
   # POST request
@@ -304,7 +304,7 @@ In the above example, we have defined three assertions:
 
 3. `ok`: This assertion checks if the first Todo item retrieved from the API response has a task name equal to "run tests". The expression `$.resp.json` is evaluated, and if it returns `true`, the assertion is considered successful.
 
-By utilizing the `asserts` field effectively, you can ensure that the API response meets the expected criteria, providing confidence in the correctness and reliability of your API. All possible assertions you could use in the `asserts` field of `testkit` are as follows:
+By utilizing the `asserts` field effectively, you can ensure that the API response meets the expected criteria, providing confidence in the correctness and reliability of your API. All possible assertions you could use are as follows:
 
 | Assertion | Description     |
 |-----------|-----------------|
@@ -509,7 +509,7 @@ Here's an example:
     - exists: $.resp.json.user.token
 ```
 
-In this example, Testkit performs a POST request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
+In this example, `testkit` performs a POST request to the API URL specified in the environment variable `APIURL`. The user information for registration is taken from the environment variables `EMAIL`, `PASSWORD`, and `USERNAME`, allowing for easy customization and reusability of the test script across different environments.
 
 ## Contributing and Help
 
