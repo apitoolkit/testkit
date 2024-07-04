@@ -473,8 +473,6 @@ Testkit supports environment variables in two ways (`.env` file and CLI configur
 
 ### Configuring the Environment Variables
 
-Here's how each method works:
-
 Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution, like so:
 
 ```sh
