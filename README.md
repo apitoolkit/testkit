@@ -469,9 +469,13 @@ In this table, the "Date String" column represents the example date string, and 
 
 ## Using Environment Variables
 
-Testkit supports environment variables in two ways (`.env` file and CLI configuration). These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
+Testkit supports environment variables in two ways (`.env` file and CLI configuration). These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly.
 
-Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution. Here's an example `.env` file:
+### Configuring the Environment Variables
+
+Here's how each method works:
+
+Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution, like so:
 
 ```sh
 APIURL=https://api.example.com
@@ -487,9 +491,9 @@ Setting environment variables directly is done via the command line or the test 
 APIKEY=SECRETAPIKEY testkit test --file test.tk.yaml
 ```
 
-### Utilizing Environment Variables
+### Utilizing the Environment Variables
 
-To utilize environment variables in Testkit, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details. Here's an example:
+To utilize environment variables in `testkit`, you can access them using the following syntax: `$.env.<VAL>`, where `<VAL>` represents the name of the specific environment variable you want to use. This allows you to easily reference and incorporate the values of these environment variables within your test scripts, enabling greater flexibility and adaptability without hardcoding sensitive information or configuration details. Here's an example:
 
 ```yaml
 - title: Register
