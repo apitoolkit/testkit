@@ -350,17 +350,17 @@ The `exports` field enables you to create a bridge between different stages with
 JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and exports. To illustrate how JSONPath works, consider the following examples:
 
 - `$.user.name`: This expression retrieves the name of a user from the top-level object in the JSON document.
-- `$.todos[0].task`: Here, the expression accesses the task property of the first element in an array of todos.
+- `$.todos[0].task`: This expression accesses the task property of the first element in an array of todos.
 - `$.todos[*].task.description`: This expression retrieves the description property of all tasks within the todos array.
 
 The syntax of JSONPath expressions includes several key components:
 
 | Component   | Description     |
 |-------------|-----------------|
-| Bracket notation  | Used to access elements within an array by providing the index within square brackets (`[]`). |
-| Wildcard          | Matches any element at the current level, allowing retrieval of all elements of that level (`*`). |
-| Recursive descent | Enables searching for elements at any depth within the JSON structure, including nested objects and arrays (`..`). |
-| Filters           | Allows applying conditions or filters to select specific elements based on certain criteria (`[?]`). |
+| Bracket notation  | Access elements within an array by providing the index within square brackets (`[]`). |
+| Wildcard          | Match any element at the current level, allowing retrieval of all elements of that level (`*`). |
+| Recursive descent | Enable searching for elements at any depth within the JSON structure, including nested objects and arrays (`..`). |
+| Filters           | Apply conditions or filters to select specific elements based on certain criteria (`[?]`). |
 
 By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing exports during the testing process.
 
