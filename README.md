@@ -362,7 +362,7 @@ The syntax of JSONPath expressions includes several key components:
 | Recursive descent | Enable searching for elements at any depth within the JSON structure, including nested objects and arrays (`..`). |
 | Filters           | Apply conditions or filters to select specific elements based on certain criteria (`[?]`). |
 
-By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing exports during the testing process.
+By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit` facilitating the extraction of data for performing assertions and capturing exports during the testing process.
 
 <br />
 
@@ -471,7 +471,7 @@ Testkit supports environment variables in two ways (`.env` file and CLI configur
 
 ### Configuring the Environment Variables
 
-Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution, like so:
+Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. `testkit` automatically loads these variables from the `.env` file during test execution, like so:
 
 ```sh
 APIURL=https://api.example.com
