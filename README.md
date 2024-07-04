@@ -1,13 +1,13 @@
 <div align="center">
 
-[![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-white.svg?raw=true#gh-dark-mode-only)](https://apitoolkit.io?utm_source=apitoolkit_testkit)
-[![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-black.svg?raw=true#gh-light-mode-only)](https://apitoolkit.io?utm_source=apitoolkit_testkit)
+![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-white.svg?raw=true#gh-dark-mode-only)
+![APItoolkit's Logo](https://github.com/apitoolkit/.github/blob/main/images/logo-black.svg?raw=true#gh-light-mode-only)
 
-## Testkit
+# Testkit
 
 [![APItoolkit SDK](https://img.shields.io/badge/APItoolkit-OSS-0068ff?logo=rust)](https://github.com/topics/apitoolkit-sdk) [![](https://img.shields.io/github/v/release/apitoolkit/testkit)](https://github.com/apitoolkit/testkit/releases) [![](https://img.shields.io/github/downloads/apitoolkit/testkit/total)](https://github.com/apitoolkit/testkit/archive/refs/heads/main.zip) [![Join Discord Server](https://img.shields.io/badge/Chat-Discord-7289da)](https://discord.gg/dEB6EjQnKB)
 
-Testkit is a testing tool designed for API manual testing and test automation tasks built by the [APItoolkit](https://apitoolkit.io?utm_source=apitoolkit_testkit) team. It provides a simplified YAML syntax for defining and executing API test scenarios.
+Testkit is a testing tool designed for API manual testing and test automation tasks built by the [APItoolkit](https://apitoolkit.io?utm_source=apitoolkit_testkit) team and amazing community [contributors](https://github.com/apitoolkit/testkit/graphs/contributors). Testkit provides a simplified YAML syntax for defining and executing API test scenarios.
 
 ![](https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c)
 
@@ -17,7 +17,7 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 
 ## Table of Contents
 
-- [Why a Testing DSL](#why-a-testing-dsl)
+- [Why a Testing DSL?](#why-a-testing-dsl)
 - [Installation](#installation)
 - [Comparison with Other Testing Libraries](#comparison-with-other-testing-libraries)
 - [Test Definition Syntax](#test-definition-syntax)
@@ -27,11 +27,6 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 - [Using Environment Variables](#using-environment-variables)
 - [Contributing and Help](#contributing-and-help)
 - [License](#license)
-
-
-> [!NOTE]
->
-> This table of contents reflects the current sections covered in the documentation based on the information provided so far. It may be expanded or revised as the documentation progresses and more content is added.
 
 ---
 
@@ -45,11 +40,12 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 
 ## Installation
 
-To install `testkit`, kindly follow one of the options below. Once installed, run the `testkit --help` command for all CLI options and commands.
+To install `testkit`, kindly follow one of the options below.
 
 <details>
-<summary><h3>Download Binaries</h3></summary>
-
+<summary><b>Download Binaries</b></summary>
+<br />
+   
 Navigate to the [releases page](https://github.com/apitoolkit/testkit/releases) and proceed to install the latest version of the `testkit` binary suitable for your operating system (Windows, macOS, or Linux).
 
 | Binary File    | Description         |
@@ -60,13 +56,8 @@ Navigate to the [releases page](https://github.com/apitoolkit/testkit/releases) 
 | `testkit-release-test-x86_64-apple-darwin.tar.gz`     | 64-bit macOS (Darwin) |
 | `testkit-release-test-x86_64-unknown-linux-gnu.tar.gz`| 64-bit Linux (GNU)    |
 
-#### Windows
 
-After downloading, extract the zip file and proceed to install the `testkit.exe` file.
-
-#### macOS
-
-After downloading, extract the zip file and proceed to install the `testkit` file. Alternatively, use Homebrew, like so:
+After downloading, extract the zip file and proceed to install the extracted file. If you're using macOS, you can use Homebrew to install, like so:
 
 1. Tap the `testkit` release repository to add it as a source for Homebrew formulae using the command below:
 
@@ -80,16 +71,13 @@ After downloading, extract the zip file and proceed to install the `testkit` fil
    brew install testkit
    ```
 
-#### Linux
-
-After downloading, extract the zip file and proceed to install the `testkit` file.
-
 </details>
 
 <details>
-<summary><h3>Clone Repository</h3></summary>
+<summary><b>Clone Repository</b></summary>
+<br />
 
-Kindly follow the steps below to build the project locally yourself:
+Kindly follow the steps below to build the project locally:
 
 1. Ensure you have [Rust](https://rust-lang.org) programming language and [Cargo package manager ](https://doc.rust-lang.org/cargo/getting-started/installation.html)installed on your computer.
 
@@ -119,11 +107,15 @@ Kindly follow the steps below to build the project locally yourself:
 testkit test --file ./test.tk.yaml
 ```
 
-> [!IMPORTANT]
->
-> Ensure to replace `./test.tk.yaml` with the path to your YAML test file.
+**NB**: Ensure to replace `./test.tk.yaml` with the path to your YAML test file.
 
 </details>
+
+<br />
+
+> [!NOTE]
+>
+> Once `testkit` is installed succesfully, run the `testkit --help` command for all CLI commands and options.
 
 ## Comparison with Other Testing Libraries
 
@@ -271,7 +263,7 @@ The `request` field in `testkit` defines the API request to be made and consists
       email: john.doe@example.com
   ```
 
-  In the above example, a POST request is made to create a new user. The `json` property contains the user data in JSON format, including properties such as `name`, `age`, and `email`. Including the `json` property in the `request` field enables you to pass structured data to the API endpoint, facilitating actions such as creating or updating resources on the server.
+In the above example, a POST request is made to create a new user. The `json` property contains the user data in JSON format, including properties such as `name`, `age`, and `email`. Including the `json` property in the `request` field enables you to pass structured data to the API endpoint, facilitating actions such as creating or updating resources on the server.
 
 These properties in the `request` field provide flexibility and control over the API requests made during testing. You can specify the HTTP method and include headers as needed to interact with the API endpoints effectively.
 
