@@ -25,8 +25,6 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 - [Referencing Values and Dynamic Inputs for Subsequent API Requests](#referencing-values-and-dynamic-inputs-for-subsequent-api-requests)
 - [Date Assertions](#date-assertions)
 - [Using Environment Variables](#using-environment-variables)
-  - [Using a `.env` File](#using-a-env-file)
-  - [Setting the Environment Variables Directly](#setting-the-environment-variables-directly)
 - [Contributing and Help](#contributing-and-help)
 - [License](#license)
 
@@ -471,9 +469,7 @@ In this table, the "Date String" column represents the example date string, and 
 
 ## Using Environment Variables
 
-Testkit supports environment variables in two ways. These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
-
-### Using a `.env` File
+Testkit supports environment variables in two ways (`.env` file and CLI configuration). These approaches allow users to configure and customize their test scripts without exposing sensitive data and making it easier to switch between different environments and scenarios seamlessly. Here's how each method works:
 
 Using a `.env` file involves creating a text file named `.env` in the test script's directory and defining `KEY=VALUE` pairs for each environment variable. Testkit automatically loads these variables from the `.env` file during test execution. Here's an example `.env` file:
 
@@ -485,9 +481,7 @@ USERNAME=myusername
 APIKEY=mysecretapikey
 ```
 
-### Setting the Environment Variables Directly
-
-Setting environment variables directly is done via the command line or the test environment. Here's an example of the CLI usage:
+Setting environment variables directly is done via the command line or the test environment, like so:
 
 ```sh
 APIKEY=SECRETAPIKEY testkit test --file test.tk.yaml
