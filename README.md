@@ -32,7 +32,7 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 
 ## Why a Testing DSL?
 
-- Teams should not be forced to write JavaScript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system.
+- Teams should not be forced to write Javascript (Postman), Groovy (Katalon), or Java (Rest-Assured) just because they want to test an API for a web system.
 - We should be able to create interactive builders that generate this underlying DSL (Domain Specific Language). So you shouldn't even need to write this DSL by hand in the future.
 - We should be able to use the same script for both individual tests and load testing.
 - We should still be able to persist these tests in our version control and collaborate on them with our peers.
@@ -40,13 +40,13 @@ Testkit is a testing tool designed for API manual testing and test automation ta
 
 ## Installation
 
-To install `testkit`, kindly follow one of the options below.
+To install `testkit`, kindly follow one of the options below (click on the toggle):
 
 <details>
 <summary><b>Download Binaries</b></summary>
 <br />
    
-Navigate to the [releases page](https://github.com/apitoolkit/testkit/releases) and proceed to install the latest version of the `testkit` binary suitable for your operating system (Windows, macOS, or Linux).
+Navigate to the [releases page](https://github.com/apitoolkit/testkit/releases), download the latest version of the `testkit` binary suitable for your operating system (Windows, macOS, or Linux), and proceed to install.
 
 | Binary File    | Description         |
 |----------------|---------------------|
@@ -57,7 +57,7 @@ Navigate to the [releases page](https://github.com/apitoolkit/testkit/releases) 
 | `testkit-release-test-x86_64-unknown-linux-gnu.tar.gz`| 64-bit Linux (GNU)    |
 
 
-After downloading, extract the zip file and proceed to install the extracted file. If you're using macOS, you can use Homebrew to install, like so:
+After downloading, extract the zip file and proceed to install the extracted file. Alternatively, if you're using macOS, you can use Homebrew to install, like so:
 
 1. Tap the `testkit` release repository to add it as a source for Homebrew formulae using the command below:
 
@@ -87,13 +87,13 @@ Kindly follow the steps below to build the project locally:
    git clone https://github.com/testkit/testkit
    ```
 
-3. Open the cloned directory:
+3. Open the cloned directory using the command below:
 
    ```bash
    cd testkit
    ```
 
-4. Build the project using Cargo:
+4. Build the project using the Cargo command below:
 
    ```bash
    cargo build --release
@@ -107,7 +107,7 @@ Kindly follow the steps below to build the project locally:
 testkit test --file ./test.tk.yaml
 ```
 
-**NB**: Ensure to replace `./test.tk.yaml` with the path to your YAML test file.
+7. For further testing, ensure to replace the `./test.tk.yaml` with the path to your YAML test file.
 
 </details>
 
@@ -119,7 +119,7 @@ testkit test --file ./test.tk.yaml
 
 ## Comparison with Other Testing Libraries
 
-Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight the elegance, cleanliness, and simplicity of `testkit`. By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. It offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios. To illustrate this, we will rewrite a Cypress test using `testkit` as seen below:
+Before delving into the details of `testkit` and its functionality, let's compare it to other testing libraries to highlight it's elegance, cleanliness, and simplicity. By showcasing the differences, you will see how `testkit` provides a more streamlined and user-friendly approach to API testing. To illustrate this, we will rewrite a Cypress test as seen below:
 
 ### Cypress ⤵️
 
@@ -185,6 +185,8 @@ describe('TODO API testing', () => {
         - ok: $.resp.json.completed == false
 ```
 
+Testkit offers a clean and intuitive syntax that simplifies the process of defining and executing API test scenarios.
+
 ## Test Definition Syntax
 
 Testkit uses a YAML-based syntax for defining test scenarios. Each scenario consists of multiple stages, where each stage represents a specific API request and its associated assertions. Below is an example of the YAML syntax for defining API tests:
@@ -217,13 +219,18 @@ Testkit uses a YAML-based syntax for defining test scenarios. Each scenario cons
 
 In the example above, the YAML test file defines three test items fetching TODO items using a GET request, deleting a specific TODO item using a DELETE request, and adding a new TODO item using a POST request. The YAML file consists of a list of test scenarios. Each scenario represents an API request and contains the following fields:
 
-- `name` (required): A descriptive name for the stage.
-- `request` (required): Defines the API request to be made. It can include HTTP methods (`GET`, `POST`, `PUT`, `DELETE`, etc.) and the corresponding request URL or endpoint.
-- `asserts` (optional): Defines the assertions to be performed on the response. It specifies conditions that must be satisfied for the test to pass.
-- `exports` (optional): Specifies the values to be captured from the response and made available to future stages.
+| Field         | Description    |
+|---------------|----------------|
+| `name` (required)       | A descriptive name for the stage.      |
+| `request` (required)    | Defines the API request to be made, including HTTP methods and the URL.      |
+| `asserts` (optional)    | Optional. Defines assertions to be performed on the response for validation.  |
+| `exports` (optional)    | Optional. Specifies values to capture from the response for future stages.  |
+
+Kindly click each toggle below to learn more about each fields.
 
 <details>
 <summary><b><code>request</code> field</b></summary>
+<br />
 
 The `request` field in `testkit` defines the API request to be made and consists of three properties:
 
@@ -271,6 +278,7 @@ These properties in the `request` field provide flexibility and control over the
 
 <details>
 <summary><b><code>asserts</code> field</b></summary>
+<br />
 
 The `asserts` field in `testkit` plays a crucial role in defining assertions or validations to be performed on the API response. It allows you to specify conditions that must be met for the test to pass successfully. The field accepts a collection of key-value pairs, where the keys represent the type of assertion (think of it as a variable) and the values define the corresponding expressions or conditions to be evaluated. You can include multiple assertions within the `asserts` field to perform various validations on different aspects of the API response, such as checking specific properties, verifying the presence of certain data, or comparing values.
 
@@ -284,10 +292,9 @@ Here's an example to demonstrate the usage of the `asserts` field:
     - array: $.resp.json
     - ok: $.resp.json[0].task == "run tests"
 ```
+<br />
 
-> [!NOTE]
->
-> The `.json` in `$.resp.json` tells `testkit` to convert the response into JSON format. This allows you to access properties of the response JSON using JSONPath expressions.
+> NB: The `.json` in `$.resp.json` tells `testkit` to convert the response into JSON format. This allows you to access properties of the response JSON using JSONPath expressions.
 
 In the above example, we have defined three assertions:
 
@@ -317,6 +324,7 @@ These assertions provide a wide range of options to validate different aspects o
 
 <details>
 <summary><b><code>exports</code> field</b></summary>
+<br />
 
 The `exports` field in `testkit` allows you to capture and store values from the API response of a stage for future reference within the test scenario. It provides a convenient way to extract specific data and make it accessible in subsequent stages of the test.
 
@@ -359,6 +367,8 @@ The syntax of JSONPath expressions includes several key components:
 | Filters           | Allows applying conditions or filters to select specific elements based on certain criteria (`[?]`). |
 
 By employing JSONPath expressions, you can precisely pinpoint the desired data within a JSON structure. These expressions play a vital role in `testkit`, facilitating the extraction of data for performing assertions and capturing exports during the testing process.
+
+<br />
 
 > [!NOTE]
 >
