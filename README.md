@@ -347,9 +347,7 @@ The `exports` field enables you to create a bridge between different stages with
 
 ## What is JSONPath?
 
-JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and exports.
-
-To illustrate how JSONPath works, consider the following examples:
+JSONPath is a powerful query language designed for navigating and extracting data from JSON documents. It provides a concise syntax that allows you to specify paths to specific elements within a JSON structure, facilitating data access and manipulation. In `testkit`, JSONPath expressions are extensively used to extract data for assertions and exports. To illustrate how JSONPath works, consider the following examples:
 
 - `$.user.name`: This expression retrieves the name of a user from the top-level object in the JSON document.
 - `$.todos[0].task`: Here, the expression accesses the task property of the first element in an array of todos.
