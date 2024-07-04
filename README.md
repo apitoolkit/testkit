@@ -428,29 +428,33 @@ Here, we first provide a JSONPath to the date followed by the date's format.
 
 <details>
 <summary><b>More on the date format</b></summary>
+<br />
 
 Testkit uses the chrono crate's formatting tokens to represent different components of a date. Here are some commonly used formatting tokens:
 
-- `%Y`: Year with century as a decimal number (e.g., 2023).
-- `%m`: Month as a zero-padded decimal number (e.g., 07 for July).
-- `%b` or `%h`: Abbreviated month name (e.g., Jul).
-- `%B`: Full month name (e.g., July).
-- `%d`: Day of the month as a zero-padded decimal number (e.g., 03).
-- `%A`: Full weekday name (e.g., Monday).
-- `%a`: Abbreviated weekday name (e.g., Mon).
-- `%H`: Hour (00-23).
-- `%I`: Hour (01-12).
-- `%M`: Minute (00-59).
-- `%S`: Second (00-59).
-- `%p`: AM/PM designation for 12-hour clock (e.g., AM or PM).
-- `%Z`: Timezone offset or name.
+| Token | Meaning                                     | Example            |
+|------|----------------------------------------------|--------------------|
+| `%Y` | Year with century as a decimal number.       | 2023               |
+| `%m` | Month as a zero-padded decimal number.       | 07                 |
+| `%b` or `%h` | Abbreviated month name.              | Jul                |
+| `%B` | Full month name.                             | July               |
+| `%d` | Day of the month as a zero-padded decimal number. | 03            |
+| `%A` | Full weekday name.                           | Monday             |
+| `%a` | Abbreviated weekday name.                    | Mon                |
+| `%H` | Hour (00-23).                                | 14                 |
+| `%I` | Hour (01-12).                                | 03                 |
+| `%M` | Minute (00-59).                              | 59                 |
+| `%S` | Second (00-59).                              | 45                 |
+| `%p` | AM/PM designation for 12-hour clock.         | PM                 |
+| `%Z` | Timezone offset or name.                     | UTC                |
 
 </details>
 
 <details>
 <summary><b>Example dates and their formats</b></summary>
+<br />
 
-Here's some example dates and their correct formats:
+Here are some example dates and their correct formats:
 
 | Date String                     | Format                     |
 | ------------------------------- | -------------------------- |
