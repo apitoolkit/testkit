@@ -2,9 +2,9 @@
 
 # Testkit
 
-[![APItoolkit OSS](https://img.shields.io/badge/APItoolkit-OSS-0068ff?logo=rust)](https://github.com/topics/apitoolkit) [![](https://img.shields.io/github/v/release/apitoolkit/testkit)](https://github.com/apitoolkit/testkit/releases) [![](https://img.shields.io/github/downloads/apitoolkit/testkit/total)](https://github.com/apitoolkit/testkit/archive/refs/heads/main.zip) [![Join Discord Server](https://img.shields.io/badge/Chat-Discord-7289da)](https://discord.gg/dEB6EjQnKB)
+[![APItoolkit OSS](https://img.shields.io/badge/APItoolkit-OSS-0068ff?logo=rust)](https://github.com/topics/apitoolkit) [![](https://img.shields.io/github/v/release/apitoolkit/testkit)](https://github.com/apitoolkit/testkit/releases) [![](https://img.shields.io/github/downloads/apitoolkit/testkit/total)](https://github.com/apitoolkit/testkit/archive/refs/heads/main.zip) [![Join Discord Server](https://img.shields.io/badge/Chat-Discord-7289da)](https://apitoolkit.io/discord?utm_campaign=devrel&utm_medium=github&utm_source=testkit_readme)
 
-Testkit is a testing tool designed for API manual testing and test automation tasks built by the [APItoolkit](https://apitoolkit.io?utm_source=apitoolkit_testkit) team and amazing community [contributors](https://github.com/apitoolkit/testkit/graphs/contributors). Testkit provides a simplified YAML syntax for defining and executing API test scenarios.
+Testkit is a testing tool designed for API manual testing and test automation tasks built by the [APItoolkit](https://apitoolkit.io?utm_campaign=devrel&utm_medium=github&utm_source=testkit_readme) team and amazing community [contributors](https://github.com/apitoolkit/testkit/graphs/contributors). Testkit provides a simplified YAML syntax for defining and executing API test scenarios.
 
 ![Testkit demo](https://github.com/apitoolkit/testkit/assets/6564482/d1f7ec76-b81b-4036-a87b-b8bda562d03c)
 
@@ -510,7 +510,7 @@ In this example, `testkit` performs a `POST` request to the API URL specified in
 
 To contribute to the development of this project or request help from the community and our team, kindly do any of the following:
 - Read our [Contributors Guide](https://github.com/apitoolkit/.github/blob/main/CONTRIBUTING.md).
-- Join our community [Discord Server](https://discord.gg/dEB6EjQnKB).
+- Join our community [Discord Server](https://apitoolkit.io/discord?utm_campaign=devrel&utm_medium=github&utm_source=testkit_readme).
 - Create a [new issue](https://github.com/apitoolkit/testkit/issues/new/choose) in this repository.
 
 ## License
@@ -521,6 +521,6 @@ This repository is published under the [MIT](LICENSE) license.
 
 <div align="center">
     
-<a href="https://apitoolkit.io?utm_source=apitoolkit_testkit" target="_blank" rel="noopener noreferrer"><img src="https://github.com/apitoolkit/.github/blob/main/images/icon.png?raw=true" width="40" /></a>
+<a href="https://apitoolkit.io?utm_campaign=devrel&utm_medium=github&utm_source=testkit_readme" target="_blank" rel="noopener noreferrer"><img src="https://github.com/apitoolkit/.github/blob/main/images/icon.png?raw=true" width="40" /></a>
 
 </div>
