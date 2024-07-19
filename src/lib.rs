@@ -12,7 +12,6 @@ pub extern "C" fn haskell_binding(
     let c_str: &CStr = unsafe { CStr::from_ptr(content) };
     let str_slice: &str = c_str.to_str().unwrap();
     let cont_rs: String = str_slice.to_owned();
-    print!("{}", cont_rs);
     let ctx = TestContext {
         file: "haskell_binding".into(),
         file_source: cont_rs.clone(),

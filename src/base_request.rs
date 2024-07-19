@@ -99,7 +99,7 @@ pub struct ResponseObject {
     raw: String,
 }
 
-#[derive(Error, Serialize, Debug, Diagnostic)]
+#[derive(Error, Serialize, Clone, Debug, Diagnostic)]
 #[error("request assertion failed!")]
 #[diagnostic(
     // code(asertion),
@@ -656,7 +656,7 @@ async fn check_assertions(
     should_log: bool,
     step_log: &mut String,
 ) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
-    let assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
+    let mut assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
         let eval_result = match assertion {
@@ -689,8 +689,12 @@ async fn check_assertions(
         };
 
         match eval_result {
-            Err(err) => log::error!(target:"testkit","{}", report_error((err).into())),
+            Err(err) => {
+                assert_results.push(Err(err.clone()));
+                log::error!(target:"testkit","{}", report_error((err).into()))
+            }
             Ok((prefix, result, expr, _eval_expr)) => {
+                assert_results.push(Ok(result));
                 if result {
                     let log_val = format!("✅ {: <10}  ⮕   {} ", prefix, expr);
                     step_log.push_str(&log_val);
