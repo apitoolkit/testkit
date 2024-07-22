@@ -218,7 +218,7 @@ In the example above, the YAML test file defines three test items fetching TODO 
 
 | Field         | Description    |
 |---------------|----------------|
-| `name` (required)       | A descriptive name for the stage.      |
+| `title` (required)      | A descriptive name for the stage.      |
 | `request` (required)    | Defines the API request to be made, including HTTP methods and the URL.      |
 | `asserts` (optional)    | Optional. Defines assertions to be performed on the response for validation.  |
 | `exports` (optional)    | Optional. Specifies values to capture from the response for future stages.  |
