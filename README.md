@@ -218,7 +218,7 @@ In the example above, the YAML test file defines three test items fetching TODO 
 
 | Field         | Description    |
 |---------------|----------------|
-| `name` (required)       | A descriptive name for the stage.      |
+| `title` (required)      | A descriptive name for the stage.      |
 | `request` (required)    | Defines the API request to be made, including HTTP methods and the URL.      |
 | `asserts` (optional)    | Optional. Defines assertions to be performed on the response for validation.  |
 | `exports` (optional)    | Optional. Specifies values to capture from the response for future stages.  |
@@ -297,7 +297,7 @@ In the above example, we have defined three assertions:
 
 1. `ok`: This assertion checks whether the response status code is equal to 200. The expression `$.resp.status == 200` is evaluated, and if it returns `true`, the assertion is considered successful.
 
-2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.json[0].task == "run tests"` is evaluated, and if the result is an array, the assertion is considered successful.
+2. `array`: This assertion verifies that the response body is an array. The expression `$.resp.json` is evaluated, and if the result is an array, the assertion is considered successful.
 
 3. `ok`: This assertion checks if the first Todo item retrieved from the API response has a task name equal to "run tests". The expression `$.resp.json` is evaluated, and if it returns `true`, the assertion is considered successful.
 
