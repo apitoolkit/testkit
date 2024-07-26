@@ -166,6 +166,7 @@ pub async fn run_json(
     exec_string: String,
     should_log: bool,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
+    println!("{}", &exec_string);
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
@@ -299,8 +300,10 @@ pub async fn base_request(
         let status_code = response.status().as_u16();
         let header_hashmap = header_map_to_hashmap(response.headers());
 
-        let raw_body = response.text().await?;
-        let json_body: Value = serde_json::from_str(&raw_body)?;
+        let raw_body_res = response.text().await;
+        let raw_body = raw_body_res.unwrap_or("{}".to_string());
+        let json_body_res = serde_json::from_str(&raw_body);
+        let json_body = json_body_res.unwrap_or(Value::Object(serde_json::Map::new()));
 
         let assert_object = RequestAndResponse {
             req: test_item.request.clone(),
@@ -333,7 +336,7 @@ pub async fn base_request(
             should_log,
             &mut step_result.step_log,
         )
-        .await?;
+        .await;
         // if let Some(outputs) = &step.outputs {
         //     update_outputs(outputs, &response_json);
         // }
@@ -531,10 +534,10 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     // TODO: reproduce and improve this error
                     return Err(AssertionError {
                         advice: Some(
-                            "The given json path could not be located in the context. Add the 'dump: true' to the test step, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
+                            "The given json path could not be located in the context".to_string(),
                         ),
                         src: NamedSource::new(ctx.file, original_expr.clone()),
-                        bad_bit: (i, i+path.len()).into(),
+                        bad_bit: (i, i + path.len()).into(),
                     });
                 }
             }
@@ -542,7 +545,10 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                 // TODO: reproduce and improve this error. Use the _err argument
                 // The given jsonpath could not be evaluated to a value
                 return Err(AssertionError {
-                    advice: Some("could not resolve jsonpaths to any real variables".to_string()),
+                    advice: Some(
+                        "could not resolve jsonpaths to any real value in the json object"
+                            .to_string(),
+                    ),
                     src: NamedSource::new(ctx.file, expr),
                     bad_bit: (0, 4).into(),
                 });
@@ -655,7 +661,7 @@ async fn check_assertions(
     outputs: &HashMap<String, Value>,
     should_log: bool,
     step_log: &mut String,
-) -> Result<Vec<Result<bool, AssertionError>>, Box<dyn std::error::Error>> {
+) -> Vec<Result<bool, AssertionError>> {
     let mut assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
 
     for assertion in asserts {
@@ -731,7 +737,7 @@ async fn check_assertions(
             }
         }
     }
-    Ok(assert_results)
+    assert_results
 }
 
 // parse_expression would take a normalized math-like expression and evaluate it to a premitive or simpler
@@ -852,7 +858,7 @@ mod tests {
      - string: $.resp.json.task
      - boolean: $.resp.json.completed
    exports:
-     todoResp: $.resp.json.resp_string 
+     todoResp: $.resp.json.resp_string
  - GET: {}
    json:
      req_string: $.outputs.todoResp

@@ -1,6 +1,6 @@
 use base_request::{RequestResult, TestContext};
 use libc::c_char;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 
 pub mod base_cli;
 pub mod base_request;
@@ -19,7 +19,8 @@ pub extern "C" fn haskell_binding(
     };
     let result = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async { base_request::run(ctx, cont_rs, false).await });
+        .block_on(async { base_request::run_json(ctx, cont_rs, false).await });
+    println!("haskell_binding result: {:?}", result);
 
     return result;
 }
