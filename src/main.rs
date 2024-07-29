@@ -1,4 +1,3 @@
-#![feature(extend_one)]
 pub mod base_cli;
 pub mod base_request;
 use anyhow::Ok;
