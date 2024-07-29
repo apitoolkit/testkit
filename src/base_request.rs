@@ -144,7 +144,7 @@ pub async fn run(
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
-    let result = base_request(ctx.clone(), &test_items, should_log).await;
+    let result = base_request(ctx.clone(), &test_items, should_log, None).await;
     match result {
         Ok(res) => {
             if should_log {
@@ -165,12 +165,13 @@ pub async fn run_json(
     ctx: TestContext,
     exec_string: String,
     should_log: bool,
+    col_id: Option<String>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     println!("{}", &exec_string);
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
-    let result = base_request(ctx.clone(), &test_items, should_log).await;
+    let result = base_request(ctx.clone(), &test_items, should_log, col_id).await;
     match result {
         Ok(res) => {
             if should_log {
@@ -193,6 +194,7 @@ pub async fn base_request(
     ctx: TestContext,
     test_items: &Vec<TestItem>,
     should_log: bool,
+    col_id: Option<String>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .connection_verbose(true)
@@ -227,6 +229,12 @@ pub async fn base_request(
             HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
             HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
         };
+        request_builder = request_builder.header("X-Testkit-Run", "true");
+
+        if let Some(col) = &col_id {
+            request_builder = request_builder.header("X-Testkit-Collection-ID", col);
+        }
+
         if let Some(headers) = &test_item.request.headers {
             for (name, value) in headers {
                 let mut value = value.clone();
@@ -304,9 +312,14 @@ pub async fn base_request(
         let raw_body = raw_body_res.unwrap_or("{}".to_string());
         let json_body_res = serde_json::from_str(&raw_body);
         let json_body = json_body_res.unwrap_or(Value::Object(serde_json::Map::new()));
-
+        let mut request_config = test_item.request.clone();
+        if let Some(col) = &col_id {
+            let mut headers = request_config.headers.clone().unwrap_or_default();
+            headers.insert("X-Testkit-Collection-ID".into(), col.clone());
+            request_config.headers = Some(headers);
+        }
         let assert_object = RequestAndResponse {
-            req: test_item.request.clone(),
+            req: request_config,
             resp: ResponseObject {
                 status: status_code,
                 headers: serde_json::json!(header_hashmap),
@@ -787,7 +800,7 @@ mod tests {
             step: Some("step_name".into()),
             step_index: 0,
         };
-        let resp = run_json(ctx.clone(), val.into(), true).await;
+        let resp = run_json(ctx.clone(), val.into(), true, None).await;
         println!("resp {:?}", resp);
         assert!(resp.is_ok());
     }
@@ -919,7 +932,7 @@ mod tests {
 
         // We test if the kitchen sink also works for json
         let json_str = yaml_to_json(&yaml_str).unwrap();
-        let resp = run_json(ctx.clone(), json_str.into(), true).await;
+        let resp = run_json(ctx.clone(), json_str.into(), true, None).await;
         assert!(resp.is_ok());
         m3.assert_hits(2);
         m2.assert_hits(2);
