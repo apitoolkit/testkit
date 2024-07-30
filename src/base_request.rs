@@ -134,6 +134,7 @@ pub struct TestContext {
     pub path: String,
     pub file: String,
     pub file_source: String,
+    pub should_log: bool,
 }
 
 pub async fn run(
@@ -164,13 +165,12 @@ pub async fn run(
 pub async fn run_json(
     ctx: TestContext,
     exec_string: String,
-    should_log: bool,
     col_id: Option<String>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     println!("{}", &exec_string);
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
-
+    let should_log = ctx.should_log;
     let result = base_request(ctx.clone(), &test_items, should_log, col_id).await;
     match result {
         Ok(res) => {
@@ -346,7 +346,6 @@ pub async fn base_request(
             &(test_item.asserts.clone().unwrap_or(vec![])),
             assert_context,
             &exports_map,
-            should_log,
             &mut step_result.step_log,
         )
         .await;
@@ -547,7 +546,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                     // TODO: reproduce and improve this error
                     return Err(AssertionError {
                         advice: Some(
-                            "The given json path could not be located in the context".to_string(),
+                            "The given json path could not be located in the json body".to_string(),
                         ),
                         src: NamedSource::new(ctx.file, original_expr.clone()),
                         bad_bit: (i, i + path.len()).into(),
@@ -568,10 +567,11 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
             }
         }
     }
+
     log::debug!(target:"testkit","normalized pre-evaluation assert expression: {:?}", &expr);
     // TODO: reproduce and improve this error
-    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| AssertionError {
-        advice: Some("check that you're using correct jsonpaths".to_string()),
+    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
+        advice: Some("Comparison expression could not be evaluated".to_string()),
         src: NamedSource::new(ctx.file, expr.clone()),
         bad_bit: (0, 4).into(),
     })?;
@@ -586,6 +586,7 @@ fn evaluate_value<'a, T: Clone + 'static>(
 ) -> Result<(bool, String), AssertionError> {
     let mut path = expr.clone();
     let mut format = String::new();
+    let should_log = ctx.should_log;
     if value_type == "date" {
         let elements: Vec<&str> = expr.split_whitespace().collect();
         if elements.len() < 2 {
@@ -645,14 +646,16 @@ fn evaluate_value<'a, T: Clone + 'static>(
                     _ => todo!(),
                 }
             } else {
-                // TODO: reproduce and improve this error
+                let mut err_message =
+                    "The given json path could not be located in the context".to_string();
+                if should_log {
+                    err_message += "Add the 'dump: true' to the test step, to print out the requests and responses which can be refered to via jsonpath";
+                }
                 return Err(AssertionError {
-                        advice: Some(
-                            "The given json path could not be located in the context. Add the 'dump: true' to the test step, to print out the requests and responses which can be refered to via jsonpath. ".to_string(),
-                        ),
-                        src: NamedSource::new(ctx.file, expr.clone()),
-                        bad_bit: (0,  expr.len()).into(),
-                    });
+                    advice: Some(err_message),
+                    src: NamedSource::new(ctx.file, expr.clone()),
+                    bad_bit: (0, expr.len()).into(),
+                });
             }
         }
         Err(_err) => {
@@ -672,11 +675,10 @@ async fn check_assertions(
     asserts: &[Assert],
     json_body: Value,
     outputs: &HashMap<String, Value>,
-    should_log: bool,
     step_log: &mut String,
 ) -> Vec<Result<bool, AssertionError>> {
     let mut assert_results: Vec<Result<bool, AssertionError>> = Vec::new();
-
+    let should_log = ctx.should_log;
     for assertion in asserts {
         let eval_result = match assertion {
             Assert::IsOk(expr) => {
@@ -710,7 +712,9 @@ async fn check_assertions(
         match eval_result {
             Err(err) => {
                 assert_results.push(Err(err.clone()));
-                log::error!(target:"testkit","{}", report_error((err).into()))
+                if should_log {
+                    log::error!(target:"testkit","{}", report_error((err).into()))
+                }
             }
             Ok((prefix, result, expr, _eval_expr)) => {
                 assert_results.push(Ok(result));
@@ -725,7 +729,9 @@ async fn check_assertions(
                     let log_val = format!("❌ {: <10}  ⮕   {} ", prefix, expr);
                     step_log.push_str(&log_val);
                     step_log.push_str("\n");
-                    log::error!(target:"testkit","{}", log_val);
+                    if should_log {
+                        log::error!(target:"testkit","{}", log_val);
+                    }
 
                     let log_val2 = format!(
                         "{}",
@@ -740,12 +746,10 @@ async fn check_assertions(
                             .into(),
                         ),
                     );
-                    step_log.push_str(&log_val2);
-                    step_log.push_str("\n");
-                    log::error!(target:"testkit",
-                        "{} ", log_val2
 
-                    )
+                    if should_log {
+                        log::error!(target:"testkit","{} ", log_val2)
+                    }
                 }
             }
         }
@@ -799,8 +803,9 @@ mod tests {
             path: ".".into(),
             step: Some("step_name".into()),
             step_index: 0,
+            should_log: true,
         };
-        let resp = run_json(ctx.clone(), val.into(), true, None).await;
+        let resp = run_json(ctx.clone(), val.into(), None).await;
         println!("resp {:?}", resp);
         assert!(resp.is_ok());
     }
@@ -910,6 +915,7 @@ mod tests {
             path: ".".into(),
             step: Some("step_name".into()),
             step_index: 0,
+            should_log: true,
         };
         let resp = run(ctx.clone(), yaml_str.clone(), true).await;
         assert!(resp.is_ok());
@@ -932,7 +938,7 @@ mod tests {
 
         // We test if the kitchen sink also works for json
         let json_str = yaml_to_json(&yaml_str).unwrap();
-        let resp = run_json(ctx.clone(), json_str.into(), true, None).await;
+        let resp = run_json(ctx.clone(), json_str.into(), None).await;
         assert!(resp.is_ok());
         m3.assert_hits(2);
         m2.assert_hits(2);

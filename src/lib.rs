@@ -16,13 +16,14 @@ pub extern "C" fn haskell_binding(
     let ctx = TestContext {
         file: "haskell_binding".into(),
         file_source: cont_rs.clone(),
+        should_log: false,
         ..Default::default()
     };
     let col = unsafe { CStr::from_ptr(collection_id) };
     let col_str = Some(col.to_str().unwrap().to_owned());
     let result = tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async { base_request::run_json(ctx, cont_rs, false, col_str).await });
+        .block_on(async { base_request::run_json(ctx, cont_rs, col_str).await });
     println!("haskell_binding result: {:?}", result);
 
     return result;
