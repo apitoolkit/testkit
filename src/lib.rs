@@ -1,4 +1,4 @@
-use base_request::{RequestResult, TestContext};
+use base_request::{RequestError, RequestResult, TestContext};
 use libc::c_char;
 use std::ffi::CStr;
 
@@ -9,7 +9,7 @@ pub mod base_request;
 pub extern "C" fn haskell_binding(
     content: *const c_char,
     collection_id: *const c_char,
-) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Result<RequestResult, RequestError>>, RequestError> {
     let c_str: &CStr = unsafe { CStr::from_ptr(content) };
     let str_slice: &str = c_str.to_str().unwrap();
     let cont_rs: String = str_slice.to_owned();
