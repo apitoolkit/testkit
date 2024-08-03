@@ -147,37 +147,24 @@ pub async fn run(
     ctx: TestContext,
     exec_string: String,
     should_log: bool,
-) -> Result<Vec<Result<RequestResult, RequestError>>, RequestError> {
-    let test_items_rs: Result<Vec<TestItem>, serde_yaml::Error> =
-        serde_yaml::from_str(&exec_string);
+) -> Result<Vec<Result<RequestResult, RequestError>>, Box<dyn std::error::Error>> {
+    let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
 
-    match test_items_rs {
-        Ok(test_items) => {
-            log::debug!(target:"testkit","test_items: {:#?}", test_items);
+    log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
-            let result = base_request(ctx.clone(), &test_items, should_log, None).await;
-            match result {
-                Ok(res) => {
-                    if should_log {
-                        log::debug!("Test passed: {:?}", res);
-                    }
-                    Ok(res)
-                }
-                Err(err) => {
-                    if should_log {
-                        log::error!(target:"testkit","{}", err);
-                    }
-                    Err(err)
-                }
-            }
-        }
-        Err(e) => {
+    let result = base_request(ctx.clone(), &test_items, should_log, None).await;
+    match result {
+        Ok(res) => {
             if should_log {
-                log::error!(target:"testkit","{}", e);
+                log::debug!("Test passed: {:?}", res);
             }
-            Err(RequestError {
-                message: format!("Error parsing YAML: {}", e),
-            })
+            Ok(res)
+        }
+        Err(err) => {
+            if should_log {
+                log::error!(target:"testkit","{}", err);
+            }
+            Err(err)
         }
     }
 }
@@ -186,33 +173,25 @@ pub async fn run_json(
     ctx: TestContext,
     exec_string: String,
     col_id: Option<String>,
-) -> Result<Vec<Result<RequestResult, RequestError>>, RequestError> {
+) -> Result<Vec<Result<RequestResult, RequestError>>, Box<dyn std::error::Error>> {
     println!("{}", &exec_string);
-    let test_items_rs: Result<Vec<TestItem>, serde_json::Error> =
-        serde_json::from_str(&exec_string);
-    match test_items_rs {
-        Ok(test_items) => {
-            log::debug!(target:"testkit","test_items: {:#?}", test_items);
-            let should_log = ctx.should_log;
-            let result = base_request(ctx.clone(), &test_items, should_log, col_id).await;
-            match result {
-                Ok(res) => {
-                    if should_log {
-                        log::debug!("Test passed: {:?}", res);
-                    }
-                    Ok(res)
-                }
-                Err(err) => {
-                    if should_log {
-                        log::error!(target:"testkit","{}", err);
-                    }
-                    Err(err)
-                }
+    let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
+    log::debug!(target:"testkit","test_items: {:#?}", test_items);
+    let should_log = ctx.should_log;
+    let result = base_request(ctx.clone(), &test_items, should_log, col_id).await;
+    match result {
+        Ok(res) => {
+            if should_log {
+                log::debug!("Test passed: {:?}", res);
             }
+            Ok(res)
         }
-        Err(err) => Err(RequestError {
-            message: format!("Error parsing json: {}", err),
-        }),
+        Err(err) => {
+            if should_log {
+                log::error!(target:"testkit","{}", err);
+            }
+            Err(err)
+        }
     }
 }
 
@@ -223,230 +202,210 @@ pub async fn base_request(
     test_items: &Vec<TestItem>,
     should_log: bool,
     col_id: Option<String>,
-) -> Result<Vec<Result<RequestResult, RequestError>>, RequestError> {
-    let client_res = reqwest::Client::builder().connection_verbose(true).build();
-    match client_res {
-        Ok(client) => {
-            let mut results: Vec<Result<RequestResult, RequestError>> = Vec::new();
-            let mut exports_map: HashMap<String, Value> = HashMap::new();
+) -> Result<Vec<Result<RequestResult, RequestError>>, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::builder()
+        .connection_verbose(true)
+        .build()?;
+    let mut results: Vec<Result<RequestResult, RequestError>> = Vec::new();
+    let mut exports_map: HashMap<String, Value> = HashMap::new();
 
-            for (i, test_item) in test_items.iter().enumerate() {
-                let mut ctx = ctx.clone();
-                let mut step_result = RequestResult {
-                    step_name: test_item.title.clone(),
-                    step_index: i as u32,
-                    ..Default::default()
-                };
-                ctx.step = test_item.title.clone();
-                ctx.step_index = i as u32;
-                let request_line = format!(
-                    "{:?} ⬅ {}/{}",
-                    test_item.request.http_method,
-                    ctx.plan.clone().unwrap_or("_plan".into()),
-                    ctx.step.clone().unwrap_or(ctx.step_index.to_string())
-                );
-                step_result.step_log.push_str(&request_line);
-                step_result.step_log.push_str("\n");
-                if should_log {
-                    log::info!(target:"testkit", "");
-                    log::info!(target:"testkit", "{}", request_line.to_string());
-                }
-                let mut request_builder = match &test_item.request.http_method {
-                    HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
-                    HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
-                    HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
-                    HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
-                };
-                request_builder = request_builder.header("X-Testkit-Run", "true");
+    for (i, test_item) in test_items.iter().enumerate() {
+        let mut ctx = ctx.clone();
+        let mut step_result = RequestResult {
+            step_name: test_item.title.clone(),
+            step_index: i as u32,
+            ..Default::default()
+        };
+        ctx.step = test_item.title.clone();
+        ctx.step_index = i as u32;
+        let request_line = format!(
+            "{:?} ⬅ {}/{}",
+            test_item.request.http_method,
+            ctx.plan.clone().unwrap_or("_plan".into()),
+            ctx.step.clone().unwrap_or(ctx.step_index.to_string())
+        );
+        step_result.step_log.push_str(&request_line);
+        step_result.step_log.push_str("\n");
+        if should_log {
+            log::info!(target:"testkit", "");
+            log::info!(target:"testkit", "{}", request_line.to_string());
+        }
+        let mut request_builder = match &test_item.request.http_method {
+            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
+            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
+            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
+            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
+        };
+        request_builder = request_builder.header("X-Testkit-Run", "true");
 
-                if let Some(col) = &col_id {
-                    request_builder = request_builder.header("X-Testkit-Collection-ID", col);
-                }
+        if let Some(col) = &col_id {
+            request_builder = request_builder.header("X-Testkit-Collection-ID", col);
+        }
 
-                if let Some(headers) = &test_item.request.headers {
-                    for (name, value) in headers {
-                        let mut value = value.clone();
-                        for export in get_exports_paths(&value) {
-                            match get_export_variable(&export, ctx.step_index, &exports_map) {
-                                Some(v) => value = value.replace(&export, &v.to_string()),
-                                None => {
-                                    let error_message = format!("Export not found: {}", export);
-                                    step_result.step_log.push_str(&error_message);
-                                    step_result.step_log.push_str("\n");
-                                    if should_log {
-                                        log::error!(target:"testkit","{}", error_message)
-                                    }
-                                }
-                            }
-                        }
-                        for env_var in get_env_variable_paths(&value) {
-                            match get_env_variable(&env_var) {
-                                Ok(val) => value = value.replace(&env_var, &val),
-                                Err(err) => {
-                                    let error_message = format!(
-                                        "Error getting environment variable {}: {}",
-                                        env_var, err
-                                    );
-                                    step_result.step_log.push_str(&error_message);
-                                    step_result.step_log.push_str("\n");
-                                    if should_log {
-                                        log::error!(target:"testkit","{}", error_message)
-                                    }
-                                }
-                            }
-                        }
-
-                        request_builder = request_builder.header(name, value);
-                    }
-                }
-
-                if let Some(json) = &test_item.request.json {
-                    let mut j_string = json.to_string();
-                    for export in get_exports_paths(&j_string) {
-                        match get_export_variable(&export, ctx.step_index, &exports_map) {
-                            Some(v) => j_string = j_string.replace(&export, &v.to_string()),
-                            None => {
-                                let error_message = format!("Export not found: {}", export);
-                                step_result.step_log.push_str(&error_message);
-                                step_result.step_log.push_str("\n");
-                                if should_log {
-                                    log::error!(target:"testkit","{}", error_message)
-                                }
+        if let Some(headers) = &test_item.request.headers {
+            for (name, value) in headers {
+                let mut value = value.clone();
+                for export in get_exports_paths(&value) {
+                    match get_export_variable(&export, ctx.step_index, &exports_map) {
+                        Some(v) => value = value.replace(&export, &v.to_string()),
+                        None => {
+                            let error_message = format!("Export not found: {}", export);
+                            step_result.step_log.push_str(&error_message);
+                            step_result.step_log.push_str("\n");
+                            if should_log {
+                                log::error!(target:"testkit","{}", error_message)
                             }
                         }
                     }
-
-                    for env_var in get_env_variable_paths(&j_string) {
-                        match get_env_variable(&env_var) {
-                            Ok(val) => j_string = j_string.replace(&env_var, &val),
-                            Err(err) => {
-                                let error_message = format!(
-                                    "Error getting environment variable {}: {}",
-                                    env_var, err
-                                );
-                                step_result.step_log.push_str(&error_message);
-                                step_result.step_log.push_str("\n");
-                                if should_log {
-                                    log::error!(target:"testkit","{}", error_message)
-                                }
+                }
+                for env_var in get_env_variable_paths(&value) {
+                    match get_env_variable(&env_var) {
+                        Ok(val) => value = value.replace(&env_var, &val),
+                        Err(err) => {
+                            let error_message =
+                                format!("Error getting environment variable {}: {}", env_var, err);
+                            step_result.step_log.push_str(&error_message);
+                            step_result.step_log.push_str("\n");
+                            if should_log {
+                                log::error!(target:"testkit","{}", error_message)
                             }
                         }
                     }
-                    let clean_json: Result<Value, serde_json::Error> =
-                        serde_json::from_str(&j_string);
-                    if let Ok(jsn) = clean_json {
-                        request_builder = request_builder.json(&jsn);
-                    }
                 }
 
-                let mut request_config = test_item.request.clone();
-                if let Some(col) = &col_id {
-                    let mut headers = request_config.headers.clone().unwrap_or_default();
-                    headers.insert("X-Testkit-Collection-ID".into(), col.clone());
-                    request_config.headers = Some(headers);
-                }
+                request_builder = request_builder.header(name, value);
+            }
+        }
 
-                let response = request_builder.send().await;
-
-                match response {
-                    Err(err) => {
-                        let error_message = format!("Error sending request: {}", err);
+        if let Some(json) = &test_item.request.json {
+            let mut j_string = json.to_string();
+            for export in get_exports_paths(&j_string) {
+                match get_export_variable(&export, ctx.step_index, &exports_map) {
+                    Some(v) => j_string = j_string.replace(&export, &v.to_string()),
+                    None => {
+                        let error_message = format!("Export not found: {}", export);
                         step_result.step_log.push_str(&error_message);
                         step_result.step_log.push_str("\n");
                         if should_log {
                             log::error!(target:"testkit","{}", error_message)
                         }
-                        results.push(Err(RequestError {
-                            message: err.to_string(),
-                        }));
-                    }
-                    Ok(response) => {
-                        let status_code = response.status().as_u16();
-                        let header_hashmap = header_map_to_hashmap(response.headers());
-
-                        let raw_body_res = response.text().await;
-                        let raw_body = raw_body_res.unwrap_or("{}".to_string());
-                        let json_body_res = serde_json::from_str(&raw_body);
-                        let json_body =
-                            json_body_res.unwrap_or(Value::Object(serde_json::Map::new()));
-
-                        let assert_object = RequestAndResponse {
-                            req: request_config,
-                            resp: ResponseObject {
-                                status: status_code,
-                                headers: serde_json::json!(header_hashmap),
-                                json: json_body.clone(),
-                                raw: raw_body,
-                            },
-                        };
-                        step_result.request = assert_object.clone();
-
-                        let assert_context: Value = serde_json::json!(&assert_object);
-                        if test_item.dump.unwrap_or(false) {
-                            let dump_message = format!(
-                                "💡 DUMP jsonpath request response context:\n {}",
-                                colored_json::to_colored_json_auto(&assert_context)
-                                    .unwrap_or(assert_context.to_owned().to_string())
-                            );
-                            step_result.step_log.push_str(&dump_message);
-                            step_result.step_log.push_str("\n");
-                            if should_log {
-                                log::info!(target:"testkit","{}", dump_message)
-                            }
-                        }
-                        let assert_results = check_assertions(
-                            ctx,
-                            &(test_item.asserts.clone().unwrap_or(vec![])),
-                            assert_context,
-                            &exports_map,
-                            &mut step_result.step_log,
-                        )
-                        .await;
-                        // if let Some(outputs) = &step.outputs {
-                        //     update_outputs(outputs, &response_json);
-                        // }
-                        if let Some(exports) = &test_item.exports {
-                            for (key, value) in exports.into_iter() {
-                                let json_bod = &serde_json::json!(assert_object);
-                                let export = select(json_bod, &value);
-                                match export {
-                                    Ok(v) => {
-                                        if let Some(evaled) = v.first() {
-                                            exports_map.insert(
-                                                format!("{}_{}", i, key.to_string()),
-                                                evaled.clone().clone(),
-                                            );
-                                        }
-                                    }
-                                    Err(err) => {
-                                        let error_message =
-                                            format!("Error getting export value: {}", err);
-                                        step_result.step_log.push_str(&error_message);
-                                        step_result.step_log.push_str("\n");
-                                        if should_log {
-                                            log::error!(target:"testkit","{}", error_message)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        step_result.assert_results = assert_results;
-                        results.push(Ok(step_result));
                     }
                 }
             }
-            Ok(results)
-        }
-        Err(err) => {
-            let error_message = format!("Error making request: {}", err);
-            if should_log {
-                log::error!(target:"testkit","{}", error_message)
+
+            for env_var in get_env_variable_paths(&j_string) {
+                match get_env_variable(&env_var) {
+                    Ok(val) => j_string = j_string.replace(&env_var, &val),
+                    Err(err) => {
+                        let error_message =
+                            format!("Error getting environment variable {}: {}", env_var, err);
+                        step_result.step_log.push_str(&error_message);
+                        step_result.step_log.push_str("\n");
+                        if should_log {
+                            log::error!(target:"testkit","{}", error_message)
+                        }
+                    }
+                }
             }
-            Err(RequestError {
-                message: error_message,
-            })
+            let clean_json: Value = serde_json::from_str(&j_string)?;
+            request_builder = request_builder.json(&clean_json);
+        }
+
+        let mut request_config = test_item.request.clone();
+        if let Some(col) = &col_id {
+            let mut headers = request_config.headers.clone().unwrap_or_default();
+            headers.insert("X-Testkit-Collection-ID".into(), col.clone());
+            request_config.headers = Some(headers);
+        }
+
+        let response = request_builder.send().await;
+
+        match response {
+            Err(err) => {
+                let error_message = format!("Error sending request: {}", err);
+                step_result.step_log.push_str(&error_message);
+                step_result.step_log.push_str("\n");
+                if should_log {
+                    log::error!(target:"testkit","{}", error_message)
+                }
+                results.push(Err(RequestError {
+                    message: err.to_string(),
+                }));
+            }
+            Ok(response) => {
+                let status_code = response.status().as_u16();
+                let header_hashmap = header_map_to_hashmap(response.headers());
+
+                let raw_body_res = response.text().await;
+                let raw_body = raw_body_res.unwrap_or("{}".to_string());
+                let json_body_res = serde_json::from_str(&raw_body);
+                let json_body = json_body_res.unwrap_or(Value::Object(serde_json::Map::new()));
+
+                let assert_object = RequestAndResponse {
+                    req: request_config,
+                    resp: ResponseObject {
+                        status: status_code,
+                        headers: serde_json::json!(header_hashmap),
+                        json: json_body.clone(),
+                        raw: raw_body,
+                    },
+                };
+                step_result.request = assert_object.clone();
+
+                let assert_context: Value = serde_json::json!(&assert_object);
+                if test_item.dump.unwrap_or(false) {
+                    let dump_message = format!(
+                        "💡 DUMP jsonpath request response context:\n {}",
+                        colored_json::to_colored_json_auto(&assert_context)
+                            .unwrap_or(assert_context.to_owned().to_string())
+                    );
+                    step_result.step_log.push_str(&dump_message);
+                    step_result.step_log.push_str("\n");
+                    if should_log {
+                        log::info!(target:"testkit","{}", dump_message)
+                    }
+                }
+                let assert_results = check_assertions(
+                    ctx,
+                    &(test_item.asserts.clone().unwrap_or(vec![])),
+                    assert_context,
+                    &exports_map,
+                    &mut step_result.step_log,
+                )
+                .await;
+                // if let Some(outputs) = &step.outputs {
+                //     update_outputs(outputs, &response_json);
+                // }
+                if let Some(exports) = &test_item.exports {
+                    for (key, value) in exports.into_iter() {
+                        let json_bod = &serde_json::json!(assert_object);
+                        let export = select(json_bod, &value);
+                        match export {
+                            Ok(v) => {
+                                if let Some(evaled) = v.first() {
+                                    exports_map.insert(
+                                        format!("{}_{}", i, key.to_string()),
+                                        evaled.clone().clone(),
+                                    );
+                                }
+                            }
+                            Err(err) => {
+                                let error_message = format!("Error getting export value: {}", err);
+                                step_result.step_log.push_str(&error_message);
+                                step_result.step_log.push_str("\n");
+                                if should_log {
+                                    log::error!(target:"testkit","{}", error_message)
+                                }
+                            }
+                        }
+                    }
+                }
+                step_result.assert_results = assert_results;
+                results.push(Ok(step_result));
+            }
         }
     }
+    Ok(results)
 }
 
 fn header_map_to_hashmap(headers: &HeaderMap<HeaderValue>) -> HashMap<String, Vec<String>> {
