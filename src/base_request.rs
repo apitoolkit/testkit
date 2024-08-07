@@ -84,6 +84,7 @@ pub struct RequestResult {
     pub assert_results: Vec<Result<bool, AssertionError>>,
     pub request: RequestAndResponse,
     pub step_log: String,
+    pub step_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -117,12 +118,6 @@ pub struct AssertionError {
     bad_bit: SourceSpan,
 }
 
-#[derive(Error, Serialize, Clone, Debug, Diagnostic)]
-#[error("request  failed!")]
-pub struct RequestError {
-    pub message: String,
-}
-
 fn report_error(diag: Report) -> String {
     let mut out = String::new();
     GraphicalReportHandler::new_themed(GraphicalTheme::unicode())
@@ -147,7 +142,7 @@ pub async fn run(
     ctx: TestContext,
     exec_string: String,
     should_log: bool,
-) -> Result<Vec<Result<RequestResult, RequestError>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
 
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
@@ -173,7 +168,7 @@ pub async fn run_json(
     ctx: TestContext,
     exec_string: String,
     col_id: Option<String>,
-) -> Result<Vec<Result<RequestResult, RequestError>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     println!("{}", &exec_string);
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
@@ -202,11 +197,11 @@ pub async fn base_request(
     test_items: &Vec<TestItem>,
     should_log: bool,
     col_id: Option<String>,
-) -> Result<Vec<Result<RequestResult, RequestError>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .connection_verbose(true)
         .build()?;
-    let mut results: Vec<Result<RequestResult, RequestError>> = Vec::new();
+    let mut results: Vec<RequestResult> = Vec::new();
     let mut exports_map: HashMap<String, Value> = HashMap::new();
 
     for (i, test_item) in test_items.iter().enumerate() {
@@ -328,9 +323,9 @@ pub async fn base_request(
                 if should_log {
                     log::error!(target:"testkit","{}", error_message)
                 }
-                results.push(Err(RequestError {
-                    message: err.to_string(),
-                }));
+                step_result.step_error = Some(error_message);
+
+                results.push(step_result);
             }
             Ok(response) => {
                 let status_code = response.status().as_u16();
@@ -401,7 +396,7 @@ pub async fn base_request(
                     }
                 }
                 step_result.assert_results = assert_results;
-                results.push(Ok(step_result));
+                results.push(step_result);
             }
         }
     }
@@ -612,7 +607,7 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
 
     log::debug!(target:"testkit","normalized pre-evaluation assert expression: {:?}", &expr);
     // TODO: reproduce and improve this error
-    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|e| AssertionError {
+    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| AssertionError {
         advice: Some("Comparison expression could not be evaluated".to_string()),
         src: NamedSource::new(ctx.file, expr.clone()),
         bad_bit: (0, 4).into(),
