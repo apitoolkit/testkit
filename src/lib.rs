@@ -1,6 +1,6 @@
 use base_request::{RequestResult, TestContext};
 use libc::c_char;
-use std::ffi::CStr;
+use std::{collections::HashMap, ffi::CStr};
 
 pub mod base_cli;
 pub mod base_request;
@@ -9,6 +9,7 @@ pub mod base_request;
 pub extern "C" fn haskell_binding(
     content: *const c_char,
     collection_id: *const c_char,
+    local_vars: *const c_char,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let c_str: &CStr = unsafe { CStr::from_ptr(content) };
     let str_slice: &str = c_str.to_str().unwrap();
@@ -21,9 +22,15 @@ pub extern "C" fn haskell_binding(
     };
     let col = unsafe { CStr::from_ptr(collection_id) };
     let col_str = Some(col.to_str().unwrap().to_owned());
-    let result = tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(async { base_request::run_json(ctx, cont_rs, col_str).await });
+
+    let local_vars_str = unsafe { CStr::from_ptr(local_vars) };
+    let local_vars_str = local_vars_str.to_str().unwrap();
+    let local_vars_map: HashMap<String, String> =
+        serde_json::from_str(local_vars_str).unwrap_or_default();
+
+    let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+        base_request::run_json(ctx, cont_rs, col_str, Some(local_vars_map)).await
+    });
     println!("haskell_binding result: {:?}", result);
 
     return result;

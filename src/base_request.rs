@@ -147,7 +147,7 @@ pub async fn run(
 
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
 
-    let result = base_request(ctx.clone(), &test_items, should_log, None).await;
+    let result = base_request(ctx.clone(), &test_items, should_log, None, None).await;
     match result {
         Ok(res) => {
             if should_log {
@@ -168,12 +168,12 @@ pub async fn run_json(
     ctx: TestContext,
     exec_string: String,
     col_id: Option<String>,
+    local_vars: Option<HashMap<String, String>>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
-    println!("{}", &exec_string);
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
     let should_log = ctx.should_log;
-    let result = base_request(ctx.clone(), &test_items, should_log, col_id).await;
+    let result = base_request(ctx.clone(), &test_items, should_log, col_id, local_vars).await;
     match result {
         Ok(res) => {
             if should_log {
@@ -197,6 +197,7 @@ pub async fn base_request(
     test_items: &Vec<TestItem>,
     should_log: bool,
     col_id: Option<String>,
+    local_vars: Option<HashMap<String, String>>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .connection_verbose(true)
@@ -226,10 +227,12 @@ pub async fn base_request(
             log::info!(target:"testkit", "{}", request_line.to_string());
         }
         let mut request_builder = match &test_item.request.http_method {
-            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
-            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
-            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
-            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
+            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map, &local_vars)),
+            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map, &local_vars)),
+            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map, &local_vars)),
+            HttpMethod::DELETE(url) => {
+                client.delete(format_url(&ctx, url, &exports_map, &local_vars))
+            }
         };
         request_builder = request_builder.header("X-Testkit-Run", "true");
 
@@ -259,6 +262,25 @@ pub async fn base_request(
                         Err(err) => {
                             let error_message =
                                 format!("Error getting environment variable {}: {}", env_var, err);
+                            step_result.step_log.push_str(&error_message);
+                            step_result.step_log.push_str("\n");
+                            if should_log {
+                                log::error!(target:"testkit","{}", error_message)
+                            }
+                        }
+                    }
+                }
+
+                for local_var in get_local_vars(&value) {
+                    match local_vars
+                        .clone()
+                        .unwrap_or_default()
+                        .get(&local_var.replace("{{", "").replace("}}", ""))
+                    {
+                        Some(val) => value = value.replace(&local_var, &val),
+                        None => {
+                            let error_message =
+                                format!("Error getting local variable: {}", local_var);
                             step_result.step_log.push_str(&error_message);
                             step_result.step_log.push_str("\n");
                             if should_log {
@@ -302,6 +324,24 @@ pub async fn base_request(
                     }
                 }
             }
+            for local_var in get_local_vars(&j_string) {
+                match local_vars
+                    .clone()
+                    .unwrap_or_default()
+                    .get(&local_var.replace("{{", "").replace("}}", ""))
+                {
+                    Some(val) => j_string = j_string.replace(&local_var, &val),
+                    None => {
+                        let error_message = format!("Error getting local variable: {}", local_var);
+                        step_result.step_log.push_str(&error_message);
+                        step_result.step_log.push_str("\n");
+                        if should_log {
+                            log::error!(target:"testkit","{}", error_message)
+                        }
+                    }
+                }
+            }
+
             let clean_json: Value = serde_json::from_str(&j_string)?;
             request_builder = request_builder.json(&clean_json);
         }
@@ -447,6 +487,7 @@ fn format_url(
     ctx: &TestContext,
     original_url: &String,
     exports_map: &HashMap<String, Value>,
+    local_vars: &Option<HashMap<String, String>>,
 ) -> String {
     let mut url = original_url.clone();
     for export in get_exports_paths(&url) {
@@ -465,6 +506,16 @@ fn format_url(
             Err(err) => {
                 let error_message =
                     format!("Error getting environment variable {}: {}", env_var, err);
+                log::error!(target:"testkit","{}", error_message)
+            }
+        }
+    }
+    let vars_map = local_vars.clone().unwrap_or_default();
+    for local_var in get_local_vars(&url) {
+        match vars_map.get(&local_var.replace("{{", "").replace("}}", "")) {
+            Some(val) => url = url.replace(&local_var, &val),
+            None => {
+                let error_message = format!("Error getting local variable: {}", local_var);
                 log::error!(target:"testkit","{}", error_message)
             }
         }
@@ -503,6 +554,16 @@ fn get_exports_paths(val: &String) -> Vec<String> {
         .map(|v| v.as_str().to_string())
         .collect();
     exports
+}
+
+fn get_local_vars(expr: &str) -> Vec<String> {
+    let regex_pattern = r#"\{\{([a-zA-Z0-9_]+)\}\}"#;
+    let regex = Regex::new(regex_pattern).unwrap();
+    let vars: Vec<String> = regex
+        .find_iter(&expr)
+        .map(|v| v.as_str().to_string())
+        .collect();
+    vars
 }
 
 fn get_env_variable_paths(val: &String) -> Vec<String> {
@@ -842,7 +903,7 @@ mod tests {
             step_index: 0,
             should_log: true,
         };
-        let resp = run_json(ctx.clone(), val.into(), None).await;
+        let resp = run_json(ctx.clone(), val.into(), None, None).await;
         println!("resp {:?}", resp);
         assert!(resp.is_ok());
     }
@@ -975,7 +1036,7 @@ mod tests {
 
         // We test if the kitchen sink also works for json
         let json_str = yaml_to_json(&yaml_str).unwrap();
-        let resp = run_json(ctx.clone(), json_str.into(), None).await;
+        let resp = run_json(ctx.clone(), json_str.into(), None, None).await;
         assert!(resp.is_ok());
         m3.assert_hits(2);
         m2.assert_hits(2);
