@@ -1,5 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use jsonpath_lib::select;
+use log::kv::value;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -286,7 +287,7 @@ pub async fn base_request(
 
         if let Some(json) = &test_item.request.json {
             let mut j_string = json.to_string();
-            for export in get_exports_paths(&j_string) {
+            for export in get_vars(&j_string) {
                 match get_export_variable(&export, ctx.step_index, &exports_map) {
                     Some(v) => j_string = j_string.replace(&export, &v.to_string()),
                     None => {
@@ -519,37 +520,28 @@ fn format_url(
     url
 }
 
-fn find_all_output_vars(
-    input: &str,
-    outputs: &HashMap<String, Value>,
-    step_index: u32,
-) -> HashMap<String, Option<Value>> {
-    let mut val_map = HashMap::new();
+// fn find_all_output_vars(
+//     input: &str,
+//     outputs: &HashMap<String, Value>,
+//     step_index: u32,
+// ) -> HashMap<String, Option<Value>> {
+//     let mut val_map = HashMap::new();
 
-    let vars: Vec<String> = input
-        .split_whitespace()
-        .filter(|x| x.starts_with("$.steps"))
-        .map(|x| x.to_string())
-        .collect();
+//     let vars: Vec<String> = input
+//         .split_whitespace()
+//         .filter(|x| x.starts_with("$.steps"))
+//         .map(|x| x.to_string())
+//         .collect();
 
-    for var in vars {
-        let target_step = get_var_step(&var, step_index).unwrap_or_default();
-        let elements: Vec<&str> = var.split('.').collect();
-        let target_key = elements.last().unwrap_or(&"");
-        let output_key = format!("{}_{}", target_step, target_key);
-        val_map.insert(var, outputs.get(&output_key).cloned());
-    }
-    val_map
-}
-fn get_exports_paths(val: &String) -> Vec<String> {
-    let regex_pattern = r#"\$\.steps\[(-?\d+)\]\.([a-zA-Z0-9]+)"#;
-    let regex = Regex::new(regex_pattern).unwrap();
-    let exports: Vec<String> = regex
-        .find_iter(&val)
-        .map(|v| v.as_str().to_string())
-        .collect();
-    exports
-}
+//     for var in vars {
+//         let target_step = get_var_step(&var, step_index).unwrap_or_default();
+//         let elements: Vec<&str> = var.split('.').collect();
+//         let target_key = elements.last().unwrap_or(&"");
+//         let output_key = format!("{}_{}", target_step, target_key);
+//         val_map.insert(var, outputs.get(&output_key).cloned());
+//     }
+//     val_map
+// }
 
 fn get_vars(expr: &str) -> Vec<String> {
     let regex_pattern = r#"\{\{([a-zA-Z0-9_]+)\}\}"#;
@@ -600,20 +592,21 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     outputs: &HashMap<String, Value>,
 ) -> Result<(T, String), AssertionError> {
     let paths = find_all_jsonpaths(&original_expr);
-    let output_vars = find_all_output_vars(&original_expr, outputs, ctx.step_index);
+    let output_vars = get_vars(&original_expr);
     let mut expr = original_expr.clone();
 
-    for (var_path, var_value) in output_vars.iter() {
-        if let Some(value) = var_value {
-            expr = expr.replace(var_path, value.to_string().as_str());
+    for var in output_vars.iter() {
+        if let Some(value) = outputs.get(&var.clone().replace("{{", "").replace("}}", "")) {
+            println!("{:?}", value);
+            expr = expr.replace(var.as_str(), value.to_string().as_str());
         } else {
             return Err(AssertionError {
                 advice: Some(format!(
                     "{}: could not resolve output variable path to any real value",
-                    var_path
+                    var,
                 )),
-                src: NamedSource::new(ctx.file, var_path.clone()),
-                bad_bit: (0, var_path.len()).into(),
+                src: NamedSource::new(ctx.file, var.clone()),
+                bad_bit: (0, var.len()).into(),
             });
         }
     }
@@ -899,13 +892,12 @@ mod tests {
             should_log: true,
         };
         let resp = run_json(ctx.clone(), val.into(), None, None).await;
-        println!("resp {:?}", resp);
         assert!(resp.is_ok());
     }
 
     #[tokio::test]
     async fn test_yaml_kitchen_sink() {
-        env_logger::init();
+        // env_logger::init();
         // testing_logger::setup();
         let mut todos = vec![
             Todo {
@@ -988,10 +980,10 @@ mod tests {
  - PUT: {}
    asserts:
      - ok: $.resp.json.completed
-     - ok: $.resp.json.id == $.steps[1].outputs.todoId
+     - ok: $.resp.json.id == {{{{todoId}}}}
  - DELETE: {}
    asserts:
-     - ok: $.resp.json.id == $.steps[-2].outputs.todoId
+     - ok: $.resp.json.id == {{{{todoId}}}}
      - boolean: $.resp.json.completed
      - ok: $.resp.json.task == "task one"
 "#,
