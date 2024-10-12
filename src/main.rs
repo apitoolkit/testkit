@@ -42,9 +42,10 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
             let ctx = TestContext {
                 file: file.to_str().unwrap().into(),
                 file_source: content.clone(),
+                should_log: true,
                 ..Default::default()
             };
-            let _ = base_request::run(ctx, content, true).await;
+            let _ = base_request::run(ctx, content).await;
             Ok(())
         }
         None => {
@@ -54,9 +55,10 @@ async fn cli(file_op: Option<PathBuf>) -> Result<(), anyhow::Error> {
                 let ctx = TestContext {
                     file: file.to_str().unwrap().into(),
                     file_source: content.clone(),
+                    should_log: true,
                     ..Default::default()
                 };
-                let _ = base_request::run(ctx, content, true).await;
+                let _ = base_request::run(ctx, content).await;
             }
             Ok(())
         }

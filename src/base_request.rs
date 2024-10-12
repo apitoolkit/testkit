@@ -1,6 +1,5 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use jsonpath_lib::select;
-use log::kv::value;
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme, NamedSource, Report, SourceSpan};
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -142,13 +141,12 @@ pub struct TestContext {
 pub async fn run(
     ctx: TestContext,
     exec_string: String,
-    should_log: bool,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let test_items: Vec<TestItem> = serde_yaml::from_str(&exec_string)?;
 
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
-
-    let result = base_request(ctx.clone(), &test_items, should_log, None, None).await;
+    let should_log = ctx.should_log;
+    let result = base_request(ctx.clone(), &test_items, None, None).await;
     match result {
         Ok(res) => {
             if should_log {
@@ -174,7 +172,7 @@ pub async fn run_json(
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
     let should_log = ctx.should_log;
-    let result = base_request(ctx.clone(), &test_items, should_log, col_id, local_vars).await;
+    let result = base_request(ctx.clone(), &test_items, col_id, local_vars).await;
     match result {
         Ok(res) => {
             if should_log {
@@ -196,10 +194,10 @@ pub async fn run_json(
 pub async fn base_request(
     ctx: TestContext,
     test_items: &Vec<TestItem>,
-    should_log: bool,
     col_id: Option<String>,
     local_vars: Option<HashMap<String, String>>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
+    let should_log = ctx.should_log;
     let client = reqwest::Client::builder()
         .connection_verbose(true)
         .build()?;
@@ -1002,7 +1000,7 @@ mod tests {
             step_index: 0,
             should_log: true,
         };
-        let resp = run(ctx.clone(), yaml_str.clone(), true).await;
+        let resp = run(ctx.clone(), yaml_str.clone()).await;
         assert!(resp.is_ok());
         m3.assert_hits(1);
         m2.assert_hits(1);
