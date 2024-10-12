@@ -205,6 +205,12 @@ pub async fn base_request(
     let mut results: Vec<RequestResult> = Vec::new();
     let mut exports_map: HashMap<String, Value> = HashMap::new();
 
+    if let Some(local_vars) = local_vars {
+        for (key, value) in local_vars {
+            exports_map.insert(key, Value::String(value));
+        }
+    }
+
     for (i, test_item) in test_items.iter().enumerate() {
         let mut ctx = ctx.clone();
         let mut step_result = RequestResult {
@@ -227,12 +233,10 @@ pub async fn base_request(
             log::info!(target:"testkit", "{}", request_line.to_string());
         }
         let mut request_builder = match &test_item.request.http_method {
-            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map, &local_vars)),
-            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map, &local_vars)),
-            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map, &local_vars)),
-            HttpMethod::DELETE(url) => {
-                client.delete(format_url(&ctx, url, &exports_map, &local_vars))
-            }
+            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
+            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
+            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
+            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
         };
         request_builder = request_builder.header("X-Testkit-Run", "true");
 
@@ -243,19 +247,6 @@ pub async fn base_request(
         if let Some(headers) = &test_item.request.headers {
             for (name, value) in headers {
                 let mut value = value.clone();
-                for export in get_exports_paths(&value) {
-                    match get_export_variable(&export, ctx.step_index, &exports_map) {
-                        Some(v) => value = value.replace(&export, &v.to_string()),
-                        None => {
-                            let error_message = format!("Export not found: {}", export);
-                            step_result.step_log.push_str(&error_message);
-                            step_result.step_log.push_str("\n");
-                            if should_log {
-                                log::error!(target:"testkit","{}", error_message)
-                            }
-                        }
-                    }
-                }
                 for env_var in get_env_variable_paths(&value) {
                     match get_env_variable(&env_var) {
                         Ok(val) => value = value.replace(&env_var, &val),
@@ -271,16 +262,15 @@ pub async fn base_request(
                     }
                 }
 
-                for local_var in get_local_vars(&value) {
-                    match local_vars
+                for export_var in get_vars(&value) {
+                    match exports_map
                         .clone()
-                        .unwrap_or_default()
-                        .get(&local_var.replace("{{", "").replace("}}", ""))
+                        .get(&export_var.replace("{{", "").replace("}}", ""))
                     {
-                        Some(val) => value = value.replace(&local_var, &val),
+                        Some(val) => value = value.replace(&export_var, &val.to_string()),
                         None => {
                             let error_message =
-                                format!("Error getting local variable: {}", local_var);
+                                format!("Error getting local/export variable: {}", export_var);
                             step_result.step_log.push_str(&error_message);
                             step_result.step_log.push_str("\n");
                             if should_log {
@@ -324,13 +314,12 @@ pub async fn base_request(
                     }
                 }
             }
-            for local_var in get_local_vars(&j_string) {
-                match local_vars
+            for local_var in get_vars(&j_string) {
+                match exports_map
                     .clone()
-                    .unwrap_or_default()
                     .get(&local_var.replace("{{", "").replace("}}", ""))
                 {
-                    Some(val) => j_string = j_string.replace(&local_var, &val),
+                    Some(val) => j_string = j_string.replace(&local_var, &val.to_string()),
                     None => {
                         let error_message = format!("Error getting local variable: {}", local_var);
                         step_result.step_log.push_str(&error_message);
@@ -413,13 +402,31 @@ pub async fn base_request(
                 // }
                 if let Some(exports) = &test_item.exports {
                     for (key, value) in exports.into_iter() {
+                        if value.starts_with("$.res.header.") {
+                            let header = value.replace("$.res.header.", "");
+                            let header_val = header_hashmap.get(&header);
+                            if let Some(header_val) = header_val {
+                                exports_map.insert(
+                                    format!("{}", key.to_string()),
+                                    Value::String(header_val.join("")),
+                                );
+                            }
+                            continue;
+                        }
+                        if value.starts_with("$.res.status.") {
+                            exports_map.insert(
+                                format!("{}", key.to_string()),
+                                Value::Number(status_code.clone().into()),
+                            );
+                            continue;
+                        }
                         let json_bod = &serde_json::json!(assert_object);
                         let export = select(json_bod, &value);
                         match export {
                             Ok(v) => {
                                 if let Some(evaled) = v.first() {
                                     exports_map.insert(
-                                        format!("{}_{}", i, key.to_string()),
+                                        format!("{}", key.to_string()),
                                         evaled.clone().clone(),
                                     );
                                 }
@@ -484,14 +491,13 @@ fn get_var_step(input: &str, current_step: u32) -> Option<u32> {
 
 // Replace output variables with actual values in request url
 fn format_url(
-    ctx: &TestContext,
+    _ctx: &TestContext,
     original_url: &String,
     exports_map: &HashMap<String, Value>,
-    local_vars: &Option<HashMap<String, String>>,
 ) -> String {
     let mut url = original_url.clone();
-    for export in get_exports_paths(&url) {
-        match get_export_variable(&export, ctx.step_index, &exports_map) {
+    for export in get_vars(&url) {
+        match exports_map.get(&export.replace("{{", "").replace("}}", "")) {
             Some(v) => url = url.replace(&export, &v.to_string()),
             None => {
                 let error_message = format!("Export not found: {}", export);
@@ -506,16 +512,6 @@ fn format_url(
             Err(err) => {
                 let error_message =
                     format!("Error getting environment variable {}: {}", env_var, err);
-                log::error!(target:"testkit","{}", error_message)
-            }
-        }
-    }
-    let vars_map = local_vars.clone().unwrap_or_default();
-    for local_var in get_local_vars(&url) {
-        match vars_map.get(&local_var.replace("{{", "").replace("}}", "")) {
-            Some(val) => url = url.replace(&local_var, &val),
-            None => {
-                let error_message = format!("Error getting local variable: {}", local_var);
                 log::error!(target:"testkit","{}", error_message)
             }
         }
@@ -545,7 +541,6 @@ fn find_all_output_vars(
     }
     val_map
 }
-
 fn get_exports_paths(val: &String) -> Vec<String> {
     let regex_pattern = r#"\$\.steps\[(-?\d+)\]\.([a-zA-Z0-9]+)"#;
     let regex = Regex::new(regex_pattern).unwrap();
@@ -556,7 +551,7 @@ fn get_exports_paths(val: &String) -> Vec<String> {
     exports
 }
 
-fn get_local_vars(expr: &str) -> Vec<String> {
+fn get_vars(expr: &str) -> Vec<String> {
     let regex_pattern = r#"\{\{([a-zA-Z0-9_]+)\}\}"#;
     let regex = Regex::new(regex_pattern).unwrap();
     let vars: Vec<String> = regex
