@@ -1,6 +1,6 @@
 [package]
 name = "testkit"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 license = "MIT/Apache-2.0"
 description = "A DSL for testing. Starting with APIs and Browser automation."

@@ -641,10 +641,12 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
                 } else {
                     let i = original_expr.find(path).unwrap_or(0);
                     // TODO: reproduce and improve this error
+                    let message = format!(
+                        "The given json path {} could not be located in the json body",
+                        path.to_string()
+                    );
                     return Err(AssertionError {
-                        advice: Some(
-                            "The given json path could not be located in the json body".to_string(),
-                        ),
+                        advice: Some(message),
                         src: NamedSource::new(ctx.file, original_expr.clone()),
                         bad_bit: (i, i + path.len()).into(),
                     });
