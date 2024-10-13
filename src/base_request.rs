@@ -48,6 +48,13 @@ pub enum Assert {
     NotEmpty(String), // Add other assertion types as needed
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigVariable {
+    variable_name: String,
+    variable_value: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RequestConfig {
     #[serde(flatten)]
@@ -167,7 +174,7 @@ pub async fn run_json(
     ctx: TestContext,
     exec_string: String,
     col_id: Option<String>,
-    local_vars: Option<HashMap<String, String>>,
+    local_vars: Option<Vec<ConfigVariable>>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let test_items: Vec<TestItem> = serde_json::from_str(&exec_string)?;
     log::debug!(target:"testkit","test_items: {:#?}", test_items);
@@ -195,7 +202,7 @@ pub async fn base_request(
     ctx: TestContext,
     test_items: &Vec<TestItem>,
     col_id: Option<String>,
-    local_vars: Option<HashMap<String, String>>,
+    local_vars: Option<Vec<ConfigVariable>>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let should_log = ctx.should_log;
     let client = reqwest::Client::builder()
@@ -205,8 +212,8 @@ pub async fn base_request(
     let mut exports_map: HashMap<String, Value> = HashMap::new();
 
     if let Some(local_vars) = local_vars {
-        for (key, value) in local_vars {
-            exports_map.insert(key, Value::String(value));
+        for var in local_vars {
+            exports_map.insert(var.variable_name, Value::String(var.variable_value));
         }
     }
 
@@ -496,8 +503,14 @@ fn format_url(
 ) -> String {
     let mut url = original_url.clone();
     for export in get_vars(&url) {
-        match exports_map.get(&export.replace("{{", "").replace("}}", "")) {
-            Some(v) => url = url.replace(&export, &v.to_string()),
+        let target_var = export.clone().replace("{{", "").replace("}}", "");
+        match exports_map.get(&target_var) {
+            Some(v) => match v {
+                Value::String(s) => {
+                    url = url.replace(&export, &s);
+                }
+                _ => url = url,
+            },
             None => {
                 let error_message = format!("Export not found: {}", export);
                 log::error!(target:"testkit","{}", error_message)
@@ -594,8 +607,8 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
     let mut expr = original_expr.clone();
 
     for var in output_vars.iter() {
-        if let Some(value) = outputs.get(&var.clone().replace("{{", "").replace("}}", "")) {
-            println!("{:?}", value);
+        let target_var = var.clone().replace("{{", "").replace("}}", "");
+        if let Some(value) = outputs.get(&target_var) {
             expr = expr.replace(var.as_str(), value.to_string().as_str());
         } else {
             return Err(AssertionError {

@@ -1,6 +1,6 @@
-use base_request::{RequestResult, TestContext};
+use base_request::{ConfigVariable, RequestResult, TestContext};
 use libc::c_char;
-use std::{collections::HashMap, ffi::CStr};
+use std::ffi::CStr;
 
 pub mod base_cli;
 pub mod base_request;
@@ -25,7 +25,7 @@ pub extern "C" fn haskell_binding(
 
     let local_vars_str = unsafe { CStr::from_ptr(local_vars) };
     let local_vars_str = local_vars_str.to_str().unwrap();
-    let local_vars_map: HashMap<String, String> =
+    let local_vars_map: Vec<ConfigVariable> =
         serde_json::from_str(local_vars_str).unwrap_or_default();
 
     let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
