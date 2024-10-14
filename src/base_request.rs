@@ -637,7 +637,23 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
         match select(&object, &path) {
             Ok(selected_value) => {
                 if let Some(selected_value) = selected_value.first() {
-                    expr = expr.replace(path, &selected_value.to_string());
+                    if path.starts_with("$.resp.headers") {
+                        match selected_value {
+                            Value::Array(s) => {
+                                let headers = s
+                                    .iter()
+                                    .map(|v| v.as_str().unwrap_or(""))
+                                    .collect::<Vec<&str>>()
+                                    .join(",");
+                                expr = expr.replace(path, &headers);
+                            }
+                            _ => {
+                                expr = expr.replace(path, selected_value.to_string().as_str());
+                            }
+                        }
+                    } else {
+                        expr = expr.replace(path, &selected_value.to_string());
+                    }
                 } else {
                     let i = original_expr.find(path).unwrap_or(0);
                     // TODO: reproduce and improve this error
@@ -669,10 +685,16 @@ fn evaluate_expressions<'a, T: Clone + 'static>(
 
     log::debug!(target:"testkit","normalized pre-evaluation assert expression: {:?}", &expr);
     // TODO: reproduce and improve this error
-    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| AssertionError {
-        advice: Some("Comparison expression could not be evaluated".to_string()),
-        src: NamedSource::new(ctx.file, expr.clone()),
-        bad_bit: (0, 4).into(),
+    let evaluated = parse_expression::<T>(&expr.clone()).map_err(|_e| {
+        println!(
+            "Error evaluating expression: {:?}: expression: {}",
+            _e, expr
+        );
+        AssertionError {
+            advice: Some("Comparison expression could not be evaluated".to_string()),
+            src: NamedSource::new(ctx.file, expr.clone()),
+            bad_bit: (0, 4).into(),
+        }
     })?;
     Ok((evaluated, expr.clone()))
 }
