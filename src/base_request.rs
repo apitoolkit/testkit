@@ -45,7 +45,15 @@ pub enum Assert {
     #[serde[rename = "date"]]
     IsDate(String),
     #[serde[rename = "notEmpty"]]
-    NotEmpty(String), // Add other assertion types as needed
+    NotEmpty(String),
+    #[serde[rename = "contains"]]
+    Contains(String),
+    #[serde[rename = "notContains"]]
+    NotContains(String),
+    #[serde[rename = "regexMatch"]]
+    RegexMatch(String),
+    #[serde[rename = "noRegexMatch"]]
+    NotRegexMatch(String),
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -574,6 +582,24 @@ fn get_env_variable_paths(val: &String) -> Vec<String> {
     env_vars
 }
 
+fn replace_vars(expr: &str, exports_map: &HashMap<String, Value>) -> String {
+    let vars = get_vars(expr);
+    let mut result = expr.to_string();
+    for var in vars {
+        let target_var = var.clone().replace("{{", "").replace("}}", "");
+        match exports_map.get(&target_var) {
+            Some(v) => match v {
+                Value::String(s) => {
+                    result = result.replace(&var, &s);
+                }
+                _ => result = result,
+            },
+            None => result = result,
+        }
+    }
+    result
+}
+
 fn get_env_variable(env_key_path: &String) -> Result<String, VarError> {
     let key = env_key_path.split(".").last().unwrap_or_default();
     env::var(key)
@@ -596,6 +622,7 @@ fn get_export_variable<'a>(
 // 4. replace the jsonpaths with that value in the original expr string
 // 5. Evaluate the expression with the expressions library.
 // TODO: decide on both error handling and the reporting approach
+
 fn evaluate_expressions<'a, T: Clone + 'static>(
     ctx: TestContext,
     original_expr: &String,
@@ -782,29 +809,45 @@ async fn check_assertions(
         let eval_result = match assertion {
             Assert::IsOk(expr) => {
                 evaluate_expressions::<bool>(ctx.clone(), expr, &json_body, outputs)
-                    .map(|(e, eval_expr)| ("OK ", e == true, expr, eval_expr))
+                    .map(|(e, eval_expr)| ("OK ", e, expr, eval_expr))
             }
             Assert::IsArray(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "array")
-                .map(|(e, eval_expr)| ("ARRAY ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("ARRAY ", e, expr, eval_expr)),
             Assert::IsEmpty(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "empty")
-                .map(|(e, eval_expr)| ("EMPTY ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("EMPTY ", e, expr, eval_expr)),
             Assert::IsString(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "str")
-                .map(|(e, eval_expr)| ("STRING ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("STRING ", e, expr, eval_expr)),
             Assert::IsNumber(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "num")
-                .map(|(e, eval_expr)| ("NUMBER ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("NUMBER ", e, expr, eval_expr)),
             Assert::IsBoolean(expr) => {
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "bool")
-                    .map(|(e, eval_expr)| ("BOOLEAN ", e == true, expr, eval_expr))
+                    .map(|(e, eval_expr)| ("BOOLEAN ", e, expr, eval_expr))
             }
             Assert::IsNull(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "null")
-                .map(|(e, eval_expr)| ("NULL ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("NULL ", e, expr, eval_expr)),
             Assert::Exists(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "exists")
-                .map(|(e, eval_expr)| ("EXISTS ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("EXISTS ", e, expr, eval_expr)),
             Assert::IsDate(expr) => evaluate_value::<bool>(ctx.clone(), expr, &json_body, "date")
-                .map(|(e, eval_expr)| ("DATE ", e == true, expr, eval_expr)),
+                .map(|(e, eval_expr)| ("DATE ", e, expr, eval_expr)),
             Assert::NotEmpty(expr) => {
                 evaluate_value::<bool>(ctx.clone(), expr, &json_body, "notEmpty")
-                    .map(|(e, eval_expr)| ("NOT EMPTY ", e == true, expr, eval_expr))
+                    .map(|(e, eval_expr)| ("NOT EMPTY ", e, expr, eval_expr))
+            }
+            Assert::Contains(expr) => {
+                evaluate_funcs::<bool>(ctx.clone(), expr, &json_body, "contains", outputs)
+                    .map(|(e, eval_expr)| ("CONTAINS ", e, expr, eval_expr))
+            }
+            Assert::NotContains(expr) => {
+                evaluate_funcs::<bool>(ctx.clone(), expr, &json_body, "notContains", outputs)
+                    .map(|(e, eval_expr)| ("NOT CONTAINS ", e, expr, eval_expr))
+            }
+            Assert::RegexMatch(expr) => {
+                evaluate_funcs::<bool>(ctx.clone(), expr, &json_body, "regexMatch", outputs)
+                    .map(|(e, eval_expr)| ("REGEX MATCH ", e, expr, eval_expr))
+            }
+            Assert::NotRegexMatch(expr) => {
+                evaluate_funcs::<bool>(ctx.clone(), expr, &json_body, "notRegexMatch", outputs)
+                    .map(|(e, eval_expr)| ("NOT REGEX MATCH ", e, expr, eval_expr))
             }
         };
 
@@ -854,6 +897,97 @@ async fn check_assertions(
         }
     }
     assert_results
+}
+
+// Evaluate funcs function that takes an express jsonpath ~ targer_value
+// and checks if it (contains, not contains, regex match, not regex match)
+// returns a result of the evaluation
+pub fn evaluate_funcs<T: Clone + 'static>(
+    _ctx: TestContext,
+    expr: &str,
+    json_body: &Value,
+    assert_type: &str,
+    outputs: &HashMap<String, Value>,
+) -> Result<(bool, String), AssertionError> {
+    let exprs: Vec<&str> = expr.split("~").collect();
+    if exprs.len() != 2 {
+        return Err(AssertionError {
+            advice: Some("check that you're using correct jsonpaths".to_string()),
+            src: NamedSource::new("bad_file.rs", expr.to_string()),
+            bad_bit: (0, 4).into(),
+        });
+    }
+    let jsonpath = exprs[0];
+    let target_value = replace_vars(exprs[1], outputs);
+    match select(&json_body, &jsonpath) {
+        Ok(selected_value) => {
+            if let Some(selected_value) = selected_value.first() {
+                match selected_value {
+                    Value::Array(v) => {
+                        if assert_type == "contains" {
+                            if v.contains(&Value::String(target_value.clone())) {
+                                return Ok((true, expr.to_string()));
+                            }
+                        }
+                        if assert_type == "notContains" {
+                            if !v.contains(&Value::String(target_value)) {
+                                return Ok((true, expr.to_string()));
+                            }
+                        }
+                        return Ok((false, expr.to_string()));
+                    }
+                    Value::String(v) => {
+                        if assert_type == "contains" {
+                            if v.contains(&target_value) {
+                                return Ok((true, expr.to_string()));
+                            }
+                        }
+                        if assert_type == "notContains" {
+                            if !v.contains(&target_value) {
+                                return Ok((true, expr.to_string()));
+                            }
+                        }
+                        if assert_type == "regexMatch" {
+                            if regex::Regex::new(&target_value).unwrap().is_match(v) {
+                                return Ok((true, expr.to_string()));
+                            }
+                        }
+                        if assert_type == "notRegexMatch" {
+                            if !regex::Regex::new(&target_value).unwrap().is_match(v) {
+                                return Ok((true, expr.to_string()));
+                            }
+                        }
+                        return Ok((false, expr.to_string()));
+                    }
+                    _ => return Ok((false, expr.to_string())),
+                };
+            }
+            return Ok((false, expr.to_string()));
+        }
+        Err(_err) => {
+            if assert_type == "contains" {
+                if jsonpath.contains(&target_value) {
+                    return Ok((true, expr.to_string()));
+                }
+            }
+            if assert_type == "notContains" {
+                if !jsonpath.contains(&target_value) {
+                    return Ok((true, expr.to_string()));
+                }
+            }
+            if assert_type == "regexMatch" {
+                if regex::Regex::new(&target_value).unwrap().is_match(jsonpath) {
+                    return Ok((true, expr.to_string()));
+                }
+            }
+            if assert_type == "notRegexMatch" {
+                if !regex::Regex::new(&target_value).unwrap().is_match(jsonpath) {
+                    return Ok((true, expr.to_string()));
+                }
+            }
+            return Ok((false, expr.to_string()));
+        }
+    }
 }
 
 // parse_expression would take a normalized math-like expression and evaluate it to a premitive or simpler
@@ -972,6 +1106,8 @@ mod tests {
      - ok: $.resp.status == 201
      - number: $.resp.json.id
      - string: $.resp.json.task
+     - contains: $.resp.json.task ~ gym
+     - notContains: $.resp.json.task ~ gymmm
      - boolean: $.resp.json.completed
    exports:
      todoResp: $.resp.json.resp_string
