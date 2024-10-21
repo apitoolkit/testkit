@@ -69,6 +69,10 @@ pub struct RequestConfig {
     pub http_method: HttpMethod,
     pub headers: Option<HashMap<String, String>>,
     pub json: Option<Value>,
+    pub params: Option<HashMap<String, String>>,
+    pub raw: Option<String>,
+    #[serde[rename = "requestBody"]]
+    pub request_body: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -254,6 +258,17 @@ pub async fn base_request(
         };
         request_builder = request_builder.header("X-Testkit-Run", "true");
 
+        if let Some(v) = test_item.request.params.clone() {
+            let mut params = vec![];
+            for (name, value) in v {
+                params.push((
+                    replace_vars(name.as_str(), &exports_map),
+                    replace_vars(value.as_str(), &exports_map),
+                ));
+            }
+            request_builder = request_builder.query(&params);
+        }
+
         if let Some(col) = &col_id {
             request_builder = request_builder.header("X-Testkit-Collection-ID", col);
         }
@@ -299,54 +314,30 @@ pub async fn base_request(
         }
 
         if let Some(json) = &test_item.request.json {
-            let mut j_string = json.to_string();
-            for export in get_vars(&j_string) {
-                match get_export_variable(&export, ctx.step_index, &exports_map) {
-                    Some(v) => j_string = j_string.replace(&export, &v.to_string()),
-                    None => {
-                        let error_message = format!("Export not found: {}", export);
-                        step_result.step_log.push_str(&error_message);
-                        step_result.step_log.push_str("\n");
-                        if should_log {
-                            log::error!(target:"testkit","{}", error_message)
-                        }
-                    }
+            let js_string = match json {
+                Value::String(s) => s.clone(),
+                _ => json.to_string(),
+            };
+            let j_string = prepare_json_body(js_string, &exports_map, &mut step_result, should_log);
+            request_builder = request_builder.header("Content-Type", "application/json");
+            let clean_json: Result<Value, serde_json::Error> = serde_json::from_str(&j_string);
+            if let Ok(json) = &clean_json {
+                request_builder = request_builder.json(json);
+            }
+            if let Err(err) = clean_json {
+                let error_message = format!("Error parsing json: {}", err);
+                step_result.step_log.push_str(&error_message);
+                step_result.step_log.push_str("\n");
+                if should_log {
+                    log::error!(target:"testkit","{}", error_message)
                 }
             }
-
-            for env_var in get_env_variable_paths(&j_string) {
-                match get_env_variable(&env_var) {
-                    Ok(val) => j_string = j_string.replace(&env_var, &val),
-                    Err(err) => {
-                        let error_message =
-                            format!("Error getting environment variable {}: {}", env_var, err);
-                        step_result.step_log.push_str(&error_message);
-                        step_result.step_log.push_str("\n");
-                        if should_log {
-                            log::error!(target:"testkit","{}", error_message)
-                        }
-                    }
-                }
+        } else if let Some(b) = &test_item.request.request_body {
+            let mut body = b.clone();
+            for (key, val) in body.clone().iter() {
+                body.insert(key.clone(), replace_vars(val, &exports_map));
             }
-            for local_var in get_vars(&j_string) {
-                match exports_map
-                    .clone()
-                    .get(&local_var.replace("{{", "").replace("}}", ""))
-                {
-                    Some(val) => j_string = j_string.replace(&local_var, &val.to_string()),
-                    None => {
-                        let error_message = format!("Error getting local variable: {}", local_var);
-                        step_result.step_log.push_str(&error_message);
-                        step_result.step_log.push_str("\n");
-                        if should_log {
-                            log::error!(target:"testkit","{}", error_message)
-                        }
-                    }
-                }
-            }
-
-            let clean_json: Value = serde_json::from_str(&j_string)?;
-            request_builder = request_builder.json(&clean_json);
+            request_builder = request_builder.body(serde_json::to_string(&body)?);
         }
 
         let mut request_config = test_item.request.clone();
@@ -411,9 +402,7 @@ pub async fn base_request(
                     &mut step_result.step_log,
                 )
                 .await;
-                // if let Some(outputs) = &step.outputs {
-                //     update_outputs(outputs, &response_json);
-                // }
+
                 if let Some(exports) = &test_item.exports {
                     for (key, value) in exports.into_iter() {
                         if value.starts_with("$.res.header.") {
@@ -463,7 +452,6 @@ pub async fn base_request(
     }
     Ok(results)
 }
-
 fn header_map_to_hashmap(headers: &HeaderMap<HeaderValue>) -> HashMap<String, Vec<String>> {
     let mut header_hashmap = HashMap::new();
     for (k, v) in headers {
@@ -899,6 +887,47 @@ async fn check_assertions(
     assert_results
 }
 
+pub fn prepare_json_body(
+    json: String,
+    exports_map: &HashMap<String, Value>,
+    step_result: &mut RequestResult,
+    should_log: bool,
+) -> String {
+    let mut j_string = json;
+
+    for env_var in get_env_variable_paths(&j_string) {
+        match get_env_variable(&env_var) {
+            Ok(val) => j_string = j_string.replace(&env_var, &val),
+            Err(err) => {
+                let error_message =
+                    format!("Error getting environment variable {}: {}", env_var, err);
+                step_result.step_log.push_str(&error_message);
+                step_result.step_log.push_str("\n");
+                if should_log {
+                    log::error!(target:"testkit","{}", error_message)
+                }
+            }
+        }
+    }
+    for local_var in get_vars(&j_string) {
+        match exports_map
+            .clone()
+            .get(&local_var.replace("{{", "").replace("}}", ""))
+        {
+            Some(val) => j_string = j_string.replace(&local_var, &val.to_string()),
+            None => {
+                let error_message = format!("Error getting local variable: {}", local_var);
+                step_result.step_log.push_str(&error_message);
+                step_result.step_log.push_str("\n");
+                if should_log {
+                    log::error!(target:"testkit","{}", error_message)
+                }
+            }
+        }
+    }
+    j_string
+}
+
 // Evaluate funcs function that takes an express jsonpath ~ targer_value
 // and checks if it (contains, not contains, regex match, not regex match)
 // returns a result of the evaluation
@@ -1135,6 +1164,14 @@ mod tests {
      - ok: $.resp.json.id == {{{{todoId}}}}
      - boolean: $.resp.json.completed
      - ok: $.resp.json.task == "task one"
+ - POST : https://jsonplaceholder.typicode.com/todos
+   requestBody:
+      task: hit the gym
+      completed: true
+      id: 1
+   asserts:
+    - ok: $.resp.json.task == "hit the gym"
+   title: "Simple Test 1"
 "#,
             server.url("/todos"),
             server.url("/todo_get"),
