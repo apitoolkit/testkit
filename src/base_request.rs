@@ -88,6 +88,8 @@ pub enum HttpMethod {
     POST(String),
     DELETE(String),
     PUT(String), // Add other HTTP methods as needed
+    PATCH(String),
+    HEAD(String),
 }
 
 impl Default for HttpMethod {
@@ -238,9 +240,46 @@ pub async fn base_request(
         };
         ctx.step = test_item.title.clone();
         ctx.step_index = i as u32;
+        let mut url = "".to_string();
+        let mut method = "GET?".to_string();
+
+        let mut request_builder = match &test_item.request.http_method {
+            HttpMethod::GET(u) => {
+                url = format_url(&ctx, u, &exports_map);
+                method = "GET".to_string();
+                client.get(url.clone())
+            }
+            HttpMethod::POST(u) => {
+                url = format_url(&ctx, u, &exports_map);
+                method = "POST".to_string();
+                client.post(url.clone())
+            }
+            HttpMethod::PUT(u) => {
+                url = format_url(&ctx, u, &exports_map);
+                method = "PUT".to_string();
+                client.put(url.clone())
+            }
+            HttpMethod::DELETE(u) => {
+                url = format_url(&ctx, u, &exports_map);
+                method = "DELETE".to_string();
+                client.delete(url.clone())
+            }
+            HttpMethod::PATCH(u) => {
+                url = format_url(&ctx, u, &exports_map);
+                method = "PATCH".to_string();
+                client.patch(url.clone())
+            }
+            HttpMethod::HEAD(u) => {
+                url = format_url(&ctx, u, &exports_map);
+                method = "HEAD".to_string();
+                client.head(url.clone())
+            }
+        };
+
         let request_line = format!(
-            "{:?} ⬅ {}/{}",
-            test_item.request.http_method,
+            "{} {} ⬅ {}/{}",
+            method,
+            url,
             ctx.plan.clone().unwrap_or("_plan".into()),
             ctx.step.clone().unwrap_or(ctx.step_index.to_string())
         );
@@ -250,12 +289,6 @@ pub async fn base_request(
             log::info!(target:"testkit", "");
             log::info!(target:"testkit", "{}", request_line.to_string());
         }
-        let mut request_builder = match &test_item.request.http_method {
-            HttpMethod::GET(url) => client.get(format_url(&ctx, url, &exports_map)),
-            HttpMethod::POST(url) => client.post(format_url(&ctx, url, &exports_map)),
-            HttpMethod::PUT(url) => client.put(format_url(&ctx, url, &exports_map)),
-            HttpMethod::DELETE(url) => client.delete(format_url(&ctx, url, &exports_map)),
-        };
         request_builder = request_builder.header("X-Testkit-Run", "true");
 
         if let Some(v) = test_item.request.params.clone() {
