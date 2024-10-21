@@ -1164,14 +1164,6 @@ mod tests {
      - ok: $.resp.json.id == {{{{todoId}}}}
      - boolean: $.resp.json.completed
      - ok: $.resp.json.task == "task one"
- - POST : https://jsonplaceholder.typicode.com/todos
-   requestBody:
-      task: hit the gym
-      completed: true
-      id: 1
-   asserts:
-    - ok: $.resp.json.task == "hit the gym"
-   title: "Simple Test 1"
 "#,
             server.url("/todos"),
             server.url("/todo_get"),
