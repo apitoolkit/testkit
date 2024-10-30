@@ -70,6 +70,7 @@ pub struct RequestConfig {
     pub headers: Option<HashMap<String, String>>,
     pub json: Option<Value>,
     pub params: Option<HashMap<String, String>>,
+    pub disabled: Option<bool>,
     pub raw: Option<String>,
     #[serde[rename = "requestBody"]]
     pub request_body: Option<HashMap<String, String>>,
@@ -238,10 +239,18 @@ pub async fn base_request(
             step_index: i as u32,
             ..Default::default()
         };
+        if test_item.request.disabled.unwrap_or(false) {
+            step_result.step_log = "Step disabled, skipping".to_string();
+            for _ in test_item.asserts.iter() {
+                step_result.assert_results.push(Ok(true));
+            }
+            results.push(step_result);
+            continue;
+        }
         ctx.step = test_item.title.clone();
         ctx.step_index = i as u32;
-        let mut url = "".to_string();
-        let mut method = "GET?".to_string();
+        let url;
+        let method;
 
         let mut request_builder = match &test_item.request.http_method {
             HttpMethod::GET(u) => {
