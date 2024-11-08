@@ -8,7 +8,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{serde_as, DisplayFromStr};
 use serde_yaml::with;
-use std::{collections::HashMap, env, env::VarError};
+use std::{
+    collections::HashMap,
+    env::{self, VarError},
+    f64::consts::E,
+    time::Duration,
+};
 use thiserror::Error;
 
 #[serde_as]
@@ -71,6 +76,13 @@ pub struct RequestConfig {
     pub json: Option<Value>,
     pub params: Option<HashMap<String, String>>,
     pub disabled: Option<bool>,
+    #[serde[rename = "httpVersion"]]
+    pub http_version: Option<String>,
+    pub timeout: Option<u64>,
+    #[serde[rename = "follow_redirects"]]
+    pub follow_redirects: Option<bool>,
+    #[serde[rename = "ignore_ssl_errors"]]
+    pub ignore_ssl_errors: Option<bool>,
     pub raw: Option<String>,
     #[serde[rename = "requestBody"]]
     pub request_body: Option<HashMap<String, String>>,
@@ -220,9 +232,7 @@ pub async fn base_request(
     local_vars: Option<Vec<ConfigVariable>>,
 ) -> Result<Vec<RequestResult>, Box<dyn std::error::Error>> {
     let should_log = ctx.should_log;
-    let client = reqwest::Client::builder()
-        .connection_verbose(true)
-        .build()?;
+
     let mut results: Vec<RequestResult> = Vec::new();
     let mut exports_map: HashMap<String, Value> = HashMap::new();
 
@@ -233,251 +243,120 @@ pub async fn base_request(
     }
 
     for (i, test_item) in test_items.iter().enumerate() {
-        let mut ctx = ctx.clone();
+        let mut client = reqwest::Client::builder().connection_verbose(true);
+
+        if test_item.request.http_version.is_some() {
+            let version = test_item.request.http_version.clone().unwrap();
+            if version == "http-2" {
+                client = client.http2_prior_knowledge();
+            }
+        }
+        if test_item.request.timeout.is_some() {
+            let timeout = test_item.request.timeout.clone().unwrap();
+            client = client.timeout(Duration::from_secs(timeout));
+        }
+        // if test_item.request.follow_redirects.is_some() {
+        //     let follow_redirects = test_item.request.follow_redirects.clone().unwrap();
+        //     client = client.redirect(follow_redirects);
+        // }
+        if test_item.request.ignore_ssl_errors.unwrap_or(false) {
+            client = client.danger_accept_invalid_certs(true);
+        }
         let mut step_result = RequestResult {
             step_name: test_item.title.clone(),
             step_index: i as u32,
             ..Default::default()
         };
-        if test_item.request.disabled.unwrap_or(false) {
-            step_result.step_log = "Step disabled, skipping".to_string();
-            for _ in test_item.asserts.iter() {
-                step_result.assert_results.push(Ok(true));
-            }
-            results.push(step_result);
-            continue;
-        }
-        ctx.step = test_item.title.clone();
-        ctx.step_index = i as u32;
-        let url;
-        let method;
 
-        let mut request_builder = match &test_item.request.http_method {
-            HttpMethod::GET(u) => {
-                url = format_url(&ctx, u, &exports_map);
-                method = "GET".to_string();
-                client.get(url.clone())
-            }
-            HttpMethod::POST(u) => {
-                url = format_url(&ctx, u, &exports_map);
-                method = "POST".to_string();
-                client.post(url.clone())
-            }
-            HttpMethod::PUT(u) => {
-                url = format_url(&ctx, u, &exports_map);
-                method = "PUT".to_string();
-                client.put(url.clone())
-            }
-            HttpMethod::DELETE(u) => {
-                url = format_url(&ctx, u, &exports_map);
-                method = "DELETE".to_string();
-                client.delete(url.clone())
-            }
-            HttpMethod::PATCH(u) => {
-                url = format_url(&ctx, u, &exports_map);
-                method = "PATCH".to_string();
-                client.patch(url.clone())
-            }
-            HttpMethod::HEAD(u) => {
-                url = format_url(&ctx, u, &exports_map);
-                method = "HEAD".to_string();
-                client.head(url.clone())
-            }
-        };
-
-        let request_line = format!(
-            "{} {} ⬅ {}/{}",
-            method,
-            url,
-            ctx.plan.clone().unwrap_or("_plan".into()),
-            ctx.step.clone().unwrap_or(ctx.step_index.to_string())
-        );
-        step_result.step_log.push_str(&request_line);
-        step_result.step_log.push_str("\n");
-        if should_log {
-            log::info!(target:"testkit", "");
-            log::info!(target:"testkit", "{}", request_line.to_string());
-        }
-        request_builder = request_builder.header("X-Testkit-Run", "true");
-
-        if let Some(v) = test_item.request.params.clone() {
-            let mut params = vec![];
-            for (name, value) in v {
-                params.push((
-                    replace_vars(name.as_str(), &exports_map),
-                    replace_vars(value.as_str(), &exports_map),
-                ));
-            }
-            request_builder = request_builder.query(&params);
-        }
-
-        if let Some(col) = &col_id {
-            request_builder = request_builder.header("X-Testkit-Collection-ID", col);
-        }
-
-        if let Some(headers) = &test_item.request.headers {
-            for (name, value) in headers {
-                let mut value = value.clone();
-                for env_var in get_env_variable_paths(&value) {
-                    match get_env_variable(&env_var) {
-                        Ok(val) => value = value.replace(&env_var, &val),
-                        Err(err) => {
-                            let error_message =
-                                format!("Error getting environment variable {}: {}", env_var, err);
-                            step_result.step_log.push_str(&error_message);
-                            step_result.step_log.push_str("\n");
-                            if should_log {
-                                log::error!(target:"testkit","{}", error_message)
-                            }
-                        }
-                    }
+        if let Ok(client) = client.build() {
+            let mut ctx = ctx.clone();
+            if test_item.request.disabled.unwrap_or(false) {
+                step_result.step_log = "Step disabled, skipping".to_string();
+                for _ in test_item.asserts.iter() {
+                    step_result.assert_results.push(Ok(true));
                 }
-
-                for export_var in get_vars(&value) {
-                    match exports_map
-                        .clone()
-                        .get(&export_var.replace("{{", "").replace("}}", ""))
-                    {
-                        Some(val) => value = value.replace(&export_var, &val.to_string()),
-                        None => {
-                            let error_message =
-                                format!("Error getting local/export variable: {}", export_var);
-                            step_result.step_log.push_str(&error_message);
-                            step_result.step_log.push_str("\n");
-                            if should_log {
-                                log::error!(target:"testkit","{}", error_message)
-                            }
-                        }
-                    }
-                }
-
-                request_builder = request_builder.header(name, value);
-            }
-        }
-
-        if let Some(json) = &test_item.request.json {
-            let js_string = match json {
-                Value::String(s) => s.clone(),
-                _ => json.to_string(),
-            };
-            let j_string = prepare_json_body(js_string, &exports_map, &mut step_result, should_log);
-            request_builder = request_builder.header("Content-Type", "application/json");
-            let clean_json: Result<Value, serde_json::Error> = serde_json::from_str(&j_string);
-            if let Ok(json) = &clean_json {
-                request_builder = request_builder.json(json);
-            }
-            if let Err(err) = clean_json {
-                let error_message = format!("Error parsing json: {}", err);
-                step_result.step_log.push_str(&error_message);
-                step_result.step_log.push_str("\n");
-                if should_log {
-                    log::error!(target:"testkit","{}", error_message)
-                }
-            }
-        } else if let Some(b) = &test_item.request.request_body {
-            let mut body = b.clone();
-            for (key, val) in body.clone().iter() {
-                body.insert(key.clone(), replace_vars(val, &exports_map));
-            }
-            request_builder = request_builder.body(serde_json::to_string(&body)?);
-        }
-
-        let mut request_config = test_item.request.clone();
-        if let Some(col) = &col_id {
-            let mut headers = request_config.headers.clone().unwrap_or_default();
-            headers.insert("X-Testkit-Collection-ID".into(), col.clone());
-            request_config.headers = Some(headers);
-        }
-
-        let response = request_builder.send().await;
-
-        match response {
-            Err(err) => {
-                let error_message = format!("Error sending request: {}", err);
-                step_result.step_log.push_str(&error_message);
-                step_result.step_log.push_str("\n");
-                if should_log {
-                    log::error!(target:"testkit","{}", error_message)
-                }
-                step_result.step_error = Some(error_message);
-
                 results.push(step_result);
+                continue;
             }
-            Ok(response) => {
-                let status_code = response.status().as_u16();
-                let header_hashmap = header_map_to_hashmap(response.headers());
+            ctx.step = test_item.title.clone();
+            ctx.step_index = i as u32;
+            let url;
+            let method;
 
-                let raw_body_res = response.text().await;
-                let raw_body = raw_body_res.unwrap_or("{}".to_string());
-                let json_body_res = serde_json::from_str(&raw_body);
-                let json_body = json_body_res.unwrap_or(Value::Object(serde_json::Map::new()));
-
-                let assert_object = RequestAndResponse {
-                    req: request_config,
-                    resp: ResponseObject {
-                        status: status_code,
-                        headers: serde_json::json!(header_hashmap),
-                        json: json_body.clone(),
-                        raw: raw_body,
-                    },
-                };
-                step_result.request = assert_object.clone();
-
-                let assert_context: Value = serde_json::json!(&assert_object);
-                if test_item.dump.unwrap_or(false) {
-                    let dump_message = format!(
-                        "💡 DUMP jsonpath request response context:\n {}",
-                        colored_json::to_colored_json_auto(&assert_context)
-                            .unwrap_or(assert_context.to_owned().to_string())
-                    );
-                    step_result.step_log.push_str(&dump_message);
-                    step_result.step_log.push_str("\n");
-                    if should_log {
-                        log::info!(target:"testkit","{}", dump_message)
-                    }
+            let mut request_builder = match &test_item.request.http_method {
+                HttpMethod::GET(u) => {
+                    url = format_url(&ctx, u, &exports_map);
+                    method = "GET".to_string();
+                    client.get(url.clone())
                 }
-                let assert_results = check_assertions(
-                    ctx,
-                    &(test_item.asserts.clone().unwrap_or(vec![])),
-                    assert_context,
-                    &exports_map,
-                    &mut step_result.step_log,
-                )
-                .await;
+                HttpMethod::POST(u) => {
+                    url = format_url(&ctx, u, &exports_map);
+                    method = "POST".to_string();
+                    client.post(url.clone())
+                }
+                HttpMethod::PUT(u) => {
+                    url = format_url(&ctx, u, &exports_map);
+                    method = "PUT".to_string();
+                    client.put(url.clone())
+                }
+                HttpMethod::DELETE(u) => {
+                    url = format_url(&ctx, u, &exports_map);
+                    method = "DELETE".to_string();
+                    client.delete(url.clone())
+                }
+                HttpMethod::PATCH(u) => {
+                    url = format_url(&ctx, u, &exports_map);
+                    method = "PATCH".to_string();
+                    client.patch(url.clone())
+                }
+                HttpMethod::HEAD(u) => {
+                    url = format_url(&ctx, u, &exports_map);
+                    method = "HEAD".to_string();
+                    client.head(url.clone())
+                }
+            };
 
-                if let Some(exports) = &test_item.exports {
-                    for (key, value) in exports.into_iter() {
-                        if value.starts_with("$.res.header.") {
-                            let header = value.replace("$.res.header.", "");
-                            let header_val = header_hashmap.get(&header);
-                            if let Some(header_val) = header_val {
-                                exports_map.insert(
-                                    format!("{}", key.to_string()),
-                                    Value::String(header_val.join("")),
-                                );
-                            }
-                            continue;
-                        }
-                        if value.starts_with("$.res.status.") {
-                            exports_map.insert(
-                                format!("{}", key.to_string()),
-                                Value::Number(status_code.clone().into()),
-                            );
-                            continue;
-                        }
-                        let json_bod = &serde_json::json!(assert_object);
-                        let export = select(json_bod, &value);
-                        match export {
-                            Ok(v) => {
-                                if let Some(evaled) = v.first() {
-                                    exports_map.insert(
-                                        format!("{}", key.to_string()),
-                                        evaled.clone().clone(),
-                                    );
-                                }
-                            }
+            let request_line = format!(
+                "{} {} ⬅ {}/{}",
+                method,
+                url,
+                ctx.plan.clone().unwrap_or("_plan".into()),
+                ctx.step.clone().unwrap_or(ctx.step_index.to_string())
+            );
+            step_result.step_log.push_str(&request_line);
+            step_result.step_log.push_str("\n");
+            if should_log {
+                log::info!(target:"testkit", "");
+                log::info!(target:"testkit", "{}", request_line.to_string());
+            }
+            request_builder = request_builder.header("X-Testkit-Run", "true");
+
+            if let Some(v) = test_item.request.params.clone() {
+                let mut params = vec![];
+                for (name, value) in v {
+                    params.push((
+                        replace_vars(name.as_str(), &exports_map),
+                        replace_vars(value.as_str(), &exports_map),
+                    ));
+                }
+                request_builder = request_builder.query(&params);
+            }
+
+            if let Some(col) = &col_id {
+                request_builder = request_builder.header("X-Testkit-Collection-ID", col);
+            }
+
+            if let Some(headers) = &test_item.request.headers {
+                for (name, value) in headers {
+                    let mut value = value.clone();
+                    for env_var in get_env_variable_paths(&value) {
+                        match get_env_variable(&env_var) {
+                            Ok(val) => value = value.replace(&env_var, &val),
                             Err(err) => {
-                                let error_message = format!("Error getting export value: {}", err);
+                                let error_message = format!(
+                                    "Error getting environment variable {}: {}",
+                                    env_var, err
+                                );
                                 step_result.step_log.push_str(&error_message);
                                 step_result.step_log.push_str("\n");
                                 if should_log {
@@ -486,10 +365,178 @@ pub async fn base_request(
                             }
                         }
                     }
+
+                    for export_var in get_vars(&value) {
+                        match exports_map
+                            .clone()
+                            .get(&export_var.replace("{{", "").replace("}}", ""))
+                        {
+                            Some(val) => value = value.replace(&export_var, &val.to_string()),
+                            None => {
+                                let error_message =
+                                    format!("Error getting local/export variable: {}", export_var);
+                                step_result.step_log.push_str(&error_message);
+                                step_result.step_log.push_str("\n");
+                                if should_log {
+                                    log::error!(target:"testkit","{}", error_message)
+                                }
+                            }
+                        }
+                    }
+
+                    request_builder = request_builder.header(name, value);
                 }
-                step_result.assert_results = assert_results;
-                results.push(step_result);
             }
+
+            if let Some(json) = &test_item.request.json {
+                let js_string = match json {
+                    Value::String(s) => s.clone(),
+                    _ => json.to_string(),
+                };
+                let j_string =
+                    prepare_json_body(js_string, &exports_map, &mut step_result, should_log);
+                request_builder = request_builder.header("Content-Type", "application/json");
+                let clean_json: Result<Value, serde_json::Error> = serde_json::from_str(&j_string);
+                if let Ok(json) = &clean_json {
+                    request_builder = request_builder.json(json);
+                }
+                if let Err(err) = clean_json {
+                    let error_message = format!("Error parsing json: {}", err);
+                    step_result.step_log.push_str(&error_message);
+                    step_result.step_log.push_str("\n");
+                    if should_log {
+                        log::error!(target:"testkit","{}", error_message)
+                    }
+                }
+            } else if let Some(b) = &test_item.request.request_body {
+                let mut body = b.clone();
+                for (key, val) in body.clone().iter() {
+                    body.insert(key.clone(), replace_vars(val, &exports_map));
+                }
+                request_builder = request_builder.body(serde_json::to_string(&body)?);
+            }
+
+            let mut request_config = test_item.request.clone();
+            if let Some(col) = &col_id {
+                let mut headers = request_config.headers.clone().unwrap_or_default();
+                headers.insert("X-Testkit-Collection-ID".into(), col.clone());
+                request_config.headers = Some(headers);
+            }
+
+            let response = request_builder.send().await;
+
+            match response {
+                Err(err) => {
+                    let error_message = format!("Error sending request: {}", err);
+                    step_result.step_log.push_str(&error_message);
+                    step_result.step_log.push_str("\n");
+                    if should_log {
+                        log::error!(target:"testkit","{}", error_message)
+                    }
+                    step_result.step_error = Some(error_message);
+
+                    results.push(step_result);
+                }
+                Ok(response) => {
+                    let status_code = response.status().as_u16();
+                    let header_hashmap = header_map_to_hashmap(response.headers());
+
+                    let raw_body_res = response.text().await;
+                    let raw_body = raw_body_res.unwrap_or("{}".to_string());
+                    let json_body_res = serde_json::from_str(&raw_body);
+                    let json_body = json_body_res.unwrap_or(Value::Object(serde_json::Map::new()));
+
+                    let assert_object = RequestAndResponse {
+                        req: request_config,
+                        resp: ResponseObject {
+                            status: status_code,
+                            headers: serde_json::json!(header_hashmap),
+                            json: json_body.clone(),
+                            raw: raw_body,
+                        },
+                    };
+                    step_result.request = assert_object.clone();
+
+                    let assert_context: Value = serde_json::json!(&assert_object);
+                    if test_item.dump.unwrap_or(false) {
+                        let dump_message = format!(
+                            "💡 DUMP jsonpath request response context:\n {}",
+                            colored_json::to_colored_json_auto(&assert_context)
+                                .unwrap_or(assert_context.to_owned().to_string())
+                        );
+                        step_result.step_log.push_str(&dump_message);
+                        step_result.step_log.push_str("\n");
+                        if should_log {
+                            log::info!(target:"testkit","{}", dump_message)
+                        }
+                    }
+                    let assert_results = check_assertions(
+                        ctx,
+                        &(test_item.asserts.clone().unwrap_or(vec![])),
+                        assert_context,
+                        &exports_map,
+                        &mut step_result.step_log,
+                    )
+                    .await;
+
+                    if let Some(exports) = &test_item.exports {
+                        for (key, value) in exports.into_iter() {
+                            if value.starts_with("$.res.header.") {
+                                let header = value.replace("$.res.header.", "");
+                                let header_val = header_hashmap.get(&header);
+                                if let Some(header_val) = header_val {
+                                    exports_map.insert(
+                                        format!("{}", key.to_string()),
+                                        Value::String(header_val.join("")),
+                                    );
+                                }
+                                continue;
+                            }
+                            if value.starts_with("$.res.status.") {
+                                exports_map.insert(
+                                    format!("{}", key.to_string()),
+                                    Value::Number(status_code.clone().into()),
+                                );
+                                continue;
+                            }
+                            let json_bod = &serde_json::json!(assert_object);
+                            let export = select(json_bod, &value);
+                            match export {
+                                Ok(v) => {
+                                    if let Some(evaled) = v.first() {
+                                        exports_map.insert(
+                                            format!("{}", key.to_string()),
+                                            evaled.clone().clone(),
+                                        );
+                                    }
+                                }
+                                Err(err) => {
+                                    let error_message =
+                                        format!("Error getting export value: {}", err);
+                                    step_result.step_log.push_str(&error_message);
+                                    step_result.step_log.push_str("\n");
+                                    if should_log {
+                                        log::error!(target:"testkit","{}", error_message)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    step_result.assert_results = assert_results;
+                    results.push(step_result);
+                }
+            }
+        } else {
+            step_result.step_log = "Error building request client".to_string();
+            for _ in test_item.asserts.iter() {
+                step_result.assert_results.push(Err(AssertionError {
+                    advice: Some("request failed to initialize".to_string()),
+                    src: NamedSource::new("", "".to_string()),
+                    bad_bit: (0, 0).into(),
+                }));
+            }
+            results.push(step_result);
+            continue;
         }
     }
     Ok(results)
